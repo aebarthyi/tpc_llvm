@@ -101,6 +101,8 @@ LibHandle LoadLib(const char* path);
 FnHandle GetLibFunction(LibHandle handle, const char* name);
 #endif
 
+class Pass;
+
 /// Create a legacy pass manager instance of a pass to link
 /// TPC headers.
 Pass *createLinkTPCHeadersLegacyPass();

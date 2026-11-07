@@ -79,6 +79,7 @@
 #include <deque>
 #include <iterator>
 #include <list>
+#include <map>
 #include <memory>
 
 using namespace llvm;

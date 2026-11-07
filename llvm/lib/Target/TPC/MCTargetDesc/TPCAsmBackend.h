@@ -13,7 +13,7 @@
 #include "MCTargetDesc/TPCMCTargetDesc.h"
 #include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/MC/TargetRegistry.h"
 
 namespace llvm {
 
@@ -44,7 +44,8 @@ public:
   bool mayNeedRelaxation(const MCInst &Inst, const MCSubtargetInfo &STI) const override;
   bool fixupNeedsRelaxation(const MCFixup& Fixup, uint64_t Value, const MCRelaxableFragment* DF,
                             const MCAsmLayout& Layout) const override;
-  bool writeNopData(raw_ostream &OS, uint64_t Count) const override;
+  bool writeNopData(raw_ostream &OS, uint64_t Count,
+                    const MCSubtargetInfo *STI) const override;
   const MCFixupKindInfo &getFixupKindInfo(MCFixupKind Kind) const override;
 };
 } // end namespace llvm

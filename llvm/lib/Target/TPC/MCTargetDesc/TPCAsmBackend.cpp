@@ -131,7 +131,8 @@ bool TPCAsmBackend::fixupNeedsRelaxation(const MCFixup& Fixup, uint64_t Value, c
   return false;
 }
 
-bool TPCAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count) const {
+bool TPCAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count,
+                                 const MCSubtargetInfo *STI) const {
   //This should not be called, nops are inserted into bundles
   return true;
 }

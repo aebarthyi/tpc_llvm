@@ -1020,7 +1020,7 @@ bool TPCTargetLowering::getPostIndexedAddressParts(SDNode *N, SDNode *Op,
 }
 
 bool TPCTargetLowering::canMergeStoresTo(unsigned AS, EVT MemVT,
-                                         const SelectionDAG &DAG) const {
+                                         const MachineFunction &MF) const {
   // On TPC only stores into global address space can be merged.
   return AS == AddressSpace::GLOBAL && MemVT.getSizeInBits() <= 4;
 }

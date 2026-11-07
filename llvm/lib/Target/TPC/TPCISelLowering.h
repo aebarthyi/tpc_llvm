@@ -98,7 +98,7 @@ namespace llvm {
     bool getPostIndexedAddressParts(SDNode *N, SDNode *Op, SDValue &Base,
                                     SDValue &Offset, ISD::MemIndexedMode &AM,
                                     SelectionDAG &DAG) const override;
-    bool canMergeStoresTo(unsigned AS, EVT MemVT, const SelectionDAG &DAG) const override;
+    bool canMergeStoresTo(unsigned AS, EVT MemVT, const MachineFunction &MF) const override;
 
     SDValue lowerMUL(SDValue Op, SelectionDAG &DAG) const;
     SDValue lowerMULHU(SDValue Op, SelectionDAG &DAG) const;

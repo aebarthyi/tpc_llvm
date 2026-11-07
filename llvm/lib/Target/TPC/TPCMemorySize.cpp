@@ -97,7 +97,7 @@ void TPCMemorySize::setMemorySize(const Module &M) {
     Msg << "too much scalar memory is used for statically allocated data: "
         << ScalarSz << " is allocated, but only " << MaxScalarSz << " is available\n";
     if (!IgnoreMemOverflow) {
-      report_fatal_error(Msg.str(), false);
+      report_fatal_error(Twine(Msg.str()), false);
     } else {
       errs() << "Warning: " << Msg.str();
     }
@@ -108,7 +108,7 @@ void TPCMemorySize::setMemorySize(const Module &M) {
     Msg << "too much vector memory is used for statically allocated data: "
         << VectorSz << " is allocated, but only " << MaxVectorSz << " is available\n";
     if (!IgnoreMemOverflow) {
-      report_fatal_error(Msg.str(), false);
+      report_fatal_error(Twine(Msg.str()), false);
     } else {
       errs() << "Warning: " << Msg.str();
     }

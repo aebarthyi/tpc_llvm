@@ -24,6 +24,10 @@
 #include "llvm/InitializePasses.h"
 #include "llvm/IR/Dominators.h"
 
+// Dominators.h leaves DEBUG_TYPE undefined.
+#undef DEBUG_TYPE
+#define DEBUG_TYPE "tpccostmodel"
+
 using namespace llvm;
 
 namespace llvm {

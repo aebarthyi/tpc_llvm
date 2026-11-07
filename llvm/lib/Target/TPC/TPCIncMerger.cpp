@@ -793,8 +793,8 @@ bool TPCIncMerger::foldIndexIncrementInScalarOp(const FoldableOperation &Op) {
     Switches |= IncSwitches;
     SwitchesOp.setImm(Switches);
     addIncrementedADRFDef(Prefetch, N_Addr_in_PREFETCH, GenAddr2.getOperand(0), MRI);
-    GenAddr2.eraseFromParentAndMarkDBGValuesForRemoval();
-    Increment.eraseFromParentAndMarkDBGValuesForRemoval();
+    GenAddr2.eraseFromParent();
+    Increment.eraseFromParent();
     return true;
   }
 
@@ -854,8 +854,8 @@ bool TPCIncMerger::foldIndexIncrementInScalarOp(const FoldableOperation &Op) {
     else
       ADRFOpNo = N_Addr_in_LD_GI;
     addIncrementedADRFDef(Load, ADRFOpNo, GenAddr2.getOperand(0), MRI);
-    GenAddr2.eraseFromParentAndMarkDBGValuesForRemoval();
-    Increment.eraseFromParentAndMarkDBGValuesForRemoval();
+    GenAddr2.eraseFromParent();
+    Increment.eraseFromParent();
     return true;
   }
 
@@ -893,8 +893,8 @@ bool TPCIncMerger::foldIndexIncrementInScalarOp(const FoldableOperation &Op) {
     Switches |= IncSwitches;
     SwitchesOp.setImm(Switches);
     addIncrementedADRFDef(Store, N_Addr_in_ST_G, GenAddr2.getOperand(0), MRI);
-    GenAddr2.eraseFromParentAndMarkDBGValuesForRemoval();
-    Increment.eraseFromParentAndMarkDBGValuesForRemoval();
+    GenAddr2.eraseFromParent();
+    Increment.eraseFromParent();
     return true;
   }
 
@@ -945,7 +945,7 @@ static bool foldIndexIncrement(const FoldableOperation &Op,
     }
     MRI->replaceRegWith(Increment.getOperand(0).getReg(), IncrementedIRF);
     Coords.setIsKill();
-    Increment.eraseFromParentAndMarkDBGValuesForRemoval();
+    Increment.eraseFromParent();
     return true;
   }
 

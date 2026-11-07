@@ -29,7 +29,7 @@ struct AttributeAdjuster : public FunctionPass {
   /// Shared by the legacy and new pass manager entry points.
   static bool runImpl(Function &F) {
     if (F.hasFnAttribute(Attribute::OptimizeNone)) {
-      F.removeAttribute(AttributeList::FunctionIndex, Attribute::OptimizeNone);
+      F.removeFnAttr(Attribute::OptimizeNone);
       return true;
     }
     return false;

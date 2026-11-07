@@ -31,7 +31,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Target/TPCMetadataSection.h"
 #include "llvm/Target/TPCKernelInfo.h"
 #include "TPCAsmInstCompress.h"

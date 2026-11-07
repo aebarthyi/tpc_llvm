@@ -378,7 +378,7 @@ InstructionCost TPCTTIImpl::getInstructionLatency(const Instruction *I) {
 
   // Handle intrinsics using the dedicated API
   if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(I)) {
-    SmallVector<Value *, 4> Args(II->arg_operands());
+    SmallVector<Value *, 4> Args(II->args());
     FastMathFlags FMF;
     return getIntrinsicInstrCost(II->getIntrinsicID(), II->getType(), Args,
                                  FMF);

@@ -87,7 +87,7 @@ bool TPCRegisterCounter::runOnMachineFunction(MachineFunction &MF) {
       std::ostringstream Msg;
       Msg << "Too much vector memory is used for vector spills: "
           << SpillVectorSz << " is used, but only " << MaxSpillVlm << " is available\n";
-      report_fatal_error(Msg.str(), false);
+      report_fatal_error(Twine(Msg.str()), false);
     }
   }
 

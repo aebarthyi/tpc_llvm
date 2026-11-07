@@ -2,7 +2,7 @@
 #include "TPCSubtarget.h"
 #include "TPCTargetMachine.h"
 #include "TPCMachineScheduler.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/CodeGen/ScheduleDAGInstrs.h"
 

@@ -675,7 +675,7 @@ public:
 static inline unsigned getTypeVal(Type *Ty) {
   Type::TypeID ID = Ty->getScalarType()->getTypeID();
   unsigned VecLen =
-      Ty->isVectorTy() ? dyn_cast<VectorType>(Ty)->getElementCount().getValue() : 0;
+      Ty->isVectorTy() ? dyn_cast<VectorType>(Ty)->getElementCount().getKnownMinValue() : 0;
   unsigned BitW = ID == Type::IntegerTyID ? Ty->getScalarSizeInBits() : 0;
   return TypeKey(ID, VecLen, BitW);
 }
@@ -689,7 +689,7 @@ LinkTPCHeadersImpl::getIntrinsicKey(const IntrinsicInst &II) {
   IntrinsicKey Key;
   Key.IntrinsicID = II.getIntrinsicID();
   Key.ResTyKey = getTypeVal(II.getType());
-  for (Value *Arg : II.arg_operands())
+  for (Value *Arg : II.args())
     Key.ArgsTyKeys.push_back(getTypeVal(Arg->getType()));
   Key.Arch = It->second;
   return Key;

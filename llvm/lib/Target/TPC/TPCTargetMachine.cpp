@@ -6,7 +6,7 @@
 #include "TPCMachineScheduler.h"
 #include "TPCTargetTransformInfo.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/LegacyPassManager.h"
@@ -336,9 +336,9 @@ public:
     addPass(createTPCExpandHWRegCopies());
     // We have to use optimizing RA even for -O0.
     addPass(createTPCExpandHWRegCopies());
-    addPass(&LiveVariablesID, false);
-    addPass(&PHIEliminationID, false);
-    addPass(&TwoAddressInstructionPassID, false);
+    addPass(&LiveVariablesID);
+    addPass(&PHIEliminationID);
+    addPass(&TwoAddressInstructionPassID);
     addPass(&RegisterCoalescerID);
 
     // Add the selected register allocation pass.
@@ -400,8 +400,6 @@ void TPCTargetMachine::registerDefaultAliasAnalyses(AAManager &AAM) {
 }
 
 void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
-  using OptimizationLevel = PassBuilder::OptimizationLevel;
-
   PB.registerAnalysisRegistrationCallback([](FunctionAnalysisManager &FAM) {
     FAM.registerPass([] { return TPCAA(); });
   });
@@ -484,7 +482,7 @@ void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
         if (Level != OptimizationLevel::O0) {
           FPM.addPass(SimplifyCFGPass());
           FPM.addPass(TPCTransformIntrinPass());
-          FPM.addPass(SROA());
+          FPM.addPass(SROAPass());
           FPM.addPass(TPCScalarToIRFPass(getSubtarget()->hasGen3Plus()));
         }
         MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
@@ -503,7 +501,7 @@ void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
         MPM.addPass(GlobalOptPass());
         FunctionPassManager FPM;
         FPM.addPass(ADCEPass());
-        FPM.addPass(SROA());
+        FPM.addPass(SROAPass());
         FPM.addPass(TPCEliminateRedundantLinearityPass(
             getEliminateRedundantLinearityConfig()));
         MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
@@ -574,25 +572,25 @@ void TPCPassConfig::addMachineSSAOptimization() {
 void TPCPassConfig::addPreEmitPass() {
   bool NoOpt = (getOptLevel() == CodeGenOpt::None);
 
-  addPass(createTPCLutCacheCounter(), false);
+  addPass(createTPCLutCacheCounter());
   // Create Packets.
 #if !defined(TPC_DISABLE_PACKETIZER) && !defined(TPC_DISABLE_ALL_SCHED)
   if (!NoOpt) {
-    addPass(createTPCPacketizer(), false);
+    addPass(createTPCPacketizer());
   }
 #endif
    addPass(createTPCUnHardwareLoops());
 #if !defined(TPC_DISABLE_NOP_INSERTER) && !defined(TPC_DISABLE_ALL_SCHED)
-  addPass(createTPCLatencyResolver(), false);
+  addPass(createTPCLatencyResolver());
   if (getTM<TPCTargetMachine>().getSubtarget()->isPriorDoron1())
-    addPass(createTPCPipelineRegs(), false);
-  addPass(createTPCCostModelEmitter(), false);
+    addPass(createTPCPipelineRegs());
+  addPass(createTPCCostModelEmitter());
   if (getTM<TPCTargetMachine>().getSubtarget()->hasGen4Plus())
-    addPass(createEventProfilerInject(), false);
+    addPass(createEventProfilerInject());
 #endif
-  addPass(createTPCInstrCompress(), false);
-  addPass(createTPCRegisterCounter(), false);
-  addPass(createTPCElfSpecSet(), false);
+  addPass(createTPCInstrCompress());
+  addPass(createTPCRegisterCounter());
+  addPass(createTPCElfSpecSet());
 }
 
 bool TPCPassConfig::addPreISel() {
@@ -629,8 +627,8 @@ void TPCPassConfig::addPreRegAlloc() {
 #endif
     addPass(createTPCRegisterBalancer());
     addPass(&DeadMachineInstructionElimID);
-    addPass(createTPCHardwareLoops(), false);
-    addPass(createTPCPipeliner(), false);
+    addPass(createTPCHardwareLoops());
+    addPass(createTPCPipeliner());
     addPass(&DeadMachineInstructionElimID);
     addPass(createTPCSubregInitElimination());
     // TODO: some kernels fail because of this pass
@@ -644,5 +642,5 @@ void TPCPassConfig::addPreRegAlloc() {
 }
 
 void TPCPassConfig::addPreSched2()  {
-  addPass(createTPCSetSpillBase(), false);
+  addPass(createTPCSetSpillBase());
 }

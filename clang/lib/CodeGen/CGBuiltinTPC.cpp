@@ -379,7 +379,7 @@ static llvm::Value *emitPredicate(CodeGenFunction *CGF, const Expr *Pred) {
     assert(Pred->getType()->getAs<clang::VectorType>()->getElementType()->isCharType());
     llvm::Value *V = CGF->EmitScalarExpr(Pred);
     assert(cast<llvm::FixedVectorType>(V->getType())->getElementType()->getIntegerBitWidth() == 1);
-    if (cast<llvm::FixedVectorType>(V->getType())->getElementCount().getValue() == 256)
+    if (cast<llvm::FixedVectorType>(V->getType())->getNumElements() == 256)
       return V;
     static llvm::Type *VectorPredicateType =
       llvm::FixedVectorType::get(llvm::Type::getInt1Ty(CGF->getLLVMContext()), 256);
@@ -2264,7 +2264,7 @@ static Value *emit_LD_L(CodeGenFunction *CGF, unsigned BuiltinID,
   }
   if (isGetSemaphore) {
     Callee->setSpeculatable();
-    Callee->removeAttribute(AttributeList::FunctionIndex, Attribute::ReadOnly);
+    Callee->removeFnAttr(Attribute::ReadOnly);
   }
 
   return CGF->Builder.CreateCall(Callee,

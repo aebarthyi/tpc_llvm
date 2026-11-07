@@ -555,11 +555,11 @@ bool TPCSelectorPreshaperLegacyPass::runOnFunction(Function &Func) {
             IRBuilder<> Builder(Store);
             auto *V1 = ConstantInt::get(I32Type, Val & 0x0FFFFFFFFUL);
             auto Addr1 = Builder.CreateBitCast(Store->getPointerOperand(), I32PtrType);
-            Builder.CreateAlignedStore(V1, Addr1, Align(std::min(Store->getAlignment(), 4U)), Store->isVolatile());
+            Builder.CreateAlignedStore(V1, Addr1, std::min(Store->getAlign(), Align(4)), Store->isVolatile());
             auto Ndx = ConstantInt::get(I32Type, 1);
-            auto Addr2 = Builder.CreateGEP(Addr1, Ndx);
+            auto Addr2 = Builder.CreateGEP(I32Type, Addr1, Ndx);
             auto *V2 = ConstantInt::get(I32Type, Val >> 32);
-            Builder.CreateAlignedStore(V2, Addr2, Align(std::min(Store->getAlignment(), 4U)), Store->isVolatile());
+            Builder.CreateAlignedStore(V2, Addr2, std::min(Store->getAlign(), Align(4)), Store->isVolatile());
             Store->eraseFromParent();
           }
           else {
@@ -572,13 +572,13 @@ bool TPCSelectorPreshaperLegacyPass::runOnFunction(Function &Func) {
 
             // Changing i64 load to two i32 loads
             auto LoadAddrHi = LDBuilder.CreateBitCast(InitialAddr, I32PtrType);
-            auto LoadHi = LDBuilder.CreateAlignedLoad(LoadAddrHi,
-              Align(std::min(Load->getAlignment(), 4U)),
+            auto LoadHi = LDBuilder.CreateAlignedLoad(I32Type, LoadAddrHi,
+              std::min(Load->getAlign(), Align(4)),
               Load->isVolatile());
             auto Ndx = ConstantInt::get(I32Type, 1);
-            auto LoadAddrLo = LDBuilder.CreateGEP(LoadAddrHi, Ndx);
-            auto LoadLo = LDBuilder.CreateAlignedLoad(LoadAddrLo,
-              Align(std::min(Load->getAlignment(), 4U)),
+            auto LoadAddrLo = LDBuilder.CreateGEP(I32Type, LoadAddrHi, Ndx);
+            auto LoadLo = LDBuilder.CreateAlignedLoad(I32Type, LoadAddrLo,
+              std::min(Load->getAlign(), Align(4)),
               Load->isVolatile());
 
             auto StoreAddr = Store->getPointerOperand();
@@ -588,10 +588,10 @@ bool TPCSelectorPreshaperLegacyPass::runOnFunction(Function &Func) {
 
             auto StoreAddrHi = STBuilder.CreateBitCast(StoreAddr, I32PtrType);
             STBuilder.CreateAlignedStore(LoadHi, StoreAddrHi,
-              Align(std::min(Store->getAlignment(), 4U)), Store->isVolatile());
-            auto StoreAddrLo = STBuilder.CreateGEP(StoreAddrHi, Ndx);
+              std::min(Store->getAlign(), Align(4)), Store->isVolatile());
+            auto StoreAddrLo = STBuilder.CreateGEP(I32Type, StoreAddrHi, Ndx);
             STBuilder.CreateAlignedStore(LoadLo, StoreAddrLo,
-              Align(std::min(Store->getAlignment(), 4U)), Store->isVolatile());
+              std::min(Store->getAlign(), Align(4)), Store->isVolatile());
             for (auto Usr : Load->users()) {
               if (auto *BitCast = dyn_cast<BitCastInst>(Usr)) {
                 Type *DT = BitCast->getSrcTy();
@@ -1078,7 +1078,7 @@ bool TPCSelectorPreshaperLegacyPass::runOnFunction(Function &Func) {
           }
 
           AttributeList Fa = Func.getAttributes();
-          if (Fa.hasFnAttribute("target-cpu")) {
+          if (Fa.hasFnAttr("target-cpu")) {
             auto as= Fa.begin();
             Attribute  tac = as->getAttribute("target-cpu");
             auto savl = tac.getValueAsString();

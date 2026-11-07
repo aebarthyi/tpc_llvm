@@ -163,7 +163,7 @@ unsigned TPCFrameLowering::getSpillObject(int FrameIndex,
   if (TopFrame > MemLimit) {
     StringRef Msg = UsesVLM ? "Too many vector spills\n" : "Too many scalar spills\n";
     if (!IgnoreMemOverflow) {
-      report_fatal_error(Msg.str(), false);
+      report_fatal_error(Msg, false);
     } else {
       errs() << "Warning: " << Msg.str();
     }
