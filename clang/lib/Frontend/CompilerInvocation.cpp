@@ -1542,6 +1542,35 @@ void CompilerInvocation::GenerateCodeGenArgs(
     GenerateArg(Args, OPT_fno_finite_loops, SA);
     break;
   }
+
+#ifdef LLVM_TPC_COMPILER
+  // Mirror of the TPC block in ParseCodeGenArgs. Each option is generated when
+  // its field differs from what parsing yields without it.
+  if (Opts.VectorLocalMemory != 0)
+    GenerateArg(Args, OPT_vector_local_memory, Twine(Opts.VectorLocalMemory / 1024), SA);
+  if (Opts.ScalarLocalMemory != 1024)
+    GenerateArg(Args, OPT_scalar_local_memory, Twine(Opts.ScalarLocalMemory / 1024), SA);
+  if (Opts.SpillVlm != 0)
+    GenerateArg(Args, OPT_spill_vlm, Twine(Opts.SpillVlm / 1024), SA);
+  if (Opts.MarkAsUsingPrintf)
+    GenerateArg(Args, OPT_use_printf_in_module, SA);
+  if (Opts.AllLoopsTaken)
+    GenerateArg(Args, OPT_all_loops_taken, SA);
+  if (Opts.RegMemCount)
+    GenerateArg(Args, OPT_reg_mem_count, SA);
+  if (!Opts.LutWarn)
+    GenerateArg(Args, OPT_disable_lut_warn, SA);
+  if (!Opts.CompressInstructions)
+    GenerateArg(Args, OPT_no_instr_compress, SA);
+  if (Opts.LongIRF)
+    GenerateArg(Args, OPT_long_irf, SA);
+  if (Opts.TpcDnorm)
+    GenerateArg(Args, OPT_tpc_dnorm, SA);
+  if (Opts.MaxTensor != 16)
+    GenerateArg(Args, OPT_max_tensors, Twine(Opts.MaxTensor), SA);
+  if (Opts.CompileForLibrary)
+    GenerateArg(Args, OPT_tpc_library, SA);
+#endif
 }
 
 bool CompilerInvocation::ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args,
@@ -3566,6 +3595,29 @@ void CompilerInvocation::GenerateLangArgs(const LangOptions &Opts,
 
   for (const auto &MP : Opts.MacroPrefixMap)
     GenerateArg(Args, OPT_fmacro_prefix_map_EQ, MP.first + "=" + MP.second, SA);
+
+#ifdef LLVM_TPC_COMPILER
+  // Mirror of the TPC block at the end of ParseLangArgs. ('$' in identifiers
+  // round-trips through the marshalled -f[no-]dollars-in-identifiers.)
+  if (Opts.MainFunction != "main")
+    GenerateArg(Args, OPT_main_function, Opts.MainFunction, SA);
+  if (Opts.NumTensors != 8)
+    GenerateArg(Args, OPT_max_tensors, Twine(Opts.NumTensors), SA);
+  if (Opts.SlmMaxSize != 1024)
+    GenerateArg(Args, OPT_scalar_local_memory, Twine(Opts.SlmMaxSize), SA);
+  if (Opts.VlmMaxSize != 80 * 1024)
+    GenerateArg(Args, OPT_vector_local_memory, Twine(Opts.VlmMaxSize), SA);
+  if (Opts.BFloat16)
+    GenerateArg(Args, OPT_bfloat16, SA);
+  if (Opts.Float8)
+    GenerateArg(Args, OPT_float8, SA);
+  if (Opts.LongIRF)
+    GenerateArg(Args, OPT_long_irf, SA);
+  if (Opts.UsePrintf)
+    GenerateArg(Args, OPT_use_printf_in_module, SA);
+  if (Opts.CompileForLibrary)
+    GenerateArg(Args, OPT_tpc_library, SA);
+#endif
 }
 
 bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
@@ -4452,49 +4504,6 @@ bool CompilerInvocation::CreateFromArgsImpl(
   if (Res.getFrontendOpts().ProgramAction == frontend::RewriteObjC)
     LangOpts.ObjCExceptions = 1;
 
-#ifdef LLVM_TPC_COMPILER
-  if (T.getArch() == llvm::Triple::tpc)
-    llvm::TPCCompilerArguments.append(
-        llvm::makeTPCCompilerArgumentsString(CommandLineArgs));
-
-  if (LangOpts.RC99) {
-    std::shared_ptr<PreprocessorOptions> PPOpts = Res.getPreprocessorOptsPtr();
-    bool IncludeTpcSpecial = Args.hasArg(OPT_tpc_special);
-    if (!Args.hasArg(OPT_no_tpc_defs)) {
-      ArrayRef<EmbeddedFile> EmbeddedFiles = getEmbeddedFiles();
-      for (const EmbeddedFile &F : EmbeddedFiles) {
-        PPOpts->Includes.push_back(F.Name.str());
-        auto P = std::make_pair(F.Name.str(), F.Content);
-        PPOpts->RemappedFileBuffers.push_back(P);
-      }
-    } else
-      IncludeTpcSpecial = true;
-    if (IncludeTpcSpecial)
-      PPOpts->addMacroDef("INCLUDE_TPC_SPECIAL_H");
-
-    if (Res.getTargetOpts().CPU == "gaudi") {
-      LangOpts.BFloat16 = 1;
-    }
-    if (Res.getTargetOpts().CPU == "goya2" ||
-        Res.getTargetOpts().CPU == "greco" ||
-        Res.getTargetOpts().CPU == "gaudib") {
-      LangOpts.BFloat16 = 1;
-      LangOpts.Half = 1;
-      LangOpts.HalfArgsAndReturns = 1;
-      LangOpts.NativeHalfArgsAndReturns = 1;
-      LangOpts.NativeHalfType = 1;
-    }
-    if (Res.getTargetOpts().CPU == "gaudi2" ||
-        Res.getTargetOpts().CPU == "doron1") {
-      LangOpts.BFloat16 = 1;
-      LangOpts.Float8 = 1;
-      LangOpts.Half = 1;
-      LangOpts.HalfArgsAndReturns = 1;
-      LangOpts.NativeHalfArgsAndReturns = 1;
-      LangOpts.NativeHalfType = 1;
-    }
-  }
-#endif
 
   if (LangOpts.CUDA) {
     // During CUDA device-side compilation, the aux triple is the
@@ -4548,13 +4557,72 @@ bool CompilerInvocation::CreateFromArgsImpl(
   return Diags.getNumErrors() == NumErrorsBefore;
 }
 
+#ifdef LLVM_TPC_COMPILER
+/// TPC settings derived from the parsed invocation: the command line recorded
+/// in the .tpc_compiler section, the implicit builtin headers, and per-CPU
+/// language features. Applied once to the final invocation after argument
+/// round-tripping, so derived values are neither regenerated into the command
+/// line nor applied twice.
+static void applyTPCDefaults(CompilerInvocation &Res,
+                             ArrayRef<const char *> CommandLineArgs) {
+  const llvm::Triple T(Res.getTargetOpts().Triple);
+  LangOptions &LangOpts = *Res.getLangOpts();
+  unsigned MissingArgIndex, MissingArgCount;
+  InputArgList Args = getDriverOptTable().ParseArgs(
+      CommandLineArgs, MissingArgIndex, MissingArgCount, options::CC1Option);
+
+  if (T.getArch() == llvm::Triple::tpc)
+    llvm::TPCCompilerArguments.append(
+        llvm::makeTPCCompilerArgumentsString(CommandLineArgs));
+
+  if (LangOpts.RC99) {
+    std::shared_ptr<PreprocessorOptions> PPOpts = Res.getPreprocessorOptsPtr();
+    bool IncludeTpcSpecial = Args.hasArg(OPT_tpc_special);
+    if (!Args.hasArg(OPT_no_tpc_defs)) {
+      ArrayRef<CompilerInvocation::EmbeddedFile> EmbeddedFiles =
+          CompilerInvocation::getEmbeddedFiles();
+      for (const CompilerInvocation::EmbeddedFile &F : EmbeddedFiles) {
+        PPOpts->Includes.push_back(F.Name.str());
+        auto P = std::make_pair(F.Name.str(), F.Content);
+        PPOpts->RemappedFileBuffers.push_back(P);
+      }
+    } else
+      IncludeTpcSpecial = true;
+    if (IncludeTpcSpecial)
+      PPOpts->addMacroDef("INCLUDE_TPC_SPECIAL_H");
+
+    if (Res.getTargetOpts().CPU == "gaudi") {
+      LangOpts.BFloat16 = 1;
+    }
+    if (Res.getTargetOpts().CPU == "goya2" ||
+        Res.getTargetOpts().CPU == "greco" ||
+        Res.getTargetOpts().CPU == "gaudib") {
+      LangOpts.BFloat16 = 1;
+      LangOpts.Half = 1;
+      LangOpts.HalfArgsAndReturns = 1;
+      LangOpts.NativeHalfArgsAndReturns = 1;
+      LangOpts.NativeHalfType = 1;
+    }
+    if (Res.getTargetOpts().CPU == "gaudi2" ||
+        Res.getTargetOpts().CPU == "doron1") {
+      LangOpts.BFloat16 = 1;
+      LangOpts.Float8 = 1;
+      LangOpts.Half = 1;
+      LangOpts.HalfArgsAndReturns = 1;
+      LangOpts.NativeHalfArgsAndReturns = 1;
+      LangOpts.NativeHalfType = 1;
+    }
+  }
+}
+#endif
+
 bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Invocation,
                                         ArrayRef<const char *> CommandLineArgs,
                                         DiagnosticsEngine &Diags,
                                         const char *Argv0) {
   CompilerInvocation DummyInvocation;
 
-  return RoundTrip(
+  bool Success = RoundTrip(
       [](CompilerInvocation &Invocation, ArrayRef<const char *> CommandLineArgs,
          DiagnosticsEngine &Diags, const char *Argv0) {
         return CreateFromArgsImpl(Invocation, CommandLineArgs, Diags, Argv0);
@@ -4562,6 +4630,10 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Invocation,
       [](CompilerInvocation &Invocation, SmallVectorImpl<const char *> &Args,
          StringAllocator SA) { Invocation.generateCC1CommandLine(Args, SA); },
       Invocation, DummyInvocation, CommandLineArgs, Diags, Argv0);
+#ifdef LLVM_TPC_COMPILER
+  applyTPCDefaults(Invocation, CommandLineArgs);
+#endif
+  return Success;
 }
 
 std::string CompilerInvocation::getModuleHash() const {
