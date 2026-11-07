@@ -1339,6 +1339,9 @@ namespace llvm {
         if (NumElements == 32)  return MVT::v32bf16;
         if (NumElements == 64)  return MVT::v64bf16;
         if (NumElements == 128) return MVT::v128bf16;
+#ifdef LLVM_TPC_COMPILER
+        if (NumElements == 256) return MVT::v256bf16;
+#endif
         break;
       case MVT::f32:
         if (NumElements == 1)    return MVT::v1f32;
