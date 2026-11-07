@@ -2426,6 +2426,7 @@ bool TPCAsmParser::ParseDirective(AsmToken DirectiveID) {
         getTok() : DirectiveID;
   const char *MultipleDefErrorMessage = "Multi definition {0} is denied";
   bool ParseResult = true;
+  bool Handled = true;
   if (SectionNameToken.getString()
       .equals_insensitive(BinaryTPCMetadataSectionName)) {
     // Check TPC header exists
@@ -2451,7 +2452,13 @@ bool TPCAsmParser::ParseDirective(AsmToken DirectiveID) {
 
     Lexer.Lex();
     ParseResult = parseIndexMap();
+  } else {
+    Handled = false;
   }
+
+  // Not a TPC section: leave the directive to the generic parser.
+  if (!Handled)
+    return true;
 
   if (!ParseResult)
     Error(SectionNameToken.getLoc(),
@@ -2459,7 +2466,11 @@ bool TPCAsmParser::ParseDirective(AsmToken DirectiveID) {
                   SectionNameToken.getString()),
           SectionNameToken.getLocRange());
 
-  return ParseResult;
+  // The section was parsed (or an error reported), so the directive is ours.
+  // Skip what is left of the statement, as the generic parser used to.
+  if (!getLexer().isAtStartOfStatement())
+    getParser().eatToEndOfStatement();
+  return false;
 }
 
 

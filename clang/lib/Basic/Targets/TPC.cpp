@@ -87,6 +87,8 @@ TPCTargetInfo::TPCTargetInfo(const llvm::Triple &Triple, const TargetOptions &TO
   HasFloat128 = false;
   HasFloat16 = true;
   HasBFloat16 = true;
+  // Arithmetic on bfloat16 is native, not done in float.
+  HasFullBFloat16 = true;
   HasStrictFP = false;
 
   IntWidth = 32;

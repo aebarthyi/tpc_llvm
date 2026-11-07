@@ -1,17 +1,17 @@
-; RUN: opt -passes=instcombine -S %s -o - \
+; RUN: opt -passes=sroa -S %s -o - \
 ; RUN: | FileCheck %s --implicit-check-not="call void @llvm.dbg"
 
-;; Check that instcombine removes redundant debug intrinsics. This has a
-;; significant positive impact on peak memory. CTMark's tramp3d-v4's peak
-;; memory with assignment tracking enabled is reduced by about 15% with this
-;; change.
+;; Check that sroa removes redundant debug intrinsics after it makes a
+;; change. This has a significant positive impact on peak memory and compiler
+;; run time.
 
 ; CHECK: @llvm.dbg.assign(metadata i32 1
 
 define dso_local void @_Z3funv() local_unnamed_addr !dbg !7 {
 entry:
-   call void @llvm.dbg.assign(metadata i32 undef, metadata !11, metadata !DIExpression(), metadata !13, metadata ptr undef, metadata !DIExpression()), !dbg !14
-   call void @_Z3extv(), !dbg !15
+  %sroa-remove-me = alloca i32
+  call void @llvm.dbg.assign(metadata i32 undef, metadata !11, metadata !DIExpression(), metadata !13, metadata ptr undef, metadata !DIExpression()), !dbg !14
+  call void @_Z3extv(), !dbg !15
   call void @llvm.dbg.assign(metadata i32 0, metadata !11, metadata !DIExpression(), metadata !13, metadata ptr undef, metadata !DIExpression()), !dbg !14
   call void @llvm.dbg.assign(metadata i32 1, metadata !11, metadata !DIExpression(), metadata !13, metadata ptr undef, metadata !DIExpression()), !dbg !14
   ret void, !dbg !16

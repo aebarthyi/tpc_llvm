@@ -94,7 +94,7 @@ clang_type_codes = {
     "bf16": "y",
     "half": "h",
     "minifloat": "g",
-    "minihalf": "Q",
+    "minihalf": "k",  # not 'Q': clang uses it to start a target builtin type
 
     "int8_t": "c",
     "uint8_t": "Uc",
@@ -114,7 +114,7 @@ clang_type_codes = {
     "__global bf16 **": "y*3*",
     "__global half **": "h*3*",
     "__global minifloat **": "q*3*",
-    "__global minihalf **": "Q*3*",
+    "__global minihalf **": "k*3*",
     "__global int32_t **": "i*3*",
     "__global uint32_t **": "Ui*3*",
     "__global int16_t **": "s*3*",
@@ -141,7 +141,7 @@ clang_type_codes = {
     "nibble512": "E256c",
     "unibble512": "E256Uc",
     "minifloat256": "E256g",
-    "minihalf256": "E256Q",
+    "minihalf256": "E256k",
 
     "float128": 'r0',
     "float64_int64": 'r1',

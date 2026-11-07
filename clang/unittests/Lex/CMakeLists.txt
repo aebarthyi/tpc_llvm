@@ -21,7 +21,6 @@ add_clang_unittest(LexTests
 set(CLANG_LINK_LIBS
   clangAST
   clangBasic
-  clangFrontend
   clangLex
   clangParse
   clangSema
