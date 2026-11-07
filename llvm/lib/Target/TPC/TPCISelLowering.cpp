@@ -12417,9 +12417,11 @@ std::pair<SDValue, SDValue> TPCTargetLowering::MakeScalarDividePriorGen4(
     Step -= StepWidth;
   }
 
-  SDValue DivideResult = DAG.getTargetExtractSubreg(TPC::sub_s1, DL, MVT::i32,
+  // Extract with the operation's type: custom lowering must return the type
+  // of the node it replaces (asserted since LLVM 13). SRF holds i8/i16/i32.
+  SDValue DivideResult = DAG.getTargetExtractSubreg(TPC::sub_s1, DL, Type,
                                                     Income);
-  SDValue RemainResult = DAG.getTargetExtractSubreg(TPC::sub_s0, DL, MVT::i32,
+  SDValue RemainResult = DAG.getTargetExtractSubreg(TPC::sub_s0, DL, Type,
                                                     Income);
   if (IsSigned) {
     SDValue XorResult = SDValue(
