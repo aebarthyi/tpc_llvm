@@ -20,6 +20,15 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Transforms/IPO/GlobalOpt.h"
+#include "llvm/Transforms/IPO/LinkTPCHeaders.h"
+#include "llvm/Transforms/Scalar/ADCE.h"
+#include "llvm/Transforms/Scalar/DCE.h"
+#include "llvm/Transforms/Scalar/LoopPassManager.h"
+#include "llvm/Transforms/Scalar/SROA.h"
+#include "llvm/Transforms/Scalar/SimplifyCFG.h"
+#include "llvm/Transforms/Utils/Mem2Reg.h"
 
 using namespace llvm;
 
@@ -269,12 +278,8 @@ void TPCTargetMachine::adjustPassManager(PassManagerBuilder &PMB) {
     PMB.addExtension(
         PassManagerBuilder::EP_ModuleOptimizerEarly,
         [&](const PassManagerBuilder &, legacy::PassManagerBase &PM) {
-          TPCEliminateRedundantLinearityPassConfig Cfg;
-          Cfg.HasFeatureTensorStorePack32To16 = getSubtarget()->hasTnsrPack();
-          Cfg.HasFeatureTensorStorePack32To8 = getSubtarget()->hasTnsrPackDT();
-          Cfg.HasFeatureTensorStorePack16To8 = getSubtarget()->hasTnsrPackDT();
-          Cfg.HasFeatureTensorLoadUnpack = getSubtarget()->hasTnsrUnpack();
-          PM.add(createTPCEliminateRedundantLinearityPass(Cfg));
+          PM.add(createTPCEliminateRedundantLinearityPass(
+              getEliminateRedundantLinearityConfig()));
         });
 
     // ------ Last passes
@@ -377,6 +382,165 @@ public:
   void addPreEmitPass() override;
 };
 } // namespace
+
+TPCEliminateRedundantLinearityPassConfig
+TPCTargetMachine::getEliminateRedundantLinearityConfig() const {
+  TPCEliminateRedundantLinearityPassConfig Cfg;
+  Cfg.HasFeatureTensorStorePack32To16 = getSubtarget()->hasTnsrPack();
+  Cfg.HasFeatureTensorStorePack32To8 = getSubtarget()->hasTnsrPackDT();
+  Cfg.HasFeatureTensorStorePack16To8 = getSubtarget()->hasTnsrPackDT();
+  Cfg.HasFeatureTensorLoadUnpack = getSubtarget()->hasTnsrUnpack();
+  return Cfg;
+}
+
+// New pass manager integration. The extension points mirror the legacy ones in
+// adjustPassManager() above; see llvm/docs/TPC/design/Passes.rst.
+void TPCTargetMachine::registerDefaultAliasAnalyses(AAManager &AAM) {
+  AAM.registerFunctionAnalysis<TPCAA>();
+}
+
+void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
+  using OptimizationLevel = PassBuilder::OptimizationLevel;
+
+  PB.registerAnalysisRegistrationCallback([](FunctionAnalysisManager &FAM) {
+    FAM.registerPass([] { return TPCAA(); });
+  });
+  PB.registerParseAACallback([](StringRef Name, AAManager &AAM) {
+    if (Name != "tpc-aa")
+      return false;
+    AAM.registerFunctionAnalysis<TPCAA>();
+    return true;
+  });
+
+  // Pass names for opt -passes=..., same as the legacy pass arguments. Passes
+  // created by name use the same defaults as the legacy passes created by name
+  // (not the subtarget-derived settings used in the pipeline).
+  PB.registerPipelineParsingCallback(
+      [](StringRef Name, ModulePassManager &MPM,
+         ArrayRef<PassBuilder::PipelineElement>) {
+        if (Name == "tpclegal") {
+          MPM.addPass(TPCModuleLegalizerPass());
+          return true;
+        }
+        if (Name == "globalizer") {
+          MPM.addPass(GlobalizerPass());
+          return true;
+        }
+        if (Name == "glbresolver") {
+          MPM.addPass(GlobalResolverPass());
+          return true;
+        }
+        return false;
+      });
+  PB.registerPipelineParsingCallback(
+      [](StringRef Name, FunctionPassManager &FPM,
+         ArrayRef<PassBuilder::PipelineElement>) {
+        if (Name == "copyelide") {
+          FPM.addPass(TpcCopyElisionPass());
+          return true;
+        }
+        if (Name == "tpc-markup-direct-mmio-access") {
+          FPM.addPass(TPCMarkupDirectMMIOAccessPass());
+          return true;
+        }
+        if (Name == "adjust-attr") {
+          FPM.addPass(AttributeAdjusterPass());
+          return true;
+        }
+        if (Name == "tpc-trans-intr") {
+          FPM.addPass(TPCTransformIntrinPass());
+          return true;
+        }
+        if (Name == "scalar2irf") {
+          FPM.addPass(TPCScalarToIRFPass());
+          return true;
+        }
+        if (Name == "tpc-eliminate-redundant-linearity") {
+          FPM.addPass(TPCEliminateRedundantLinearityPass());
+          return true;
+        }
+        return false;
+      });
+  PB.registerPipelineParsingCallback(
+      [](StringRef Name, LoopPassManager &LPM,
+         ArrayRef<PassBuilder::PipelineElement>) {
+        if (Name == "tpcopt") {
+          LPM.addPass(TpcLoopOptPass());
+          return true;
+        }
+        return false;
+      });
+
+  // Legacy EP_EarlyAsPossible.
+  PB.registerPipelineStartEPCallback(
+      [this](ModulePassManager &MPM, OptimizationLevel Level) {
+        // TPCModuleLegalizer must be executed at all optimization levels.
+        if (!Options.CompileForLibrary)
+          MPM.addPass(TPCModuleLegalizerPass());
+        FunctionPassManager FPM;
+        if (!Options.CompileForLibrary)
+          FPM.addPass(TpcCopyElisionPass());
+        FPM.addPass(TPCMarkupDirectMMIOAccessPass());
+        if (Level != OptimizationLevel::O0) {
+          FPM.addPass(SimplifyCFGPass());
+          FPM.addPass(TPCTransformIntrinPass());
+          FPM.addPass(SROA());
+          FPM.addPass(TPCScalarToIRFPass(getSubtarget()->hasGen3Plus()));
+        }
+        MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
+#ifndef _WIN32
+        // Legacy: first pass of PassManagerBuilder::populateModulePassManager.
+        MPM.addPass(LinkTPCHeadersPass());
+#endif
+      });
+
+  // Legacy EP_CGSCCOptimizerLate (GlobalOpt, ADCE, SROA) followed by
+  // EP_ModuleOptimizerEarly (redundant linearity elimination).
+  PB.registerOptimizerEarlyEPCallback(
+      [this](ModulePassManager &MPM, OptimizationLevel Level) {
+        if (Level == OptimizationLevel::O0)
+          return;
+        MPM.addPass(GlobalOptPass());
+        FunctionPassManager FPM;
+        FPM.addPass(ADCEPass());
+        FPM.addPass(SROA());
+        FPM.addPass(TPCEliminateRedundantLinearityPass(
+            getEliminateRedundantLinearityConfig()));
+        MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
+      });
+
+  // Legacy EP_EnabledOnOptLevel0 (at -O0) and EP_OptimizerLast (otherwise).
+  PB.registerOptimizerLastEPCallback(
+      [this](ModulePassManager &MPM, OptimizationLevel Level) {
+        FunctionPassManager FPM;
+        if (Level == OptimizationLevel::O0) {
+          // We cannot keep global pointers in memory, so promote them to
+          // registers early.
+          FPM.addPass(PromotePass());
+          // Remove 'optnone' so that instruction combining can run.
+          FPM.addPass(AttributeAdjusterPass());
+          // Instruction combining greatly simplifies instruction selection.
+          FPM.addPass(InstCombinePass(2));
+          MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
+          if (!Options.CompileForLibrary) {
+            MPM.addPass(GlobalizerPass());
+            // The Globalizer leaves unused IR fragments behind.
+            MPM.addPass(createModuleToFunctionPassAdaptor(ADCEPass()));
+            MPM.addPass(GlobalResolverPass());
+          }
+          return;
+        }
+        FPM.addPass(createFunctionToLoopPassAdaptor(
+            TpcLoopOptPass(), /*UseMemorySSA=*/false,
+            /*UseBlockFrequencyInfo=*/false));
+        FPM.addPass(DCEPass());
+        MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
+        if (!Options.CompileForLibrary) {
+          MPM.addPass(GlobalizerPass());
+          MPM.addPass(GlobalResolverPass());
+        }
+      });
+}
 
 TargetPassConfig *TPCTargetMachine::createPassConfig(PassManagerBase &PM) {
   return new TPCPassConfig(this, PM);

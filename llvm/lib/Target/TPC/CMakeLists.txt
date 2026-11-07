@@ -103,6 +103,7 @@ add_llvm_target(TPCCodeGen
   Core
   IPO
   MC
+  Passes
   SelectionDAG
   Support
   Target

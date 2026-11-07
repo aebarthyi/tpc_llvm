@@ -178,6 +178,16 @@
 #include "llvm/Transforms/Scalar/LoopSink.h"
 #include "llvm/Transforms/Scalar/LoopStrengthReduce.h"
 #include "llvm/Transforms/Scalar/LoopUnrollAndJamPass.h"
+#ifdef LLVM_TPC_COMPILER
+#include "llvm/Transforms/IPO/LinkTPCHeaders.h"
+#include "llvm/Transforms/Scalar/CoordUpdateSimplifyPass.h"
+#include "llvm/Transforms/Scalar/EliminateSwizzleCast.h"
+#include "llvm/Transforms/Scalar/EvalSpecialFunctionPass.h"
+#include "llvm/Transforms/Scalar/IterationInterleave.h"
+#include "llvm/Transforms/Scalar/LoopSWPPass.h"
+#include "llvm/Transforms/Scalar/LoopTaken.h"
+#include "llvm/Transforms/Scalar/TPCLICM.h"
+#endif
 #include "llvm/Transforms/Scalar/LoopUnrollPass.h"
 #include "llvm/Transforms/Scalar/LoopVersioningLICM.h"
 #include "llvm/Transforms/Scalar/LowerAtomic.h"
@@ -302,6 +312,13 @@ extern cl::opt<bool> EnableOrderFileInstrumentation;
 extern cl::opt<bool> EnableCHR;
 extern cl::opt<bool> EnableLoopInterchange;
 extern cl::opt<bool> EnableUnrollAndJam;
+#ifdef LLVM_TPC_COMPILER
+// TPC pipeline options, defined in PassManagerBuilder.cpp.
+extern cl::opt<bool> EnableLoopSWPPass;
+extern cl::opt<bool> EnableCastSwizzleOpt;
+extern cl::opt<bool> EnableIterationInterleave;
+extern cl::opt<bool> EnableCoordUpdateSimplifyPass;
+#endif
 extern cl::opt<bool> EnableLoopFlatten;
 extern cl::opt<bool> EnableDFAJumpThreading;
 extern cl::opt<bool> RunNewGVN;
@@ -318,6 +335,21 @@ extern cl::opt<bool> EnableMatrix;
 extern cl::opt<bool> DisablePreInliner;
 extern cl::opt<int> PreInlineThreshold;
 } // namespace llvm
+
+#ifdef LLVM_TPC_COMPILER
+/// The TPC target changes the default pipelines the same way the legacy
+/// PassManagerBuilder does for it (see llvm/docs/TPC/design/Passes.rst).
+static bool isTPCTarget(const TargetMachine *TM) {
+  return TM && TM->getTargetTriple().getArch() == Triple::tpc;
+}
+
+/// Loop passes TPC adds after loop interchange in function simplification.
+static void addTPCLoopSimplificationPasses(LoopPassManager &LPM) {
+  if (EnableCoordUpdateSimplifyPass)
+    LPM.addPass(CoordUpdateSimplifyPass());
+  LPM.addPass(LoopSimplifyCFGPass());
+}
+#endif
 
 const PassBuilder::OptimizationLevel PassBuilder::OptimizationLevel::O0 = {
     /*SpeedLevel*/ 0,
@@ -581,11 +613,20 @@ PassBuilder::buildO1FunctionSimplificationPipeline(OptimizationLevel Level,
   // TODO: Investigate promotion cap for O1.
   LPM1.addPass(LICMPass(PTO.LicmMssaOptCap, PTO.LicmMssaNoAccForPromotionCap));
 
+#ifdef LLVM_TPC_COMPILER
+  // TPC: no loop rotation at -O1.
+  if (!isTPCTarget(TM))
+#endif
   LPM1.addPass(LoopRotatePass(/* Disable header duplication */ true,
                               isLTOPreLink(Phase)));
   // TODO: Investigate promotion cap for O1.
   LPM1.addPass(LICMPass(PTO.LicmMssaOptCap, PTO.LicmMssaNoAccForPromotionCap));
+#ifdef LLVM_TPC_COMPILER
+  // TPC: non-trivial unswitching below -O3 too.
+  LPM1.addPass(SimpleLoopUnswitchPass(/* NonTrivial */ isTPCTarget(TM)));
+#else
   LPM1.addPass(SimpleLoopUnswitchPass());
+#endif
 
   LPM2.addPass(LoopIdiomRecognizePass());
   LPM2.addPass(IndVarSimplifyPass());
@@ -597,6 +638,10 @@ PassBuilder::buildO1FunctionSimplificationPipeline(OptimizationLevel Level,
 
   if (EnableLoopInterchange)
     LPM2.addPass(LoopInterchangePass());
+#ifdef LLVM_TPC_COMPILER
+  if (isTPCTarget(TM))
+    addTPCLoopSimplificationPasses(LPM2);
+#endif
 
   // Do not enable unrolling in PreLinkThinLTO phase during sample PGO
   // because it changes IR to makes profile annotation in back compile
@@ -629,8 +674,24 @@ PassBuilder::buildO1FunctionSimplificationPipeline(OptimizationLevel Level,
                                               /*UseMemorySSA=*/false,
                                               /*UseBlockFrequencyInfo=*/false));
 
+#ifdef LLVM_TPC_COMPILER
+  if (isTPCTarget(TM) && EnableCastSwizzleOpt)
+    FPM.addPass(EliminateSwizzleCastPass());
+#endif
+
   // Delete small array after loop unroll.
   FPM.addPass(SROA());
+
+#ifdef LLVM_TPC_COMPILER
+  // TPC: merged load/store motion and GVN run at -O1 too.
+  if (isTPCTarget(TM)) {
+    FPM.addPass(MergedLoadStoreMotionPass());
+    if (RunNewGVN)
+      FPM.addPass(NewGVNPass());
+    else
+      FPM.addPass(GVN());
+  }
+#endif
 
   // Specially optimize memory movement as it doesn't look like dataflow in SSA.
   FPM.addPass(MemCpyOptPass());
@@ -758,9 +819,17 @@ PassBuilder::buildFunctionSimplificationPipeline(OptimizationLevel Level,
       LoopRotatePass(Level != OptimizationLevel::Oz, isLTOPreLink(Phase)));
   // TODO: Investigate promotion cap for O1.
   LPM1.addPass(LICMPass(PTO.LicmMssaOptCap, PTO.LicmMssaNoAccForPromotionCap));
+#ifdef LLVM_TPC_COMPILER
+  // TPC: non-trivial unswitching at -O2 too (not when optimizing for size).
+  LPM1.addPass(SimpleLoopUnswitchPass(
+      /* NonTrivial */ (Level == OptimizationLevel::O3 &&
+                        EnableO3NonTrivialUnswitching) ||
+      (isTPCTarget(TM) && !Level.isOptimizingForSize())));
+#else
   LPM1.addPass(
       SimpleLoopUnswitchPass(/* NonTrivial */ Level == OptimizationLevel::O3 &&
                              EnableO3NonTrivialUnswitching));
+#endif
   LPM2.addPass(LoopIdiomRecognizePass());
   LPM2.addPass(IndVarSimplifyPass());
 
@@ -771,6 +840,10 @@ PassBuilder::buildFunctionSimplificationPipeline(OptimizationLevel Level,
 
   if (EnableLoopInterchange)
     LPM2.addPass(LoopInterchangePass());
+#ifdef LLVM_TPC_COMPILER
+  if (isTPCTarget(TM))
+    addTPCLoopSimplificationPasses(LPM2);
+#endif
 
   // Do not enable unrolling in PreLinkThinLTO phase during sample PGO
   // because it changes IR to makes profile annotation in back compile
@@ -803,6 +876,11 @@ PassBuilder::buildFunctionSimplificationPipeline(OptimizationLevel Level,
   FPM.addPass(createFunctionToLoopPassAdaptor(std::move(LPM2),
                                               /*UseMemorySSA=*/false,
                                               /*UseBlockFrequencyInfo=*/false));
+
+#ifdef LLVM_TPC_COMPILER
+  if (isTPCTarget(TM) && EnableCastSwizzleOpt)
+    FPM.addPass(EliminateSwizzleCastPass());
+#endif
 
   // Delete small array after loop unroll.
   FPM.addPass(SROA());
@@ -1190,6 +1268,21 @@ PassBuilder::buildModuleSimplificationPipeline(OptimizationLevel Level,
   if (EnableSyntheticCounts && !PGOOpt)
     MPM.addPass(SyntheticCountsPropagation());
 
+#ifdef LLVM_TPC_COMPILER
+  if (isTPCTarget(TM)) {
+    // TPC only inlines always_inline functions, as the legacy TPC pipeline
+    // did (clang set PassManagerBuilder::Inliner to the always-inliner).
+    MPM.addPass(AlwaysInlinerPass(/*InsertLifetimeIntrinsics=*/true));
+    MPM.addPass(
+        createModuleToPostOrderCGSCCPassAdaptor(PostOrderFunctionAttrsPass()));
+    if (Level == OptimizationLevel::O3)
+      MPM.addPass(
+          createModuleToPostOrderCGSCCPassAdaptor(ArgumentPromotionPass()));
+    MPM.addPass(EvalSpecialFunctionPass());
+    MPM.addPass(createModuleToFunctionPassAdaptor(
+        buildFunctionSimplificationPipeline(Level, Phase)));
+  } else
+#endif
   MPM.addPass(buildInlinerPipeline(Level, Phase));
 
   if (EnableMemProfiler && Phase != ThinOrFullLTOPhase::ThinLTOPreLink) {
@@ -1296,13 +1389,22 @@ void PassBuilder::addVectorPasses(OptimizationLevel Level,
     // combiner for cleanup here so that the unrolling and LICM can be pipelined
     // across the loop nests.
     // We do UnrollAndJam in a separate LPM to ensure it happens before unroll
+#ifdef LLVM_TPC_COMPILER
+    // TPC runs unroll-and-jam earlier, right after loop rotation.
+    if (EnableUnrollAndJam && PTO.LoopUnrolling && !isTPCTarget(TM)) {
+#else
     if (EnableUnrollAndJam && PTO.LoopUnrolling) {
+#endif
       FPM.addPass(createFunctionToLoopPassAdaptor(
           LoopUnrollAndJamPass(Level.getSpeedupLevel())));
     }
     FPM.addPass(LoopUnrollPass(LoopUnrollOptions(
         Level.getSpeedupLevel(), /*OnlyWhenForced=*/!PTO.LoopUnrolling,
         PTO.ForgetAllSCEVInLoopUnroll)));
+#ifdef LLVM_TPC_COMPILER
+    if (isTPCTarget(TM))
+      FPM.addPass(createFunctionToLoopPassAdaptor(TPCLICMPass()));
+#endif
     FPM.addPass(WarnMissedTransformationsPass());
     FPM.addPass(InstCombinePass());
     FPM.addPass(
@@ -1402,10 +1504,23 @@ PassBuilder::buildModuleOptimizationPipeline(OptimizationLevel Level,
 
   // First rotate loops that may have been un-rotated by prior passes.
   // Disable header duplication at -Oz.
+#ifdef LLVM_TPC_COMPILER
+  // TPC: no loop rotation at -O1.
+  if (!isTPCTarget(TM) || Level.getSpeedupLevel() > 1)
+#endif
   OptimizePM.addPass(createFunctionToLoopPassAdaptor(
       LoopRotatePass(Level != OptimizationLevel::Oz, LTOPreLink),
       EnableMSSALoopDependency,
       /*UseBlockFrequencyInfo=*/false));
+#ifdef LLVM_TPC_COMPILER
+  if (isTPCTarget(TM) && EnableUnrollAndJam && PTO.LoopUnrolling) {
+    OptimizePM.addPass(LoopTakenPass(Level.getSpeedupLevel()));
+    OptimizePM.addPass(
+        buildFunctionSimplificationPipeline(Level, ThinOrFullLTOPhase::None));
+    OptimizePM.addPass(createFunctionToLoopPassAdaptor(
+        LoopUnrollAndJamPass(Level.getSpeedupLevel())));
+  }
+#endif
 
   // Distribute loops to allow partial vectorization.  I.e. isolate dependences
   // into separate loop that would otherwise inhibit vectorization.  This is
@@ -1440,6 +1555,12 @@ PassBuilder::buildModuleOptimizationPipeline(OptimizationLevel Level,
   // canonicalization pass that enables other optimizations. As a result,
   // LoopSink pass needs to be a very late IR pass to avoid undoing LICM
   // result too early.
+#ifdef LLVM_TPC_COMPILER
+  // TPC software pipelining, after the loop and vectorization passes.
+  if (isTPCTarget(TM) && EnableLoopSWPPass)
+    OptimizePM.addPass(createFunctionToLoopPassAdaptor(LoopSWPPass()));
+#endif
+
   OptimizePM.addPass(LoopSinkPass());
 
   // And finally clean up LCSSA form before generating code.
@@ -1456,9 +1577,25 @@ PassBuilder::buildModuleOptimizationPipeline(OptimizationLevel Level,
 
   OptimizePM.addPass(CoroCleanupPass());
 
+#ifdef LLVM_TPC_COMPILER
+  if (isTPCTarget(TM) && Level.getSpeedupLevel() > 1 &&
+      EnableIterationInterleave) {
+    LoopPassManager LPM;
+    LPM.addPass(LoopSimplifyCFGPass());
+    LPM.addPass(IterationInterleavePass());
+    OptimizePM.addPass(createFunctionToLoopPassAdaptor(std::move(LPM)));
+  }
+#endif
+
   // Add the core optimizing pipeline.
   MPM.addPass(createModuleToFunctionPassAdaptor(std::move(OptimizePM)));
 
+#ifdef LLVM_TPC_COMPILER
+  // TPC runs its OptimizerLast passes after the final GlobalDCE/ConstantMerge
+  // below, as the legacy pipeline did: they assign local-memory addresses and
+  // leave declarations behind that debug info refers to.
+  if (!isTPCTarget(TM))
+#endif
   for (auto &C : OptimizerLastEPCallbacks)
     C(MPM, Level);
 
@@ -1471,6 +1608,12 @@ PassBuilder::buildModuleOptimizationPipeline(OptimizationLevel Level,
   // ordering here.
   MPM.addPass(GlobalDCEPass());
   MPM.addPass(ConstantMergePass());
+
+#ifdef LLVM_TPC_COMPILER
+  if (isTPCTarget(TM))
+    for (auto &C : OptimizerLastEPCallbacks)
+      C(MPM, Level);
+#endif
 
   // TODO: Relative look table converter pass caused an issue when full lto is
   // enabled. See https://reviews.llvm.org/D94355 for more details.

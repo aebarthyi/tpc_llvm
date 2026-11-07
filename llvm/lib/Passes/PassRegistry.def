@@ -121,6 +121,12 @@ MODULE_PASS("sancov-module", ModuleSanitizerCoveragePass())
 MODULE_PASS("memprof-module", ModuleMemProfilerPass())
 MODULE_PASS("poison-checking", PoisonCheckingPass())
 MODULE_PASS("pseudo-probe-update", PseudoProbeUpdatePass())
+#ifdef LLVM_TPC_COMPILER
+#ifndef _WIN32
+MODULE_PASS("link-tpc-headers", LinkTPCHeadersPass())
+#endif
+MODULE_PASS("eval-special-function", EvalSpecialFunctionPass())
+#endif
 #undef MODULE_PASS
 
 #ifndef CGSCC_ANALYSIS
@@ -328,6 +334,10 @@ FUNCTION_PASS("msan", MemorySanitizerPass({}))
 FUNCTION_PASS("kmsan", MemorySanitizerPass({0, false, /*Kernel=*/true}))
 FUNCTION_PASS("tsan", ThreadSanitizerPass())
 FUNCTION_PASS("memprof", MemProfilerPass())
+#ifdef LLVM_TPC_COMPILER
+FUNCTION_PASS("cast-swizzle-opt", EliminateSwizzleCastPass())
+FUNCTION_PASS("looptaken", LoopTakenPass())
+#endif
 #undef FUNCTION_PASS
 
 #ifndef FUNCTION_PASS_WITH_PARAMS
@@ -440,6 +450,12 @@ LOOP_PASS("guard-widening", GuardWideningPass())
 LOOP_PASS("loop-bound-split", LoopBoundSplitPass())
 LOOP_PASS("loop-reroll", LoopRerollPass())
 LOOP_PASS("loop-versioning-licm", LoopVersioningLICMPass())
+#ifdef LLVM_TPC_COMPILER
+LOOP_PASS("coord-simplify", CoordUpdateSimplifyPass())
+LOOP_PASS("tpc-licm", TPCLICMPass())
+LOOP_PASS("loop-swp", LoopSWPPass())
+LOOP_PASS("iter-ilv", IterationInterleavePass())
+#endif
 #undef LOOP_PASS
 
 #ifndef LOOP_PASS_WITH_PARAMS

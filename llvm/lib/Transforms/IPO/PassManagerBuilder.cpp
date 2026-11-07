@@ -151,19 +151,20 @@ cl::opt<bool>
                   cl::desc("Enable the GVN sinking pass (default = off)"));
 
 #ifdef LLVM_TPC_COMPILER
-static cl::opt<bool>
+// Shared with the new pass manager pipeline (PassBuilder.cpp).
+cl::opt<bool>
     EnableLoopSWPPass("enable-loop-swp-pass", cl::init(true), cl::Hidden,
                       cl::desc("Enable the loop software pipelining pass."));
 
-static cl::opt<bool> EnableCastSwizzleOpt(
+cl::opt<bool> EnableCastSwizzleOpt(
     "enable-cast-swizzle-opt", cl::init(false), cl::Hidden,
     cl::desc("Enables the cast swizzle optimization pass."));
 
-static cl::opt<bool> EnableIterationInterleave(
+cl::opt<bool> EnableIterationInterleave(
     "enable-iter-ilv", cl::init(false), cl::Hidden,
     cl::desc("Enables the interleave iteration pass."));
 
-static cl::opt<bool> EnableCoordUpdateSimplifyPass(
+cl::opt<bool> EnableCoordUpdateSimplifyPass(
     "enable-simplify-coord-update-pass", cl::init(true), cl::Hidden,
     cl::desc("Enable the Coordinate update simplification pass."));
 #endif

@@ -213,6 +213,11 @@ public:
   const TPCSubtarget *getSubtargetImpl(const Function &F) const override;
 
   void adjustPassManager(PassManagerBuilder &) override;
+  void registerPassBuilderCallbacks(PassBuilder &PB) override;
+  void registerDefaultAliasAnalyses(AAManager &AAM) override;
+  /// Subtarget features used by TPCEliminateRedundantLinearity.
+  TPCEliminateRedundantLinearityPassConfig
+  getEliminateRedundantLinearityConfig() const;
   TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
 
   TargetLoweringObjectFile *getObjFileLowering() const override {
