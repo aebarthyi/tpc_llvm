@@ -108,10 +108,12 @@ namespace {
     KEYOPENCLCXX  = 0x400000,
     KEYMSCOMPAT   = 0x800000,
     KEYSYCL       = 0x1000000,
-    KEYRC99       = 0x2000000,
+    KEYCUDA       = 0x2000000,
+    KEYRC99       = 0x4000000,
+    KEYMAX        = KEYRC99, // The maximum key
     KEYALLCXX = KEYCXX | KEYCXX11 | KEYCXX20,
-    KEYALL = (0x3ffffff & ~KEYNOMS18 &
-              ~KEYNOOPENCL) // KEYNOMS18 and KEYNOOPENCL are used to exclude.
+    KEYALL = (KEYMAX | (KEYMAX-1)) & ~KEYNOMS18 &
+             ~KEYNOOPENCL // KEYNOMS18 and KEYNOOPENCL are used to exclude.
   };
 
   /// How a keyword is treated in the selected standard.
@@ -159,6 +161,8 @@ static KeywordStatus getKeywordStatus(const LangOptions &LangOpts,
   if (LangOpts.CPlusPlus && !LangOpts.CPlusPlus20 && (Flags & CHAR8SUPPORT))
     return KS_Future;
   if (LangOpts.isSYCL() && (Flags & KEYSYCL))
+    return KS_Enabled;
+  if (LangOpts.CUDA && (Flags & KEYCUDA))
     return KS_Enabled;
   return KS_Disabled;
 }

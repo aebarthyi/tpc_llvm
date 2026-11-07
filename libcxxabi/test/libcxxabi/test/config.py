@@ -50,7 +50,7 @@ class Configuration(LibcxxConfiguration):
             self.cxx.compile_flags += ['-funwind-tables']
         if not self.get_lit_bool('enable_threads', True):
             self.cxx.compile_flags += ['-D_LIBCXXABI_HAS_NO_THREADS']
-            self.config.available_features.add('libcxxabi-no-threads')
+            self.config.available_features.add('no-threads')
         super(Configuration, self).configure_compile_flags()
 
     def configure_compile_flags_header_includes(self):
@@ -70,7 +70,7 @@ class Configuration(LibcxxConfiguration):
             cxx_target_headers = os.path.join(path, triple, cxx, version)
             if os.path.isdir(cxx_target_headers):
                 self.cxx.compile_flags += ['-I' + cxx_target_headers]
-        self.cxx.compile_flags += ['-isystem' + cxx_headers]
+        self.cxx.compile_flags += ['-I' + cxx_headers]
         self.cxx.compile_flags += ['-I' + os.path.join(self.libcxx_src_root, 'src')]
 
         libcxxabi_headers = self.get_lit_conf(

@@ -38,11 +38,13 @@ add_lld_library(lldCOFF
   Option
   Passes
   Support
+  WindowsDriver
   WindowsManifest
 
   LINK_LIBS
   lldCommon
   ${LLVM_PTHREAD_LIB}
+  ${LLVM_ATOMIC_LIB}
 
   DEPENDS
   COFFOptionsTableGen

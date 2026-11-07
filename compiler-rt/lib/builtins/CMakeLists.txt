@@ -181,6 +181,15 @@ set(GENERIC_SOURCES
   umodti3.c
 )
 
+# Build BF16 files only when "__bf16" is available.
+if(COMPILER_RT_HAS_BFLOAT16 AND NOT APPLE)
+  set(GENERIC_SOURCES
+    ${GENERIC_SOURCES}
+    truncdfbf2.c
+    truncsfbf2.c
+  )
+endif()
+
 # TODO: Several "tf" files (and divtc3.c, but not multc3.c) are in
 # GENERIC_SOURCES instead of here.
 set(GENERIC_TF_SOURCES
@@ -567,6 +576,18 @@ set(armv7em_SOURCES ${arm_SOURCES})
 set(armv8m.main_SOURCES ${arm_SOURCES})
 set(armv8.1m.main_SOURCES ${arm_SOURCES})
 
+# 8-bit AVR MCU
+set(avr_SOURCES
+  avr/mulqi3.S
+  avr/mulhi3.S
+  avr/exit.S
+  avr/divmodhi4.S
+  avr/udivmodhi4.S
+  avr/divmodqi4.S
+  avr/udivmodqi4.S
+  ${GENERIC_SOURCES}
+)
+
 # hexagon arch
 set(hexagon_SOURCES
   hexagon/common_entry_exit_abi1.S
@@ -724,7 +745,7 @@ else ()
                            SOURCE "#if !(__ARM_FP & 0x8)
                                    #error No double-precision support!
                                    #endif
-                                   int main() { return 0; }")
+                                   int main(void) { return 0; }")
           if(NOT COMPILER_RT_HAS_${arch}_VFP_DP)
             list(REMOVE_ITEM ${arch}_SOURCES ${arm_Thumb1_VFPv2_DP_SOURCES})
           endif()
@@ -803,7 +824,7 @@ if(COMPILER_RT_BUILD_STANDALONE_LIBATOMIC)
   # archive, i.e., libatomic.a. Once cmake adds support of such usage for AIX,
   # this ad-hoc part can be removed.
   if(${CMAKE_SYSTEM_NAME} MATCHES "AIX")
-    archive_aix_libatomic(clang_rt.atomic
+    archive_aix_libatomic(clang_rt.atomic libatomic
                           ARCHS ${BUILTIN_SUPPORTED_ARCH}
                           PARENT_TARGET builtins-standalone-atomic)
   endif()

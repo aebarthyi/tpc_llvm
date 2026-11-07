@@ -94,6 +94,10 @@ python_executable = config.python_executable
 # TODO: detect Darwin/Windows situation (or mark these tests as unsupported on these platforms).
 if "asan" in config.available_features and "Linux" in config.host_os:
   python_executable = f"LD_PRELOAD=$({config.host_cxx} -print-file-name=libclang_rt.asan-{config.host_arch}.so) {config.python_executable}"
+# On Windows the path to python could contains spaces in which case it needs to be provided in quotes.
+# This is the equivalent of how %python is setup in llvm/utils/lit/lit/llvm/config.py.
+elif "Windows" in config.host_os:
+  python_executable = '"%s"' % (python_executable)
 tools.extend([
   ToolSubst('%PYTHON', python_executable, unresolved='ignore'),
 ])
@@ -105,12 +109,6 @@ llvm_config.add_tool_substitutions(tools, tool_dirs)
 # This option avoids to accidentally reuse variable across -LABEL match,
 # it can be explicitly opted-in by prefixing the variable name with $
 config.environment['FILECHECK_OPTS'] = "-enable-var-scope --allow-unused-prefixes=false"
-
-
-if config.native_target in config.targets_to_build:
-    config.available_features.add('llvm_has_native_target')
-
-
 
 # Add the python path for both the source and binary tree.
 # Note that presently, the python sources come from the source tree and the
@@ -126,3 +124,24 @@ if config.enable_assertions:
     config.available_features.add('asserts')
 else:
     config.available_features.add('noasserts')
+
+def have_host_jit_feature_support(feature_name):
+    mlir_cpu_runner_exe = lit.util.which('mlir-cpu-runner', config.mlir_tools_dir)
+
+    if not mlir_cpu_runner_exe:
+        return False
+
+    try:
+        mlir_cpu_runner_cmd = subprocess.Popen(
+            [mlir_cpu_runner_exe, '--host-supports-' + feature_name], stdout=subprocess.PIPE)
+    except OSError:
+        print('could not exec mlir-cpu-runner')
+        return False
+
+    mlir_cpu_runner_out = mlir_cpu_runner_cmd.stdout.read().decode('ascii')
+    mlir_cpu_runner_cmd.wait()
+
+    return 'true' in mlir_cpu_runner_out
+
+if have_host_jit_feature_support('jit'):
+    config.available_features.add('host-supports-jit')

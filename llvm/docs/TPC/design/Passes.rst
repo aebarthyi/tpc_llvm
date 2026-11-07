@@ -72,9 +72,6 @@ other targets. This keeps the legacy order: ``GlobalResolver`` assigns
 local-memory addresses and leaves behind external declarations that debug info
 refers to, which ``GlobalDCE`` would otherwise delete.
 
-``OptimizerEarlyEP`` was added upstream in LLVM 15; this fork carries a
-backport of it from the LLVM 13 port onward.
-
 For the ``tpc`` triple, ``PassBuilderPipelines.cpp`` also changes the default
 pipeline the same way the legacy ``PassManagerBuilder`` does (look for
 ``isTPCTarget`` in that file):
@@ -101,10 +98,10 @@ pipeline the same way the legacy ``PassManagerBuilder`` does (look for
 Legacy pass manager
 ===================
 
-The legacy pipeline (``-flegacy-pass-manager``) is still built through
-``TPCTargetMachine::adjustPassManager`` and ``PassManagerBuilder``. It is kept
-until upstream removes ``PassManagerBuilder`` (LLVM 17) so the two pass
-managers can be compared.
+clang only uses the new pass manager since LLVM 15. The legacy pipeline is still
+built through ``TPCTargetMachine::adjustPassManager`` and ``PassManagerBuilder``,
+but only ``opt -enable-new-pm=0`` reaches it. It goes away when upstream removes
+``PassManagerBuilder`` (LLVM 17).
 
 .. list-table::
    :header-rows: 1
@@ -129,9 +126,7 @@ Run a single pass with ``opt -mtriple=tpc -passes=<name>``; the names are
 listed with each pass below. A pass created by name uses the same defaults as the legacy
 pass created by name (for example ``scalar2irf`` folds comparisons, and
 ``tpc-eliminate-redundant-linearity`` assumes no tensor pack/unpack features),
-not the subtarget-derived settings the pipeline passes in. ``tpc/difftest/run.py`` compares whole-kernel
-results against Habana's compiler and can A/B the two pass managers with
-``--candidate-flags=-flegacy-pass-manager``.
+not the subtarget-derived settings the pipeline passes in. ``tpc/difftest/run.py`` compares whole-kernel results against Habana's compiler.
 
 ******
 Passes

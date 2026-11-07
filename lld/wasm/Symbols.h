@@ -538,11 +538,14 @@ struct WasmSym {
   // Symbol marking the end of the data and bss.
   static DefinedData *dataEnd;
 
-  // __heap_base
-  // Symbol marking the end of the data, bss and explicit stack.  Any linear
-  // memory following this address is not used by the linked code and can
-  // therefore be used as a backing store for brk()/malloc() implementations.
+  // __heap_base/__heap_end
+  // Symbols marking the beginning and end of the "heap". It starts at the end
+  // of the data, bss and explicit stack, and extends to the end of the linear
+  // memory allocated by wasm-ld. This region of memory is not used by the
+  // linked code, so it may be used as a backing store for `sbrk` or `malloc`
+  // implementations.
   static DefinedData *heapBase;
+  static DefinedData *heapEnd;
 
   // __wasm_init_memory_flag
   // Symbol whose contents are nonzero iff memory has already been initialized.
@@ -570,7 +573,7 @@ struct WasmSym {
   static DefinedFunction *applyGlobalRelocs;
 
   // __wasm_apply_global_tls_relocs
-  // Like applyGlobalRelocs but for globals that hold TLS addresess.  These
+  // Like applyGlobalRelocs but for globals that hold TLS addresses.  These
   // must be delayed until __wasm_init_tls.
   static DefinedFunction *applyGlobalTLSRelocs;
 

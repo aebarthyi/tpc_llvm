@@ -28,6 +28,7 @@ add_llvm_tool(llvm-objdump
   COFFDump.cpp
   ELFDump.cpp
   MachODump.cpp
+  OffloadDump.cpp
   WasmDump.cpp
   TPCDump.cpp
   XCOFFDump.cpp
@@ -48,5 +49,9 @@ endif()
 
 if("TPC" IN_LIST LLVM_TARGETS_TO_BUILD)
   add_llvm_tool_symlink(tpc-llvm-objdump llvm-objdump ALWAYS_GENERATE)
-  llvm_install_symlink(tpc-llvm-objdump llvm-objdump ALWAYS_GENERATE)
+  llvm_install_symlink(LLVM tpc-llvm-objdump llvm-objdump ALWAYS_GENERATE)
+endif()
+
+if(LLVM_INSTALL_CCTOOLS_SYMLINKS)
+  add_llvm_tool_symlink(otool llvm-otool)
 endif()

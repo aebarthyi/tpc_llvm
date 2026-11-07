@@ -35,7 +35,7 @@ tpc/difftest/run.py
 tpc/difftest/run.py --candidate build-port/bin/tpc-clang --baseline build/bin/tpc-clang
 
 # A/B the same compiler with different flags.
-tpc/difftest/run.py --candidate-flags=-flegacy-pass-manager
+tpc/difftest/run.py --candidate-flags=-fno-unroll-loops
 
 # Only some kernels or architectures.
 tpc/difftest/run.py --arch gaudi2 tpc/difftest/kernels/add_f32.c

@@ -1,4 +1,4 @@
-; RUN: opt < %s -instcombine -S | FileCheck %s
+; RUN: opt < %s -passes=instcombine -S | FileCheck %s
 ;XFAIL:*
 
 ; Make sure to update the debug value after dead code elimination.

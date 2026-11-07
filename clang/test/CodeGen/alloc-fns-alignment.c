@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -emit-llvm < %s | FileCheck %s
+// RUN: %clang_cc1 -no-opaque-pointers -triple x86_64-unknown-linux-gnu -emit-llvm < %s | FileCheck %s
 
 // Note: this test originally asserted that malloc/calloc/realloc got alignment
 // attributes on their return pointer. However, that was reverted in
@@ -11,6 +11,7 @@ void *malloc(size_t);
 void *calloc(size_t, size_t);
 void *realloc(void *, size_t);
 void *aligned_alloc(size_t, size_t);
+void *memalign(size_t, size_t);
 
 void *malloc_test(size_t n) {
   return malloc(n);
@@ -28,12 +29,20 @@ void *aligned_alloc_variable_test(size_t n, size_t a) {
   return aligned_alloc(a, n);
 }
 
+void *memalign_variable_test(size_t n, size_t a) {
+  return memalign(a, n);
+}
+
 void *aligned_alloc_constant_test(size_t n) {
   return aligned_alloc(8, n);
 }
 
 void *aligned_alloc_large_constant_test(size_t n) {
   return aligned_alloc(4096, n);
+}
+
+void *memalign_large_constant_test(size_t n) {
+  return memalign(4096, n);
 }
 
 // CHECK-LABEL: @malloc_test
@@ -57,9 +66,16 @@ void *aligned_alloc_large_constant_test(size_t n) {
 
 // CHECK: declare i8* @aligned_alloc
 
+// CHECK-LABEL: @memalign_variable_test
+// CHECK:      %[[ALLOCATED:.*]] = call i8* @memalign({{i32|i64}} noundef %[[ALIGN:.*]], {{i32|i64}} noundef %[[NBYTES:.*]])
+// CHECK-NEXT: call void @llvm.assume(i1 true) [ "align"(i8* %[[ALLOCATED]], {{i32|i64}} %[[ALIGN]]) ]
+
 // CHECK-LABEL: @aligned_alloc_constant_test
 // CHECK: call align 8 i8* @aligned_alloc
 
 // CHECK-LABEL: @aligned_alloc_large_constant_test
 // CHECK: call align 4096 i8* @aligned_alloc
+
+// CHECK-LABEL: @memalign_large_constant_test
+// CHECK: align 4096 i8* @memalign
 

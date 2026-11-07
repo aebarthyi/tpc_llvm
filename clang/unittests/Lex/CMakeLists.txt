@@ -7,12 +7,13 @@ if("TPC" IN_LIST LLVM_TARGETS_TO_BUILD)
 endif()
 
 add_clang_unittest(LexTests
-  DependencyDirectivesSourceMinimizerTest.cpp
+  DependencyDirectivesScannerTest.cpp
   HeaderMapTest.cpp
   HeaderSearchTest.cpp
   LexerTest.cpp
   PPCallbacksTest.cpp
   PPConditionalDirectiveRecordTest.cpp
+  PPMemoryAllocationsTest.cpp
   )
 
 set(CLANG_LINK_LIBS

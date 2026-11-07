@@ -4,16 +4,8 @@
 define amdgpu_ps float @_amdgpu_ps_main() #0 {
 ; GCN-LABEL: _amdgpu_ps_main:
 ; GCN:       ; %bb.0: ; %.entry
-; GCN-NEXT:    s_mov_b32 s0, 0
-; GCN-NEXT:    v_mov_b32_e32 v4, 0
-; GCN-NEXT:    s_mov_b32 s1, s0
-; GCN-NEXT:    s_mov_b32 s2, s0
-; GCN-NEXT:    s_mov_b32 s3, s0
-; GCN-NEXT:    s_mov_b32 s4, s0
-; GCN-NEXT:    s_mov_b32 s5, s0
-; GCN-NEXT:    s_mov_b32 s6, s0
-; GCN-NEXT:    s_mov_b32 s7, s0
 ; GCN-NEXT:    image_sample v[0:1], v[0:1], s[0:7], s[0:3] dmask:0x3 dim:SQ_RSRC_IMG_2D
+; GCN-NEXT:    v_mov_b32_e32 v4, 0
 ; GCN-NEXT:    s_waitcnt vmcnt(0)
 ; GCN-NEXT:    s_clause 0x1
 ; GCN-NEXT:    image_sample v2, v[0:1], s[0:7], s[0:3] dmask:0x4 dim:SQ_RSRC_IMG_2D
@@ -68,7 +60,7 @@ define amdgpu_ps float @_amdgpu_ps_main() #0 {
 ; GCN-NEXT:    s_waitcnt vmcnt(0)
 ; GCN-NEXT:    v_add_f32_e32 v4, v4, v10
 ; GCN-NEXT:    v_mul_f32_e32 v3, v4, v6
-; GCN-NEXT:    v_fma_f32 v4, v5, s0, 0x3ca3d70a
+; GCN-NEXT:    v_fmaak_f32 v4, s0, v5, 0x3ca3d70a
 ; GCN-NEXT:    v_mul_f32_e32 v1, v3, v1
 ; GCN-NEXT:    v_mul_f32_e32 v2, v7, v4
 ; GCN-NEXT:    v_fmac_f32_e32 v1, v2, v0

@@ -53,6 +53,7 @@ def load_test_suite(inputs):
         skipXFAIL=False,
         debug=False,
         isWindows=windows,
+        order='smart',
         params={})
 
     # Perform test discovery.
