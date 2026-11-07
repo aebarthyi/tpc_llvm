@@ -3,4 +3,4 @@
 int qqq(int x) {
   return x + 22;
 }
-// CHECK: define dso_local i32 @qqq(i32 %x) {{.*}}#0 {
+// CHECK: define dso_local i32 @qqq(i32 noundef %x) {{.*}}#0 {

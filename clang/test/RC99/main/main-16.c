@@ -2,4 +2,4 @@
 
 void main_entry(int arg0, tensor ifm, tensor ofm, int dest, tensor t1) {
 }
-// CHECK: define dso_local void @main_entry(i32 %arg0, i32 %dest) local_unnamed_addr #0 {
+// CHECK: define dso_local void @main_entry(i32 noundef %arg0, i32 noundef %dest) local_unnamed_addr #0 {

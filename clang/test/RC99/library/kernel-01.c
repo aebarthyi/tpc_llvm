@@ -16,7 +16,7 @@ void main(int dest, int src) {
 }
 #endif
 
-// CHECK: define dso_local void @main(i32 %dest, i32 %src) {{.*}}#0 {
+// CHECK: define dso_local void @main(i32 noundef %dest, i32 noundef %src) {{.*}}#0 {
 // CHECK: entry:
 // CHECK:   %0 = inttoptr i32 %dest to i32 addrspace(1)*
 // CHECK:   %add.i = add nsw i32 %src, 22
