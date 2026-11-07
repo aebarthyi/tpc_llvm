@@ -94,13 +94,15 @@ public:
                            MachineBasicBlock::iterator MBBI,
                            Register SrcReg, bool isKill, int FrameIndex,
                            const TargetRegisterClass *RC,
-                           const TargetRegisterInfo *TRI) const override;
+                           const TargetRegisterInfo *TRI,
+                           Register VReg) const override;
 
   void loadRegFromStackSlot(MachineBasicBlock &MBB,
                             MachineBasicBlock::iterator MBBI,
                             Register DestReg, int FrameIndex,
                             const TargetRegisterClass *RC,
-                            const TargetRegisterInfo *TRI) const override;
+                            const TargetRegisterInfo *TRI,
+                            Register VReg) const override;
 
   /// Target-dependent implementation for foldMemoryOperand.
   /// Target-independent code in foldMemoryOperand will
@@ -121,8 +123,8 @@ public:
   bool useMachineCombiner() const override;
   bool isThroughputPattern(MachineCombinerPattern Pattern) const override;
   bool
-  shouldReduceRegisterPressure(MachineBasicBlock *MBB,
-                               RegisterClassInfo *RegClassInfo) const override;
+  shouldReduceRegisterPressure(const MachineBasicBlock *MBB,
+                               const RegisterClassInfo *RegClassInfo) const override;
   bool
   getMachineCombinerPatterns(MachineInstr &Root,
                              SmallVectorImpl<MachineCombinerPattern> &Patterns,

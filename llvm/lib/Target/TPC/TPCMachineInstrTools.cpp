@@ -20,6 +20,7 @@
 #include "llvm/Support/MathExtras.h"
 
 #include <cassert>
+#include <optional>
 
 using namespace llvm;
 
@@ -654,8 +655,8 @@ SmallVector<PhiIP, 4> getAllPhiIPs(MachineInstr &Phi) {
 
 template <typename MOT, typename MIT>
 MOT *getPhiValueForMBBT(MIT &Phi, const MachineBasicBlock &MBB) {
-  const Optional<unsigned> Ix = getIndexOfPhiValOp(Phi, MBB);
-  return Ix.hasValue() ? &Phi.getOperand(Ix.getValue()) : nullptr;
+  const std::optional<unsigned> Ix = getIndexOfPhiValOp(Phi, MBB);
+  return Ix.has_value() ? &Phi.getOperand(Ix.value()) : nullptr;
 }
 
 MachineOperand *getPhiValueForMBB(MachineInstr &Phi,
@@ -668,15 +669,15 @@ const MachineOperand *getPhiValueForMBB(const MachineInstr &Phi,
   return getPhiValueForMBBT<const MachineOperand>(Phi, MBB);
 }
 
-Optional<PhiIP> getPhiIPForMBB(MachineInstr &Phi,
+std::optional<PhiIP> getPhiIPForMBB(MachineInstr &Phi,
                                const MachineBasicBlock &MBB) {
-  const Optional<unsigned> MBBIx = getIndexOfPhiMBBOp(Phi, MBB);
-  const Optional<unsigned> ValIx = getIndexOfPhiValOp(Phi, MBB);
-  assert(MBBIx.hasValue() == ValIx.hasValue());
-  return MBBIx.hasValue()
-             ? Optional<PhiIP>(PhiIP{&Phi.getOperand(ValIx.getValue()),
-                                     &Phi.getOperand(MBBIx.getValue())})
-             : Optional<PhiIP>();
+  const std::optional<unsigned> MBBIx = getIndexOfPhiMBBOp(Phi, MBB);
+  const std::optional<unsigned> ValIx = getIndexOfPhiValOp(Phi, MBB);
+  assert(MBBIx.has_value() == ValIx.has_value());
+  return MBBIx.has_value()
+             ? std::optional<PhiIP>(PhiIP{&Phi.getOperand(ValIx.value()),
+                                     &Phi.getOperand(MBBIx.value())})
+             : std::optional<PhiIP>();
 }
 
 bool isPhiInputs(const MachineInstr &Phi,
@@ -689,33 +690,33 @@ bool isPhiInputs(const MachineInstr &Phi,
 }
 
 bool removePhiInputFromMBB(MachineInstr &Phi, const MachineBasicBlock &MBB) {
-  const Optional<unsigned> MBBIx = getIndexOfPhiMBBOp(Phi, MBB);
-  const Optional<unsigned> ValIx = getIndexOfPhiValOp(Phi, MBB);
-  assert(MBBIx.hasValue() == ValIx.hasValue());
+  const std::optional<unsigned> MBBIx = getIndexOfPhiMBBOp(Phi, MBB);
+  const std::optional<unsigned> ValIx = getIndexOfPhiValOp(Phi, MBB);
+  assert(MBBIx.has_value() == ValIx.has_value());
 
-  if (!MBBIx.hasValue())
+  if (!MBBIx.has_value())
     return false;
 
-  Phi.removeOperand(MBBIx.getValue()); // MBB (remove first: MBBIx > ValIx)
-  Phi.removeOperand(ValIx.getValue()); // Value
+  Phi.removeOperand(MBBIx.value()); // MBB (remove first: MBBIx > ValIx)
+  Phi.removeOperand(ValIx.value()); // Value
   return true;
 }
 
-Optional<unsigned> getIndexOfPhiMBBOp(const MachineInstr &Phi,
+std::optional<unsigned> getIndexOfPhiMBBOp(const MachineInstr &Phi,
                                       const MachineBasicBlock &MBB) {
   assert(Phi.isPHI());
   for (auto &Item : enumerate(Phi.operands())) {
     if (Item.value().isMBB() && Item.value().getMBB() == &MBB)
       return Item.index();
   }
-  return None;
+  return std::nullopt;
 }
 
-Optional<unsigned> getIndexOfPhiValOp(const MachineInstr &Phi,
+std::optional<unsigned> getIndexOfPhiValOp(const MachineInstr &Phi,
                                       const MachineBasicBlock &MBB) {
-  const Optional<unsigned> MBBIx = getIndexOfPhiMBBOp(Phi, MBB);
-  return MBBIx.hasValue() ? Optional<unsigned>(MBBIx.getValue() - 1)
-                          : Optional<unsigned>();
+  const std::optional<unsigned> MBBIx = getIndexOfPhiMBBOp(Phi, MBB);
+  return MBBIx.has_value() ? std::optional<unsigned>(MBBIx.value() - 1)
+                          : std::optional<unsigned>();
 }
 
 MachineInstr &insertPHI(const TargetRegisterClass &RC,

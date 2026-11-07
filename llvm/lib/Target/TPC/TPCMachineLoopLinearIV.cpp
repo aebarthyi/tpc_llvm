@@ -17,6 +17,7 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
+#include <optional>
 
 namespace llvm {
 
@@ -50,10 +51,10 @@ MachineInstr &MLoopLinearIV::getNextDefMI() const {
                           : *Content.CounterInfo.LoopInstr;
 }
 
-Optional<Register> MLoopLinearIV::getNextDefReg() const {
+std::optional<Register> MLoopLinearIV::getNextDefReg() const {
   assert(ContentFlag == 0 || ContentFlag == 1);
   if (ContentFlag == 1)
-    return None; // There is no definition of next iteration value in HWLoop.
+    return std::nullopt; // There is no definition of next iteration value in HWLoop.
   return Content.CustomIVInfo.DefMI->getOperand(0).getReg();
 }
 
@@ -62,10 +63,10 @@ unsigned MLoopLinearIV::getStepOpIx() const {
   return ContentFlag == 0 ? Content.CustomIVInfo.StepOpIx : 2;
 }
 
-Optional<unsigned> MLoopLinearIV::getCurrValOpIxInNextDefMI() const {
+std::optional<unsigned> MLoopLinearIV::getCurrValOpIxInNextDefMI() const {
   assert(ContentFlag == 0 || ContentFlag == 1);
   if (ContentFlag == 1)
-    return None;  // There is no definition of next iteration value in HWLoop.
+    return std::nullopt;  // There is no definition of next iteration value in HWLoop.
 
   const Register CurrValReg = getCurrDefReg();
   const MachineInstr &NextDefMI = getNextDefMI();
@@ -105,8 +106,8 @@ SmallVector<MLoopLinearIV, 4> findLinearIVs(const MachineLoop &ML,
   SmallVector<MLoopLinearIV, 4> Result;
 
   // Add HW counter as induction variable.
-  if (Optional<HWLoopCounterInfo> CounterInfo = getLoopCounterInfo(ML))
-    Result.emplace_back(CounterInfo.getValue());
+  if (std::optional<HWLoopCounterInfo> CounterInfo = getLoopCounterInfo(ML))
+    Result.emplace_back(CounterInfo.value());
 
   // Analysis for custom IVs is not implemented for complex loops.
   MachineBasicBlock *const Latch = ML.getLoopLatch();
@@ -134,7 +135,7 @@ SmallVector<MLoopLinearIV, 4> findLinearIVs(const MachineLoop &ML,
 
     // Skip IV if it is not simple (i += step) but complex (i += f(step)).
     // Locate step as another operand.
-    Optional<unsigned> StepOpIx;
+    std::optional<unsigned> StepOpIx;
     {
       const MachineOperand &Op1 = DefMI->getOperand(1);
       const MachineOperand &Op2 = DefMI->getOperand(2);
@@ -143,14 +144,14 @@ SmallVector<MLoopLinearIV, 4> findLinearIVs(const MachineLoop &ML,
       else if (Op2.isReg() && Op2.getReg() == PhiDefReg)
         StepOpIx = 1;
     }
-    if (!StepOpIx.hasValue())
+    if (!StepOpIx.has_value())
       continue;
 
     // In order to guarantee that induction variable is linear, step operand
     // must be a loop invariant. Perform a bit simpler check: step operand is
     // either immediate either defined outside loop.
     {
-      const MachineOperand &Op = DefMI->getOperand(StepOpIx.getValue());
+      const MachineOperand &Op = DefMI->getOperand(StepOpIx.value());
       if (Op.isReg() && (Op.getReg().isPhysical() ||
                          ML.contains(MRI.getVRegDef(Op.getReg()))))
         continue;
@@ -162,7 +163,7 @@ SmallVector<MLoopLinearIV, 4> findLinearIVs(const MachineLoop &ML,
     MLoopCustomLinearIVInfo Info;
     Info.Phi = &Phi;
     Info.DefMI = DefMI;
-    Info.StepOpIx = StepOpIx.getValue();
+    Info.StepOpIx = StepOpIx.value();
     Result.emplace_back(Info);
   }
   return Result;

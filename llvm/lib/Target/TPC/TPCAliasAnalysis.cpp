@@ -58,7 +58,8 @@ AliasResult TPCAAResult::getAliasResult(unsigned AS1,
 }
 
 AliasResult TPCAAResult::alias(const MemoryLocation &LocA,
-                               const MemoryLocation &LocB, AAQueryInfo &AAQI) {
+                               const MemoryLocation &LocB, AAQueryInfo &AAQI,
+                               const Instruction *CtxI) {
   unsigned asA = LocA.Ptr->getType()->getPointerAddressSpace();
   unsigned asB = LocB.Ptr->getType()->getPointerAddressSpace();
 
@@ -67,10 +68,6 @@ AliasResult TPCAAResult::alias(const MemoryLocation &LocA,
   if (asA != asB && asA != 0 && asB != 0) return AliasResult::NoAlias;
 
   // Forward the query to the next alias analysis.
-  return AAResultBase::alias(LocA, LocB, AAQI);
+  return AAResultBase::alias(LocA, LocB, AAQI, CtxI);
 }
 
-bool TPCAAResult::pointsToConstantMemory(const MemoryLocation &Loc,
-                                         AAQueryInfo &QInfo, bool OrLocal) {
-  return AAResultBase::pointsToConstantMemory(Loc, QInfo, OrLocal);
-}

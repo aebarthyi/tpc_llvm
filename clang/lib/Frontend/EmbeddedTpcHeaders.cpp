@@ -53,7 +53,7 @@ static const CompilerInvocation::EmbeddedFile EmbeddedFiles[] = {
 
 ArrayRef<CompilerInvocation::EmbeddedFile> CompilerInvocation::getEmbeddedFiles() {
   return ArrayRef<CompilerInvocation::EmbeddedFile>(
-      EmbeddedFiles, array_lengthof(EmbeddedFiles));
+      EmbeddedFiles, std::size(EmbeddedFiles));
 }
 
 

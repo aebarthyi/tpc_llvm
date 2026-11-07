@@ -37,9 +37,7 @@ class MDNode;
 class MemoryLocation;
 
 /// A simple AA result that uses TBAA metadata to answer queries.
-class TPCAAResult : public AAResultBase<TPCAAResult> {
-  friend AAResultBase<TPCAAResult>;
-
+class TPCAAResult : public AAResultBase {
 public:
   explicit TPCAAResult() : AAResultBase() {}
   TPCAAResult(TPCAAResult &&Arg)
@@ -51,8 +49,8 @@ public:
     return false;
   }
 
-  AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB, AAQueryInfo &AAQI);
-  bool pointsToConstantMemory(const MemoryLocation &Loc, AAQueryInfo &QInfo, bool OrLocal);
+  AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB,
+                    AAQueryInfo &AAQI, const Instruction *CtxI);
 
 private:
   AliasResult getAliasResult(unsigned AS1, unsigned AS2) const;

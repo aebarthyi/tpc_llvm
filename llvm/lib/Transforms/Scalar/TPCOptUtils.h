@@ -235,7 +235,7 @@ public:
     TPC_OPT_UTILS_DEBUG(DebugTag << "Into :" << BB->getName())
     TPC_OPT_UTILS_DEBUG(DebugTag << "@before " << *InsertPt)
 
-    BB->getInstList().insert(InsertPt, I);
+    I->insertInto(BB, InsertPt);
     TPC_OPT_UTILS_DEBUG(DebugTag << "Inserted : " << *I)
     TPC_OPT_UTILS_DEBUG(DebugTag << "----")
   }

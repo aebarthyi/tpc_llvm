@@ -46,6 +46,7 @@
 #include <tuple>
 #include <unordered_map>
 #include <utility>
+#include <optional>
 using namespace llvm;
 
 #define DEBUG_TYPE "link-tpc-headers"
@@ -658,7 +659,7 @@ public:
     }
   }
 
-  Optional<IntrinsicKey> getIntrinsicKey(const IntrinsicInst &II);
+  std::optional<IntrinsicKey> getIntrinsicKey(const IntrinsicInst &II);
   bool instructionNeedsLinking(const Instruction &I, StringRef &IRStr);
   bool replaceWithCall(Instruction *I);
   bool replaceWithCallDynamic(Instruction *I);
@@ -680,11 +681,11 @@ static inline unsigned getTypeVal(Type *Ty) {
   return TypeKey(ID, VecLen, BitW);
 }
 
-Optional<IntrinsicKey>
+std::optional<IntrinsicKey>
 LinkTPCHeadersImpl::getIntrinsicKey(const IntrinsicInst &II) {
   auto It = ArchMap.find(SubArchName);
   if (It == ArchMap.end())
-    return None; // Unsupported.
+    return std::nullopt; // Unsupported.
 
   IntrinsicKey Key;
   Key.IntrinsicID = II.getIntrinsicID();
@@ -770,11 +771,11 @@ bool LinkTPCHeadersImpl::callInstructionToSearch(const Instruction &I,
 bool LinkTPCHeadersImpl::instructionNeedsLinking(const Instruction &I,
                                                  StringRef &IRStr) {
   if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(&I)) {
-    const Optional<IntrinsicKey> Key = getIntrinsicKey(*II);
-    if (!Key.hasValue())
+    const std::optional<IntrinsicKey> Key = getIntrinsicKey(*II);
+    if (!Key.has_value())
       return false;
 
-    auto It = KeyToInfo.find(Key.getValue());
+    auto It = KeyToInfo.find(Key.value());
     if (It == KeyToInfo.end())
       return false;
 
@@ -828,11 +829,11 @@ bool LinkTPCHeadersImpl::replaceWithCallDynamic(Instruction *I) {
 bool LinkTPCHeadersImpl::replaceWithCall(Instruction *I) {
   Module *M = I->getModule();
   if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(I)) {
-    const Optional<IntrinsicKey> Key = getIntrinsicKey(*II);
+    const std::optional<IntrinsicKey> Key = getIntrinsicKey(*II);
 
-    assert(Key.hasValue()); // Already checked at "instructionNeedsLinking".
+    assert(Key.has_value()); // Already checked at "instructionNeedsLinking".
 
-    auto It = KeyToInfo.find(Key.getValue());
+    auto It = KeyToInfo.find(Key.value());
     assert(It != KeyToInfo.end()); // Already checked at "instructionNeedsLinking".
 
     Function *Special = M->getFunction(It->second.FuncName);

@@ -926,7 +926,7 @@ bool llvm::computeUnrollCount(
   unsigned PragmaCount = unrollCountPragmaValue(L);
 
   bool IsConstBounds = false;
-  Optional<Loop::LoopBounds> LB = L->getBounds(SE);
+  std::optional<Loop::LoopBounds> LB = L->getBounds(SE);
   if (LB) {
     LLVM_DEBUG(dbgs() << "Checking bounds... \n");
     Value &Initial = LB->getInitialIVValue();
@@ -1433,7 +1433,7 @@ tryToUnrollLoop(Loop *L, DominatorTree &DT, LoopInfo *LI, ScalarEvolution &SE,
     if (IsTpcTarget && Depth == 0 && TPCUnrollCount > 0) {
 
       // Get loop bounds.
-      Optional<Loop::LoopBounds> LB = L->getBounds(SE);
+      std::optional<Loop::LoopBounds> LB = L->getBounds(SE);
       if (LB) {
         LLVM_DEBUG(dbgs() << "Performing bounds scaling... \n");
         Value &Initial = LB->getInitialIVValue();

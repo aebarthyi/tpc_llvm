@@ -29,6 +29,7 @@
 #include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/Transforms/Utils/ScalarEvolutionExpander.h"
 #include "llvm/Transforms/Utils/UnrollLoop.h"
+#include <optional>
 
 namespace llvm {
 class MDNode;
@@ -48,7 +49,7 @@ const MDNode *getMachineLoopMDNode(MachineInstr &LoopEndMI);
 const MDNode* findOptionMDForLoopMD(const MDNode& LoopMD, StringRef Name);
 
 /// Returns unroll count preference from meta data.
-Optional<unsigned> getUnrollCountFromMetadata(const MDNode *LoopMD);
+std::optional<unsigned> getUnrollCountFromMetadata(const MDNode *LoopMD);
 
 /// Helper struct to organize result of HW loop counter search.
 ///
@@ -66,7 +67,7 @@ struct HWLoopCounterInfo {
 Register getCounterRegister(const MachineLoop &ML);
 
 /// Get information about hardware loop counter if applicable.
-Optional<HWLoopCounterInfo> getLoopCounterInfo(const MachineLoop &ML);
+std::optional<HWLoopCounterInfo> getLoopCounterInfo(const MachineLoop &ML);
 
 } // namespace llvm
 

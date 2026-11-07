@@ -4709,7 +4709,6 @@ static void applyTPCDefaults(CompilerInvocation &Res,
         Res.getTargetOpts().CPU == "gaudib") {
       LangOpts.BFloat16 = 1;
       LangOpts.Half = 1;
-      LangOpts.HalfArgsAndReturns = 1;
       LangOpts.NativeHalfArgsAndReturns = 1;
       LangOpts.NativeHalfType = 1;
     }
@@ -4718,7 +4717,6 @@ static void applyTPCDefaults(CompilerInvocation &Res,
       LangOpts.BFloat16 = 1;
       LangOpts.Float8 = 1;
       LangOpts.Half = 1;
-      LangOpts.HalfArgsAndReturns = 1;
       LangOpts.NativeHalfArgsAndReturns = 1;
       LangOpts.NativeHalfType = 1;
     }

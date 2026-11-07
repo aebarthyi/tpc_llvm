@@ -19,6 +19,7 @@
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/Support/DataTypes.h"
 #include <inttypes.h>
+#include <optional>
 
 using namespace llvm;
 
@@ -139,7 +140,7 @@ public:
                      const MCSubtargetInfo& STI,
                      bool ignoreNops,
                      bool isSingle = true,
-                     const Optional<uint64_t>& StoreSrcC = Optional<uint64_t>()) const;
+                     const std::optional<uint64_t>& StoreSrcC = std::optional<uint64_t>()) const;
 
   // getBinaryCodeForInstr - TableGen'erated function for getting the
   // binary encoding for an instruction.

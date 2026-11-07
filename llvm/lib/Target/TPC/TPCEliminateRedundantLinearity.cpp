@@ -63,6 +63,7 @@
 #include <cassert>
 #include <memory>
 #include <utility>
+#include <optional>
 
 #define DEBUG_TYPE "tpc-eliminate-redundant-linearity"
 
@@ -328,16 +329,16 @@ static unsigned getSwizzleSourceIx(const unsigned DstIx,
 /// \param DstTy destination fixed vector type.
 /// \param SrcTy source fixed vector type.
 /// \return index in the source vector.
-static Optional<unsigned>
+static std::optional<unsigned>
 getSwizzleSourceIx(const unsigned DstIx, const Type *DstTy, const Type *SrcTy) {
   if (!DstTy || !SrcTy)
-    return None;
+    return std::nullopt;
 
   const FixedVectorType *DstVTy = dyn_cast<FixedVectorType>(DstTy);
   const FixedVectorType *SrcVTy = dyn_cast<FixedVectorType>(SrcTy);
   if (!DstVTy || !SrcVTy ||
       DstVTy->getNumElements() != SrcVTy->getNumElements())
-    return None;
+    return std::nullopt;
 
   return getSwizzleSourceIx(DstIx, DstVTy->getNumElements(),
                             SrcVTy->getScalarSizeInBits(),
@@ -465,14 +466,14 @@ private:
 
 } // namespace
 
-static Optional<unsigned> getNumScalarsInType(const Type *T) {
+static std::optional<unsigned> getNumScalarsInType(const Type *T) {
   if (!T)
-    return None;
+    return std::nullopt;
   if (T->isVectorTy()) {
     const FixedVectorType *FV = dyn_cast<FixedVectorType>(T);
-    return FV ? Optional<unsigned>(FV->getNumElements()) : Optional<unsigned>();
+    return FV ? std::optional<unsigned>(FV->getNumElements()) : std::optional<unsigned>();
   }
-  return T->isSingleValueType() ? Optional<unsigned>(1) : Optional<unsigned>();
+  return T->isSingleValueType() ? std::optional<unsigned>(1) : std::optional<unsigned>();
 }
 
 static bool isSameVEReturnType(const Instruction &LHS, const Instruction &RHS) {
@@ -644,17 +645,17 @@ public:
     if (!checkSameVEReturnType(LI, RI))
       return false;
 
-    const Optional<unsigned> NumScalars =
+    const std::optional<unsigned> NumScalars =
         isTensorStIntrinsic(LI)
             ? getNumScalarsInType(LI.getOperand(2)->getType())
             : getNumScalarsInType(LI.getType());
-    if (!NumScalars.hasValue()) {
+    if (!NumScalars.has_value()) {
       LLVM_DEBUG(dbgs() << "Failed to get num scalars in result: " << LI
                         << "\n");
       return false;
     }
 
-    for (unsigned Ix = 0; Ix < NumScalars.getValue(); ++Ix) {
+    for (unsigned Ix = 0; Ix < NumScalars.value(); ++Ix) {
       if (!isIdenticalScalarExpr(LHS, Ix, RHS, Ix)) {
         LLVM_DEBUG(dbgs() << "Not identical scalar expression:\n"
                           << "  Ix: " << Ix << "\n"
@@ -917,15 +918,15 @@ private:
 
     const auto GetSrcIx = [](const Instruction &I, const unsigned OperandIx,
                              const ArrayRef<unsigned> SwizzledOperandsIxs,
-                             const unsigned DstScalarIx) -> Optional<unsigned> {
+                             const unsigned DstScalarIx) -> std::optional<unsigned> {
       if (!is_contained(SwizzledOperandsIxs, OperandIx))
         return DstScalarIx;
 
       const Type *DstTy = I.getType();
       const Type *SrcTy = I.getOperand(OperandIx)->getType();
-      const Optional<unsigned> Ix =
+      const std::optional<unsigned> Ix =
           getSwizzleSourceIx(DstScalarIx, DstTy, SrcTy);
-      LLVM_DEBUG(if (!Ix.hasValue()) {
+      LLVM_DEBUG(if (!Ix.has_value()) {
         dbgs() << "Failed to get source index for:\n"
                << "  DstIx: " << DstScalarIx << "\n"
                << "  OperandIx: " << OperandIx << "\n"
@@ -951,23 +952,23 @@ private:
         continue;
       }
 
-      const Optional<unsigned> SrcLIx =
+      const std::optional<unsigned> SrcLIx =
           GetSrcIx(LI, OpIx, LSwizzledOperandsIxs, LScalarIx);
-      const Optional<unsigned> SrcRIx =
+      const std::optional<unsigned> SrcRIx =
           GetSrcIx(RI, OpIx, RSwizzledOperandsIxs, RScalarIx);
-      if (!SrcLIx.hasValue() || !SrcRIx.hasValue())
+      if (!SrcLIx.has_value() || !SrcRIx.has_value())
         return false;
 
-      if (!checkOperandForScalarExprIdentity(LHS, SrcLIx.getValue(), OpIx, RHS,
-                                             SrcRIx.getValue(), OpIx)) {
+      if (!checkOperandForScalarExprIdentity(LHS, SrcLIx.value(), OpIx, RHS,
+                                             SrcRIx.value(), OpIx)) {
         LLVM_DEBUG(dbgs() << "Operands scalar expr identity check failed\n"
                           << LI << "\n"
                           << RI << "\n"
                           << "  OpIx: " << OpIx << "\n"
                           << "  DstLIx: " << LScalarIx
-                          << "  <- SrcLIx: " << SrcLIx.getValue() << "\n"
+                          << "  <- SrcLIx: " << SrcLIx.value() << "\n"
                           << "  DstRIx: " << RScalarIx
-                          << "  <- SrcRIx: " << SrcRIx.getValue() << "\n");
+                          << "  <- SrcRIx: " << SrcRIx.value() << "\n");
 
         return false;
       }
@@ -1035,7 +1036,7 @@ private:
     if (!CheckFixedVectorsOfSameSize(*LV1, *RV1))
       return false;
 
-    const unsigned V0Size = getNumScalarsInType(LV0->getType()).getValue();
+    const unsigned V0Size = getNumScalarsInType(LV0->getType()).value();
 
     const int LMaskIx = LShuffleI->getMaskValue(LScalarIx);
     const int RMaskIx = RShuffleI->getMaskValue(RScalarIx);
@@ -1174,7 +1175,7 @@ private:
       const std::uint64_t SwitchPatch = VE.getSwitchPatch();
       const unsigned NumElements =
           getNumScalarsInType(VE.instruction().getOperand(2)->getType())
-              .getValue();
+              .value();
 
       if (SwitchPatch == SwPack32To16)
         return getSwizzleSourceIx(DstScalarIx, NumElements, 16, 32);
@@ -1224,7 +1225,7 @@ private:
                                        const unsigned DstScalarIx) -> unsigned {
       const std::uint64_t SwitchPatch = VE.getSwitchPatch();
       const unsigned NumElements =
-          getNumScalarsInType(VE.instruction().getType()).getValue();
+          getNumScalarsInType(VE.instruction().getType()).value();
 
       if (SwitchPatch == (TPCII::SW_UNPACK | TPCII::SW_UNPCK_16_TO_32))
         return getSwizzleSourceIx(DstScalarIx, NumElements, 32, 16);
@@ -1298,14 +1299,14 @@ private:
     const Instruction &RI = RHS.instruction();
     assert(&LI == &RI);
 
-    Optional<bool> &Result =
+    std::optional<bool> &Result =
         FullOperandCheckCachedResults[std::make_pair(&LI, OperandIx)];
 
-    if (Result.hasValue())
-      return Result.getValue();
+    if (Result.has_value())
+      return Result.value();
 
     Result = fullCheckOperandForEqualityImpl(LHS, RHS, OperandIx);
-    return Result.getValue();
+    return Result.value();
   }
 
   bool fullCheckOperandForEqualityImpl(const VectorExpr &LHS,
@@ -1318,16 +1319,16 @@ private:
     const Value *const RIxsValue = RI.getOperand(OperandIx);
     const Type *const LIxsTy = LIxsValue->getType();
     const Type *const RIxsTy = RIxsValue->getType();
-    const Optional<unsigned> NumScalarsL = getNumScalarsInType(LIxsTy);
-    const Optional<unsigned> NumScalarsR = getNumScalarsInType(RIxsTy);
-    if (NumScalarsL != NumScalarsR || !NumScalarsL.hasValue()) {
+    const std::optional<unsigned> NumScalarsL = getNumScalarsInType(LIxsTy);
+    const std::optional<unsigned> NumScalarsR = getNumScalarsInType(RIxsTy);
+    if (NumScalarsL != NumScalarsR || !NumScalarsL.has_value()) {
       LLVM_DEBUG(dbgs() << "Unexpected different scalars count in operands\n"
                         << LI << "\n"
                         << RI << "\n"
                         << "  OperandIx: " << OperandIx << "\n");
       return false;
     }
-    const unsigned NumIndices = NumScalarsL.getValue();
+    const unsigned NumIndices = NumScalarsL.value();
     for (unsigned I = 0; I < NumIndices; ++I) {
       if (!checkOperandForScalarExprIdentity(LHS, I, OperandIx, RHS, I,
                                              OperandIx)) {
@@ -1342,7 +1343,7 @@ private:
     return true;
   }
 
-  DenseMap<std::pair<const Instruction *, unsigned>, Optional<bool>>
+  DenseMap<std::pair<const Instruction *, unsigned>, std::optional<bool>>
       FullOperandCheckCachedResults;
 
   const GraphComponent *TargetComponent;
@@ -1409,22 +1410,22 @@ private:
     assert(isSingleInstructionSimpleNode(N));
     assert(NodeToExpr.count(&N) == 0);
 
-    const Optional<VectorExpr::Kind> VEKind = getVEKind(N);
-    if (!VEKind.hasValue()) {
+    const std::optional<VectorExpr::Kind> VEKind = getVEKind(N);
+    if (!VEKind.has_value()) {
       // More instructions might be supported if required.
       LLVM_DEBUG(dbgs() << "Unsupported instruction: "
                         << *getFirstInstruction(N) << "\n");
       return VectorExprResult(VectorExprResult::ReturnCode::NOT_SUPPORTED);
     }
 
-    auto Result = std::make_unique<VectorExpr>(VEKind.getValue(), N,
+    auto Result = std::make_unique<VectorExpr>(VEKind.value(), N,
                                                getNodeSwitchPatch(N), *this);
     VectorExpr *RV = Result.get();
     NodeToExpr[&N] = std::move(Result);
     return VectorExprResult(*RV);
   }
 
-  Optional<VectorExpr::Kind> getVEKind(const DDGNode &N) const {
+  std::optional<VectorExpr::Kind> getVEKind(const DDGNode &N) const {
     assert(isSingleInstructionSimpleNode(N));
 
     Instruction *const I = getFirstInstruction(N);
@@ -1463,21 +1464,21 @@ private:
       case Intrinsic::tpc_ld_tnsr:
         // Vector predicate is not supported for tpc_ld_tnsr intrinsics.
         if (Int->getOperand(4)->getType()->isVectorTy())
-          return None;
+          return std::nullopt;
         assert(Int->getOperand(4)->getType()->isIntegerTy());
 
         // If tensor load instruction is going to be patched and already has
         // another unpack switch, there is no way to patch such instruction.
         // Stop analysis at this point.
         if (getTensorStLdSwitchValue(*Int) & TPCII::SW_UNPACK)
-          return None;
+          return std::nullopt;
 
         return VectorExpr::Kind::TensorLoad;
 
       case Intrinsic::tpc_ld_g:
         // Vector predicate is not supported for tpc_ld_g intrinsics.
         if (Int->getOperand(3)->getType()->isVectorTy())
-          return None;
+          return std::nullopt;
         assert(Int->getOperand(3)->getType()->isIntegerTy());
 
         return VectorExpr::Kind::TensorBroadcastLoad;
@@ -1490,14 +1491,14 @@ private:
         // another pack switch, there is no way to patch such instruction.
         // Stop analysis at this point.
         if (getTensorStLdSwitchValue(*Int) & TPCII::SW_PACK)
-          return None;
+          return std::nullopt;
 
         return VectorExpr::Kind::TensorStore;
 
       case Intrinsic::tpc_convert:
         // Vector predicate is not supported for tpc_convert intrinsics.
         if (Int->getOperand(4)->getType()->isVectorTy())
-          return None;
+          return std::nullopt;
         assert(Int->getOperand(4)->getType()->isIntegerTy());
 
         return VectorExpr::Kind::Convert;
@@ -1505,14 +1506,14 @@ private:
       case Intrinsic::tpc_convert_linear:
         // Vector predicate is not supported for tpc_convert_linear intrinsics.
         if (Int->getOperand(4)->getType()->isVectorTy())
-          return None;
+          return std::nullopt;
         assert(Int->getOperand(4)->getType()->isIntegerTy());
 
         return Plan && Plan->TPCConvertLinearNodes.contains(&N)
                    ? VectorExpr::Kind::Convert
                    : VectorExpr::Kind::ConvertLinear;
       }
-      return None;
+      return std::nullopt;
     }
 
     switch (I->getOpcode()) {
@@ -1550,7 +1551,7 @@ private:
     case Instruction::ShuffleVector:
       return VectorExpr::Kind::ShuffleVector;
     }
-    return None;
+    return std::nullopt;
   }
 
   std::uint64_t getNodeSwitchPatch(const DDGNode &N) const {
@@ -1688,7 +1689,7 @@ static bool hasPath(const DDGNode &StartNode, const DDGNode &FinalNode,
   return false;
 }
 
-static Optional<std::uint64_t>
+static std::optional<std::uint64_t>
 getSwitchPatchProposalForLoadUnpackFromOutConvert(
     const DDGNode &OutTPCConvertLinearNode, const DDGNode &InpTensorLdNode) {
   assert(isTpcConvertLinearNode(OutTPCConvertLinearNode));
@@ -1696,7 +1697,7 @@ getSwitchPatchProposalForLoadUnpackFromOutConvert(
 
   if (!isSingleInstructionSimpleNode(OutTPCConvertLinearNode) ||
       !isSingleInstructionSimpleNode(InpTensorLdNode))
-    return None;
+    return std::nullopt;
 
   const Instruction *ConvertI = getFirstInstruction(OutTPCConvertLinearNode);
   const unsigned ScalarSizeBitsOfConvertDstTy =
@@ -1707,7 +1708,7 @@ getSwitchPatchProposalForLoadUnpackFromOutConvert(
       getFirstInstruction(InpTensorLdNode)->getType()->getScalarSizeInBits();
 
   if (ScalarSizeBitsOfConvertSrcTy != ScalarSizeBitsOfTensorLoadDstTy)
-    return None;
+    return std::nullopt;
 
   if (ScalarSizeBitsOfConvertSrcTy == 16 && ScalarSizeBitsOfConvertDstTy == 32)
     return TPCII::SW_UNPCK_16_TO_32 | TPCII::SW_UNPACK;
@@ -1718,17 +1719,17 @@ getSwitchPatchProposalForLoadUnpackFromOutConvert(
   if (ScalarSizeBitsOfConvertSrcTy == 8 && ScalarSizeBitsOfConvertDstTy == 32)
     return TPCII::SW_UNPCK_8_TO_32 | TPCII::SW_UNPACK;
 
-  return None;
+  return std::nullopt;
 }
 
-static Optional<std::uint64_t> getSwitchPatchProposalForStorePackFromInpConvert(
+static std::optional<std::uint64_t> getSwitchPatchProposalForStorePackFromInpConvert(
     const DDGNode &InpTPCConvertLinearNode, const DDGNode &OutTensorStNode) {
   assert(isTpcConvertLinearNode(InpTPCConvertLinearNode));
   assert(isTensorStNode(OutTensorStNode));
 
   if (!isSingleInstructionSimpleNode(InpTPCConvertLinearNode) ||
       !isSingleInstructionSimpleNode(OutTensorStNode))
-    return None;
+    return std::nullopt;
 
   const Instruction *ConvertI = getFirstInstruction(InpTPCConvertLinearNode);
   const unsigned ScalarSizeBitsOfConvertDstTy =
@@ -1742,7 +1743,7 @@ static Optional<std::uint64_t> getSwitchPatchProposalForStorePackFromInpConvert(
           ->getScalarSizeInBits();
 
   if (ScalarSizeBitsOfConvertDstTy != ScalarSizeBitsOfTensorStoreSrcTy)
-    return None;
+    return std::nullopt;
 
   if (ScalarSizeBitsOfConvertSrcTy == 32 && ScalarSizeBitsOfConvertDstTy == 16)
     return SwPack32To16;
@@ -1753,7 +1754,7 @@ static Optional<std::uint64_t> getSwitchPatchProposalForStorePackFromInpConvert(
   if (ScalarSizeBitsOfConvertSrcTy == 32 && ScalarSizeBitsOfConvertDstTy == 8)
     return SwPack32To8;
 
-  return None;
+  return std::nullopt;
 }
 
 static std::uint64_t getSwitchPatchProposalForInpTensorLdNode(
@@ -1773,12 +1774,12 @@ static std::uint64_t getSwitchPatchProposalForInpTensorLdNode(
     if (!hasPath(InputTensorLdNode, *N, Component))
       continue;
 
-    const Optional<std::uint64_t> SwitchPatch =
+    const std::optional<std::uint64_t> SwitchPatch =
         getSwitchPatchProposalForLoadUnpackFromOutConvert(*N,
                                                           InputTensorLdNode);
 
-    if (SwitchPatch.hasValue())
-      return SwitchPatch.getValue();
+    if (SwitchPatch.has_value())
+      return SwitchPatch.value();
   }
 
   // Leave instruction as is and hope it helps.
@@ -1802,12 +1803,12 @@ static std::uint64_t getSwitchPatchProposalForOutTensorStNode(
     if (!hasPath(*N, OutputTensorStNode, Component))
       continue;
 
-    const Optional<std::uint64_t> SwitchPatch =
+    const std::optional<std::uint64_t> SwitchPatch =
         getSwitchPatchProposalForStorePackFromInpConvert(*N,
                                                          OutputTensorStNode);
 
-    if (SwitchPatch.hasValue())
-      return SwitchPatch.getValue();
+    if (SwitchPatch.has_value())
+      return SwitchPatch.value();
   }
 
   // Leave instruction as is and hope it helps.

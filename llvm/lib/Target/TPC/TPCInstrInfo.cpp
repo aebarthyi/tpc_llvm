@@ -753,7 +753,7 @@ void TPCInstrInfo::
 storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                     Register SrcReg, bool isKill, int FrameIndex,
                     const TargetRegisterClass *RC,
-                    const TargetRegisterInfo *TRI) const {
+                    const TargetRegisterInfo *TRI, Register VReg) const {
   DebugLoc DL = MBB.findDebugLoc(I);
   MachineFunction *MF = MBB.getParent();
   MachineFrameInfo &FrameInfo = MF->getFrameInfo();
@@ -808,7 +808,7 @@ void TPCInstrInfo::
 loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                      Register DestReg, int FrameIndex,
                      const TargetRegisterClass *RC,
-                     const TargetRegisterInfo *TRI) const {
+                     const TargetRegisterInfo *TRI, Register VReg) const {
   DebugLoc DL = MBB.findDebugLoc(I);
   MachineFunction *MF = MBB.getParent();
   MachineFrameInfo &FrameInfo = MF->getFrameInfo();
@@ -3421,13 +3421,13 @@ MachineInstr *TPCInstrInfo::foldMemoryOperandImpl(
 
       MachineInstr *SpillMI = nullptr;
       if (IsSpill) {
-        storeRegToStackSlot(MBB, InsertPt, SrcReg, DstMO.isKill(), FrameIndex, RC, &TRI);
+        storeRegToStackSlot(MBB, InsertPt, SrcReg, DstMO.isKill(), FrameIndex, RC, &TRI, Register());
         SpillMI = &*--InsertPt;
         if (SrcMO.getSubReg() != 0) {
           SpillMI->getOperand(1).setSubReg(SrcMO.getSubReg());
         }
       } else {
-        loadRegFromStackSlot(MBB, InsertPt, DstReg, FrameIndex, RC, &TRI);
+        loadRegFromStackSlot(MBB, InsertPt, DstReg, FrameIndex, RC, &TRI, Register());
         SpillMI = &*--InsertPt;
         if (DstMO.getSubReg() != 0) {
           SpillMI->getOperand(0).setSubReg(DstMO.getSubReg());
@@ -3624,7 +3624,7 @@ bool TPCInstrInfo::isThroughputPattern(MachineCombinerPattern Pattern) const {
 }
 
 bool TPCInstrInfo::shouldReduceRegisterPressure(
-    MachineBasicBlock *MBB, RegisterClassInfo *RegClassInfo) const {
+    const MachineBasicBlock *MBB, const RegisterClassInfo *RegClassInfo) const {
   m_tpcx2Util.resetMBBRegPressure(MBB, RegClassInfo);
   return false;
 }

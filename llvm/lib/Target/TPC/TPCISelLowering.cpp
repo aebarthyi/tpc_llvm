@@ -2536,7 +2536,7 @@ static SDValue lowerLoadOfLongScalar(LoadSDNode *LoadNode,
   SDLoc DL(LoadNode);
 
   MachinePointerInfo PtrInfo = LoadNode->getPointerInfo();
-  unsigned Alignment = LoadNode->getAlignment();
+  unsigned Alignment = LoadNode->getAlign().value();
   MachineMemOperand *MemOp = LoadNode->getMemOperand();
   AAMDNodes AAInfo = LoadNode->getAAInfo();
 
@@ -2576,7 +2576,7 @@ static SDValue lowerLoadOInt5(LoadSDNode *LoadNode, const TPCTargetLowering &TL,
   SDLoc DL(LoadNode);
 
   MachinePointerInfo PtrInfo = LoadNode->getPointerInfo();
-  unsigned Alignment = LoadNode->getAlignment();
+  unsigned Alignment = LoadNode->getAlign().value();
   MachineMemOperand *MemOp = LoadNode->getMemOperand();
   AAMDNodes AAInfo = LoadNode->getAAInfo();
 
@@ -2742,7 +2742,7 @@ SDValue TPCTargetLowering::lowerLOAD(SDValue Op, SelectionDAG &DAG) const {
   } else {
     SDValue V0 = DAG.getLoad(
         SubVectorTy, DL, Chain, Ptr,
-        LoadNode->getPointerInfo().getWithOffset(0), LoadNode->getAlignment(),
+        LoadNode->getPointerInfo().getWithOffset(0), LoadNode->getAlign(),
         LoadNode->getMemOperand()->getFlags(), LoadNode->getAAInfo());
     SubRegValues.push_back(V0);
     SDValue NewPtr =
@@ -2751,7 +2751,7 @@ SDValue TPCTargetLowering::lowerLOAD(SDValue Op, SelectionDAG &DAG) const {
     SDValue V1 = DAG.getLoad(
         SubVectorTy, DL, Chain, NewPtr,
         LoadNode->getPointerInfo().getWithOffset(SubRegSize),
-        LoadNode->getAlignment(), LoadNode->getMemOperand()->getFlags(),
+        LoadNode->getAlign(), LoadNode->getMemOperand()->getFlags(),
         LoadNode->getAAInfo());
     SubRegValues.push_back(V1);
     if (NumSubVectors > 2) {
@@ -2761,7 +2761,7 @@ SDValue TPCTargetLowering::lowerLOAD(SDValue Op, SelectionDAG &DAG) const {
       SDValue V2 = DAG.getLoad(
           SubVectorTy, DL, Chain, NewPtr,
           LoadNode->getPointerInfo().getWithOffset(2 * SubRegSize),
-          LoadNode->getAlignment(), LoadNode->getMemOperand()->getFlags(),
+          LoadNode->getAlign(), LoadNode->getMemOperand()->getFlags(),
           LoadNode->getAAInfo());
       SubRegValues.push_back(V2);
       NewPtr =
@@ -2770,7 +2770,7 @@ SDValue TPCTargetLowering::lowerLOAD(SDValue Op, SelectionDAG &DAG) const {
       SDValue V3 = DAG.getLoad(
           SubVectorTy, DL, Chain, NewPtr,
           LoadNode->getPointerInfo().getWithOffset(3 * SubRegSize),
-          LoadNode->getAlignment(), LoadNode->getMemOperand()->getFlags(),
+          LoadNode->getAlign(), LoadNode->getMemOperand()->getFlags(),
           LoadNode->getAAInfo());
       SubRegValues.push_back(V3);
     }
@@ -2799,7 +2799,7 @@ static SDValue lowerStoreOfLongScalar(StoreSDNode *StoreNode,
 
   SmallVector<SDValue, 2> SubRegStores;
   MachinePointerInfo PtrInfo = StoreNode->getPointerInfo();
-  unsigned Alignment = StoreNode->getAlignment();
+  unsigned Alignment = StoreNode->getAlign().value();
 
   MachineSDNode *Node;
 
@@ -2847,7 +2847,7 @@ static SDValue lowerStoreOInt5(StoreSDNode *StoreNode,
   SDLoc DL(StoreNode);
 
   MachinePointerInfo PtrInfo = StoreNode->getPointerInfo();
-  unsigned Alignment = StoreNode->getAlignment();
+  unsigned Alignment = StoreNode->getAlign().value();
   MachineMemOperand *MemOp = StoreNode->getMemOperand();
   AAMDNodes AAInfo = StoreNode->getAAInfo();
 
@@ -2912,7 +2912,7 @@ SDValue TPCTargetLowering::lowerSTORE(SDValue Op, SelectionDAG &DAG) const {
 
   SmallVector<SDValue, 4> SubRegStores;
   MachinePointerInfo PtrInfo = StoreNode->getPointerInfo();
-  unsigned Alignment = StoreNode->getAlignment();
+  unsigned Alignment = StoreNode->getAlign().value();
 
   SDValue SubReg = DAG.getTargetConstant(TPC::sub_0, DL, MVT::i32);
   MachineSDNode *Node = DAG.getMachineNode(TargetOpcode::EXTRACT_SUBREG, DL,

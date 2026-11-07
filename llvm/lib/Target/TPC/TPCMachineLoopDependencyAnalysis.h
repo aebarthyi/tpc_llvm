@@ -5,6 +5,7 @@
 
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include <optional>
 
 namespace llvm {
 class MachineInstr;
@@ -21,16 +22,16 @@ class TPCSubtarget;
 ///       outside loop boundaries. Such dependencies will be reported but never
 ///       happen.
 ///
-/// \note Another way of understanding Optional<bool> HasDependency property is:
+/// \note Another way of understanding std::optional<bool> HasDependency property is:
 ///       - true  - analysis has detected a dependency in some circumstances.
 ///       - false - analysis guarantees there is no dependency.
 ///       - None  - analysis failed, it can not say anything on dependencies.
 struct MLDAReport {
-  Optional<bool> HasLoopDependentReg;
-  Optional<bool> HasLoopDependentMemStLd;
-  Optional<bool> HasLoopDependentMemStSt;
-  Optional<bool> HasLoopIndependentMemStLd;
-  Optional<bool> HasLoopIndependentMemStSt;
+  std::optional<bool> HasLoopDependentReg;
+  std::optional<bool> HasLoopDependentMemStLd;
+  std::optional<bool> HasLoopDependentMemStSt;
+  std::optional<bool> HasLoopIndependentMemStLd;
+  std::optional<bool> HasLoopIndependentMemStSt;
 
   /// Phi instructions which define registers produced loop dependency.
   ///

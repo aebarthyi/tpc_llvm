@@ -36,8 +36,8 @@ public:
   bool printAliasInstr(const MCInst *MI, uint64_t Address, raw_ostream &OS);
   void printCustomAliasOperand(const MCInst *MI, unsigned OpIdx,
                                unsigned PrintMethodIdx, raw_ostream &O);
-  static const char *getRegisterName(unsigned RegNo);
-  void printRegName(raw_ostream &OS, unsigned RegNo) const override;
+  static const char *getRegisterName(MCRegister Reg);
+  void printRegName(raw_ostream &OS, MCRegister Reg) const override;
 
   void printAddrOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printSPredicate(const MCInst *MI, unsigned OpNum, raw_ostream &O);

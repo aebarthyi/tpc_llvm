@@ -251,7 +251,7 @@ TPCRegisterInfo::getPointerRegClass(const MachineFunction &MF,
   return &TPC::SRFRegClass;
 }
 
-void TPCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
+bool TPCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                                           int SPAdj, unsigned FIOperandNum,
                                           RegScavenger *RS) const {
   MachineInstr &MI = *II;
@@ -349,6 +349,7 @@ void TPCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     Offset = FL.getSpillObject(FI, RC, MF, MFI.getObjectSize(FI));
     MI.getOperand(FIOperandNum).ChangeToImmediate(Offset);
   }
+  return false;
 }
 
 Register TPCRegisterInfo::getFrameRegister(const MachineFunction &MF) const {

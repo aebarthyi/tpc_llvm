@@ -5,6 +5,7 @@
 
 #include "llvm/ADT/Optional.h"
 #include "llvm/CodeGen/Register.h"
+#include <optional>
 
 namespace llvm {
 class MachineInstr;
@@ -61,14 +62,14 @@ public:
   Register getCurrDefReg() const;
 
   /// Return register with definition of IV value on the next iteration.
-  Optional<Register> getNextDefReg() const;
+  std::optional<Register> getNextDefReg() const;
 
   /// Return index of the step operand in step appliance instruction.
   unsigned getStepOpIx() const;
 
   /// Return index of the curr value operand in step appliance instruction.
   /// Makes sense only for custom IVs.
-  Optional<unsigned> getCurrValOpIxInNextDefMI() const;
+  std::optional<unsigned> getCurrValOpIxInNextDefMI() const;
 
   /// Shortcut to get step operand.
   MachineOperand &getStepOp() const;

@@ -49,6 +49,7 @@
 #include <map>
 #include <set>
 #include <vector>
+#include <optional>
 
 using namespace llvm;
 
@@ -548,7 +549,7 @@ static bool getPipelineFromMetadata(const MDNode* LoopMD) {
 ///   for (int i = Start; i Cmp Bound; i += Step)
 ///
 /// if Start, Bound and Step are immediate values.
-static llvm::Optional<uint64_t> getIterationsCount(const int64_t Start,
+static std::optional<uint64_t> getIterationsCount(const int64_t Start,
                                                    const int64_t Bound,
                                                    const int64_t Step,
                                                    const int64_t Cmp) {
@@ -561,12 +562,12 @@ static llvm::Optional<uint64_t> getIterationsCount(const int64_t Start,
       return 0;  // loop is never taken
 
     if (Step == 0)
-      return llvm::None;  // infinite loop
+      return std::nullopt;  // infinite loop
 
     const int CmpToTake = Step < 0 ? TPCII::LoopGE : TPCII::LoopLE;
     return Cmp == TPCII::LoopEQ || Cmp == CmpToTake
-        ? llvm::Optional<uint64_t>(1) // loop is taken once
-        : llvm::Optional<uint64_t>(); // infinite loop
+        ? std::optional<uint64_t>(1) // loop is taken once
+        : std::optional<uint64_t>(); // infinite loop
   }
 
   // Process Step == 0 boundary case and cases when Step sign does not
@@ -575,8 +576,8 @@ static llvm::Optional<uint64_t> getIterationsCount(const int64_t Start,
     const int CmpToHang1 = Start < Bound ? TPCII::LoopLT : TPCII::LoopGT;
     const int CmpToHang2 = Start < Bound ? TPCII::LoopLE : TPCII::LoopGE;
     return Cmp == TPCII::LoopNE || Cmp == CmpToHang1 || Cmp == CmpToHang2
-        ? llvm::Optional<uint64_t>()  // infinite loop
-        : llvm::Optional<uint64_t>(0); // loop is never taken
+        ? std::optional<uint64_t>()  // infinite loop
+        : std::optional<uint64_t>(0); // loop is never taken
   }
 
   assert((Step < 0 && Bound < Start) || (Step > 0 && Start < Bound));
@@ -597,8 +598,8 @@ static llvm::Optional<uint64_t> getIterationsCount(const int64_t Start,
   // Special case of loop with != compare
   if (Cmp == TPCII::LoopNE)
     return Distance % AbsStep == 0
-        ? llvm::Optional<uint64_t>(Distance / AbsStep)
-        : llvm::Optional<uint64_t>();  // infinite loop
+        ? std::optional<uint64_t>(Distance / AbsStep)
+        : std::optional<uint64_t>();  // infinite loop
 
   // Finally process regular ranges
   assert((Step < 0 && (Cmp == TPCII::LoopGT || Cmp == TPCII::LoopGE)) ||
@@ -624,11 +625,11 @@ static bool isIterationsCountKnownAtCompileTime(const MachineInstr &LoopInstr) {
 /// Return iterations count for LOOP instruction if it is known at compile time.
 /// Might return llvm::None if START, STEP, BOUNDARY are not known at compile
 /// time or loop is infinite.
-static llvm::Optional<uint64_t>
+static std::optional<uint64_t>
 getCompileTimeIterationsCount(const MachineInstr &LoopInstr) {
   assert(isLoop(LoopInstr));
   if (!isIterationsCountKnownAtCompileTime(LoopInstr))
-    return llvm::None;
+    return std::nullopt;
 
   const MachineOperand &Start = LoopInstr.getOperand(0);
   const MachineOperand &Bound = LoopInstr.getOperand(1);
@@ -826,7 +827,7 @@ void TPCPipeliner::generateEpilogueLoop(const unsigned UnrollCount,
   LoopInst->getOperand(4).setMBB(&EpilogLoopPreHeader);
   Latch->removeSuccessor(Exit);
   Latch->addSuccessor(&EpilogLoopPreHeader);
-  EpilogLoopPreHeader.setHasAddressTaken(); // has implicit ref from loop instr.
+  EpilogLoopPreHeader.setMachineBlockAddressTaken(); // has implicit ref from loop instr.
 
   // Naive clone instructions of loop blocks without registers renewal.
   SmallVector<MachineBasicBlock *, 2> ClonedBBs;
@@ -930,8 +931,8 @@ void TPCPipeliner::generateEpilogueLoop(const unsigned UnrollCount,
   //      ...
   for (MachineBasicBlock *ClonedBB : ClonedBBs) {
     for (MachineInstr &ClonedPhi : ClonedBB->phis()) {
-      const PhiIP PrologIP = getPhiIPForMBB(ClonedPhi, *Prolog).getValue();
-      const PhiIP LatchIP = getPhiIPForMBB(ClonedPhi, *Latch).getValue();
+      const PhiIP PrologIP = getPhiIPForMBB(ClonedPhi, *Prolog).value();
+      const PhiIP LatchIP = getPhiIPForMBB(ClonedPhi, *Latch).value();
       const MachineInstr &CounterpartPhi =
           insertPHI(*MRI->getRegClass(ClonedPhi.getOperand(0).getReg()),
                     {&PrologIP, &LatchIP}, EpilogLoopPreHeader,
@@ -986,8 +987,8 @@ void TPCPipeliner::generateEpilogueLoop(const unsigned UnrollCount,
   //
   // Note that %loop_value and %prolog_value might be immediate, not a registry.
   for (MachineInstr &Phi : Exit->phis()) {
-    const PhiIP IPProlog = getPhiIPForMBB(Phi, *Prolog).getValue();
-    const PhiIP IPLatch = getPhiIPForMBB(Phi, *Latch).getValue();
+    const PhiIP IPProlog = getPhiIPForMBB(Phi, *Prolog).value();
+    const PhiIP IPLatch = getPhiIPForMBB(Phi, *Latch).value();
 
     Register EpilogPreHeaderDefReg;
 
@@ -1163,7 +1164,7 @@ bool TPCPipeliner::pipeline(MachineLoop* L) {
   const MDNode *LoopMD = getMachineLoopMDNode(EndInstr);
 
   const unsigned UserUnrollCount =
-      LoopMD ? getUnrollCountFromMetadata(LoopMD).getValueOr(0) : 0;
+      LoopMD ? getUnrollCountFromMetadata(LoopMD).value_or(0) : 0;
 
   if (UserUnrollCount < 2)
     return false;
@@ -1199,9 +1200,9 @@ bool TPCPipeliner::pipeline(MachineLoop* L) {
           errs() << "at: " << FileName << ":" << Loc->getLine() << ":"
                  << Loc->getColumn() << "\n";
         }
-        const Optional<StringRef> Source = Loc->getSource();
-        if (Source.hasValue())
-          errs() << Source.getValue() << "\n";
+        const std::optional<StringRef> Source = Loc->getSource();
+        if (Source.has_value())
+          errs() << Source.value() << "\n";
       }
     }
   }
@@ -1224,19 +1225,19 @@ bool TPCPipeliner::pipeline(MachineLoop* L) {
   bool Pipelined = LoopMD && getPipelineFromMetadata(LoopMD);
 
   if (isIterationsCountKnownAtCompileTime(*LoopInst)) {
-    const llvm::Optional<uint64_t> IterationsCount =
+    const std::optional<uint64_t> IterationsCount =
         getCompileTimeIterationsCount(*LoopInst);
 
     // Avoid unrolling infinite loops.
-    if (!IterationsCount.hasValue())
+    if (!IterationsCount.has_value())
       return false;
 
     // Avoid unrolling loop if it has no sense.
-    if (IterationsCount.getValue() < UnrollCount)
+    if (IterationsCount.value() < UnrollCount)
       return false;
 
     // Avoid pipelining if it has no sense.
-    if (IterationsCount.getValue() < UnrollCount * 2)
+    if (IterationsCount.value() < UnrollCount * 2)
       Pipelined = false;
   }
 
@@ -1378,7 +1379,7 @@ void TPCPipeliner::correctExit() {
   MachineBasicBlock* EB = LoopInst->getOperand(4).getMBB();
   if (EB->begin() == EB->end()) {
     MachineBasicBlock* MBB = *(EB->successors().begin());
-    MBB->setHasAddressTaken();
+    MBB->setMachineBlockAddressTaken();
     LoopInst->getOperand(4).setMBB(MBB);
 
     Latch->removeSuccessor(EB);
@@ -2248,13 +2249,13 @@ void TPCPipeliner::replaceWithZero(MachineOperand& ReplaceMO, TPCII::OpType ot) 
 }
 
 // Return index of machine basic block argument in the given phi instruction
-static llvm::Optional<unsigned> getBBIndexAsPhiOperand(MachineInstr &Phi,
+static std::optional<unsigned> getBBIndexAsPhiOperand(MachineInstr &Phi,
                                                        MachineBasicBlock &BB) {
   for (auto &Item: enumerate(Phi.uses())) {
     if (Item.value().isMBB() && Item.value().getMBB() == &BB)
       return Item.index();
   }
-  return llvm::None;
+  return std::nullopt;
 }
 
 // Some cloned phi-nodes must start with the same values (for accumulators)
@@ -2264,8 +2265,8 @@ void TPCPipeliner::patchPhiStartValue(MachineInstr &Phi, int UnrollCount) {
   MachineBasicBlock *const MBB = Phi.getParent();
   const unsigned PhiDef = Phi.getOperand(0).getReg();
 
-  const unsigned OutOfLoopUse = getBBIndexAsPhiOperand(Phi, *Prolog).getValue();
-  const unsigned LoopUse = getBBIndexAsPhiOperand(Phi, *Latch).getValue();
+  const unsigned OutOfLoopUse = getBBIndexAsPhiOperand(Phi, *Prolog).value();
+  const unsigned LoopUse = getBBIndexAsPhiOperand(Phi, *Latch).value();
 
   std::vector<MachineInstr*> Path = phiPath(&Phi, Phi.getOperand(OutOfLoopUse));
   std::reverse(Path.begin(), Path.end());
@@ -2418,7 +2419,7 @@ void TPCPipeliner::sortDelayedPhis() {
     PhiDepTree &DependantNode = Tree[i];
 
     const unsigned OutOfLoopUse =
-        getBBIndexAsPhiOperand(*Dependant, *Prolog).getValue();
+        getBBIndexAsPhiOperand(*Dependant, *Prolog).value();
 
     const std::vector<MachineInstr*> Path =
         phiPath(Dependant, Dependant->getOperand(OutOfLoopUse));
@@ -2429,10 +2430,11 @@ void TPCPipeliner::sortDelayedPhis() {
 
       if (Phi == Dependant) continue;
 
-      const llvm::Optional<unsigned> LatchOpIx =
+      const std::optional<unsigned> LatchOpIx =
           getBBIndexAsPhiOperand(*Phi, *Latch);
-      const llvm::Optional<Register> LoopReg = LatchOpIx.map(
-          [Phi](unsigned Value){ return Phi->getOperand(Value).getReg(); });
+      const std::optional<Register> LoopReg =
+          LatchOpIx ? std::make_optional(Phi->getOperand(*LatchOpIx).getReg())
+                    : std::nullopt;
 
       // Find wether the dependant path uses the def of Phi
       for (MachineInstr* MI : Path) {

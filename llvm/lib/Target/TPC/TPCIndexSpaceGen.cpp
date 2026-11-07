@@ -12,6 +12,7 @@
 #include "TPCIndexSpaceGen.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Support/Debug.h"
+#include <optional>
 
 #define INVALID_SCEV 9999
 #define INVALID_STRIDE 999
@@ -797,7 +798,7 @@ void TensorAccessAnalysis::processInsertElementNode(Instruction *InsertInst,
             int Val = dyn_cast<llvm::ConstantInt>(BO->getOperand(1))
                           ->getZExtValue();
             if (BO->getOpcode() == Instruction::Add) {
-              Optional<Loop::LoopBounds> LB = CurrLoop->getBounds(*SE);
+              std::optional<Loop::LoopBounds> LB = CurrLoop->getBounds(*SE);
               PHINode *LoopPHI = CurrLoop->getInductionVariable(*SE);
               // Since loop bounds cannot be calculated, bailout
               // Required when the InitialIVValue of loop bound is not
@@ -954,7 +955,7 @@ void TensorAccessAnalysis::innerLoopUpdates(Instruction *T, int TensorId) {
         dyn_cast<llvm::ConstantInt>(InsertInst->getOperand(2))->getZExtValue();
     if (Instruction *Phi = dyn_cast<PHINode>(InsertInst->getOperand(1))) {
       Loop *CurrLoop = LI->getLoopFor(Phi->getParent());
-      Optional<Loop::LoopBounds> LB = CurrLoop->getBounds(*SE);
+      std::optional<Loop::LoopBounds> LB = CurrLoop->getBounds(*SE);
       PHINode *LoopPHI = CurrLoop->getInductionVariable(*SE);
       if (LB && (LoopPHI != nullptr)) {
         Value &Initial = LB->getInitialIVValue();

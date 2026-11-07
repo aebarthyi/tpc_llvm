@@ -85,9 +85,11 @@ public:
   }
 
   InstructionCost getShuffleCost(TTI::ShuffleKind Kind, VectorType *Tp,
-                                 ArrayRef<int> Mask, int Index,
+                                 ArrayRef<int> Mask,
+                                 TTI::TargetCostKind CostKind, int Index,
                                  VectorType *SubTp,
-                                 ArrayRef<const Value *> Args = None);
+                                 ArrayRef<const Value *> Args = std::nullopt,
+                                 const Instruction *CxtI = nullptr);
 
   static bool getTypeMatrix(const Instruction *I, Type::TypeID Ty[]) {
     Ty[0] = I->getType()->getTypeID();

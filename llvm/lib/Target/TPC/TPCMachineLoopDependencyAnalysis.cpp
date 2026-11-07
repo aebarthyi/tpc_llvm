@@ -30,6 +30,8 @@
 #include <cmath>
 #include <cstdint>
 #include <utility>
+#include <optional>
+#include <numeric>
 
 #define DEBUG_TYPE "mloop_da"
 
@@ -69,7 +71,7 @@ getAddressSpaceAccessKindName(const AddressSpaceAccessKind Kind) {
   llvm_unreachable("unexpected AddressSpaceAccessKind value");
 }
 
-static Optional<AddressSpaceAccessKind>
+static std::optional<AddressSpaceAccessKind>
 getAddressSpaceAccessKind(const MachineInstr &MI, const TPCSubtarget &ST) {
   const MCInstrDesc &Desc = MI.getDesc();
 
@@ -86,7 +88,7 @@ getAddressSpaceAccessKind(const MachineInstr &MI, const TPCSubtarget &ST) {
       TPCII::isStTnsr(Desc))
     return AddressSpaceAccessKind::GMT;
 
-  return None;
+  return std::nullopt;
 }
 
 namespace {
@@ -149,7 +151,7 @@ static bool isDependencyAnalysisSupportedForLoop(const MachineLoop &ML) {
 
 namespace {
 struct MLRegistryDAResult {
-  Optional<bool> HasLoopDependentReg;
+  std::optional<bool> HasLoopDependentReg;
   SmallPtrSet<MachineInstr *, 8> PhisDefineLoopDependentReg;
 };
 } // namespace
@@ -163,7 +165,7 @@ static bool isMIReallyUsesReg(const MachineInstr &MI, const Register Reg,
 }
 
 /// Search for loop-dependent dependencies in registries.
-static Optional<MLRegistryDAResult>
+static std::optional<MLRegistryDAResult>
 analyzeRegDep(const MachineLoop &ML, const MachineRegisterInfo &MRI) {
   MachineBasicBlock *const Latch = ML.getLoopLatch();
   assert(Latch);
@@ -189,7 +191,7 @@ analyzeRegDep(const MachineLoop &ML, const MachineRegisterInfo &MRI) {
     // Reject analysis if suspicious phi operand occurs.
     if (!LatchOp.isReg() || LatchOp.getReg().isPhysical()) {
       LLVM_DEBUG(dbgs() << "Phi input is suspicious. Reject: " << Phi);
-      return None;
+      return std::nullopt;
     }
 
     // Virtual registry outside loop -> loop invariant -> no dependency.
@@ -221,7 +223,7 @@ analyzeRegDep(const MachineLoop &ML, const MachineRegisterInfo &MRI) {
 }
 
 /// Collect memory operations inside machine loop.
-static Optional<MemUsage> collectMemUsage(const MachineLoop &ML,
+static std::optional<MemUsage> collectMemUsage(const MachineLoop &ML,
                                           const TPCSubtarget &ST) {
   LLVM_DEBUG(dbgs() << "Collect machine loop memory usage instructions.\n");
 
@@ -271,17 +273,17 @@ static Optional<MemUsage> collectMemUsage(const MachineLoop &ML,
       if (IsKnownNoActionInstruction)
         continue;
 
-      const Optional<AddressSpaceAccessKind> Kind =
+      const std::optional<AddressSpaceAccessKind> Kind =
           getAddressSpaceAccessKind(MI, ST);
 
-      if (!Kind.hasValue()) {
+      if (!Kind.has_value()) {
         LLVM_DEBUG(dbgs() << "Reject analysis. Unknown mem instr: " << MI);
         assert(false); // Catch unknown instruction during testing and file
                        // improvement JIRA issue.
-        return None;
+        return std::nullopt;
       }
       LLVM_DEBUG(dbgs() << (IsLd ? "Load from " : "Store to  ")
-                        << getAddressSpaceAccessKindName(Kind.getValue())
+                        << getAddressSpaceAccessKindName(Kind.value())
                         << " instr: " << MI);
 
       if (IsLd) {
@@ -292,10 +294,10 @@ static Optional<MemUsage> collectMemUsage(const MachineLoop &ML,
               << "Mem operation by immediate address. Dependency analysis does "
                  "not support this case. Reject analysis.\n"
               << "  Instr: " << MI);
-          return None;
+          return std::nullopt;
         }
 
-        AccessASU(Kind.getValue())->RegSrcToLD[SrcOp.getReg()].push_back(&MI);
+        AccessASU(Kind.value())->RegSrcToLD[SrcOp.getReg()].push_back(&MI);
       } else {
         const MachineOperand DstOp = MI.getOperand(0);
         if (!DstOp.isReg()) {
@@ -304,10 +306,10 @@ static Optional<MemUsage> collectMemUsage(const MachineLoop &ML,
               << "Mem operation by immediate address. Dependency analysis does "
                  "not support this case. Reject analysis.\n"
               << "  Instr: " << MI);
-          return None;
+          return std::nullopt;
         }
 
-        AccessASU(Kind.getValue())->RegDstToST[DstOp.getReg()].push_back(&MI);
+        AccessASU(Kind.value())->RegDstToST[DstOp.getReg()].push_back(&MI);
       }
     }
   }
@@ -345,7 +347,7 @@ struct OriginAndShift {
 };
 } // namespace
 
-static Optional<OriginAndShift> squashShift(const MachineOperand Op,
+static std::optional<OriginAndShift> squashShift(const MachineOperand Op,
                                             const MachineRegisterInfo &MRI,
                                             const TPCInstrInfo &TII) {
   if (Op.isImm()) {
@@ -355,7 +357,7 @@ static Optional<OriginAndShift> squashShift(const MachineOperand Op,
   }
 
   if (!Op.isReg())
-    return None;
+    return std::nullopt;
 
   std::int64_t Shift = 0;
   Register Reg = Op.getReg();
@@ -403,7 +405,7 @@ static Optional<OriginAndShift> squashShift(const MachineOperand Op,
 
 /// Construct memory access expression for memory location given in MemAccessReg
 /// register.
-static Optional<MemAccessExpr>
+static std::optional<MemAccessExpr>
 analyzeMemAccessExpr(const Register MemAccessReg,
                      const ArrayRef<MLoopLinearIV> &IVs,
                      const MachineRegisterInfo &MRI, const TPCInstrInfo &TII) {
@@ -424,13 +426,13 @@ analyzeMemAccessExpr(const Register MemAccessReg,
   //    Shift = C0
   //    Step = C1
 
-  const Optional<OriginAndShift> ShiftToIV =
+  const std::optional<OriginAndShift> ShiftToIV =
       squashShift(MachineOperand::CreateReg(MemAccessReg, false), MRI, TII);
 
-  if (!ShiftToIV.hasValue() || !ShiftToIV->Origin.isValid()) {
+  if (!ShiftToIV.has_value() || !ShiftToIV->Origin.isValid()) {
     LLVM_DEBUG(dbgs() << "Failed to squash shifts for "
                       << printReg(MemAccessReg) << "\n");
-    return None;
+    return std::nullopt;
   }
 
   const Register IVReg = ShiftToIV->Origin;
@@ -442,7 +444,7 @@ analyzeMemAccessExpr(const Register MemAccessReg,
     const std::int64_t Step = IV.getStepOp().getImm();
 
     // Check if this IV defines the MemAccessReg
-    Optional<std::int64_t> AdditionalShift;
+    std::optional<std::int64_t> AdditionalShift;
     if (IVReg == IV.getCurrDefReg()) {
       AdditionalShift = 0;
     } else if (IVReg == IV.getNextDefReg()) {
@@ -456,19 +458,19 @@ analyzeMemAccessExpr(const Register MemAccessReg,
     if (!StartOp) {
       LLVM_DEBUG(dbgs() << "Can not find IV start: " << printReg(IVReg)
                         << "\n");
-      return None;
+      return std::nullopt;
     }
 
-    const Optional<OriginAndShift> OAS = squashShift(*StartOp, MRI, TII);
+    const std::optional<OriginAndShift> OAS = squashShift(*StartOp, MRI, TII);
     if (!OAS) {
       LLVM_DEBUG(dbgs() << "Can not locate origin: " << printReg(IVReg)
                         << "\n");
-      return None;
+      return std::nullopt;
     }
     MemAccessExpr E;
     E.MemAccessReg = MemAccessReg;
     E.Origin = OAS->Origin;
-    E.Shift = OAS->Shift + AdditionalShift.getValue() + ShiftToIV->Shift;
+    E.Shift = OAS->Shift + AdditionalShift.value() + ShiftToIV->Shift;
     E.Step = Step;
     return E;
   }
@@ -488,7 +490,7 @@ analyzeMemAccessExpr(const Register MemAccessReg,
 
 /// Construct memory access expressions for each requested memory location in
 /// the given address space.
-static Optional<DenseMap<Register, MemAccessExpr>>
+static std::optional<DenseMap<Register, MemAccessExpr>>
 collectMemAccessExpr(const MemUsage::AddressSpaceUsage &ASU,
                      const ArrayRef<MLoopLinearIV> &IVs,
                      const MachineRegisterInfo &MRI, const TPCInstrInfo &TII) {
@@ -504,7 +506,7 @@ collectMemAccessExpr(const MemUsage::AddressSpaceUsage &ASU,
           if (RV.count(MemAccessReg))
             continue;
 
-          const Optional<MemAccessExpr> Expr =
+          const std::optional<MemAccessExpr> Expr =
               analyzeMemAccessExpr(MemAccessReg, IVs, MRI, TII);
           if (!Expr)
             return false;
@@ -515,16 +517,16 @@ collectMemAccessExpr(const MemUsage::AddressSpaceUsage &ASU,
                             << "  Shift:  " << Expr->Shift << "\n"
                             << "  Step:   " << Expr->Step << "\n");
 
-          RV[MemAccessReg] = Expr.getValue();
+          RV[MemAccessReg] = Expr.value();
         }
         return true;
       };
 
   if (!CollectForMapping(ASU.RegDstToST))
-    return None;
+    return std::nullopt;
 
   if (!CollectForMapping(ASU.RegSrcToLD))
-    return None;
+    return std::nullopt;
 
   return std::move(RV);
 }
@@ -532,16 +534,16 @@ collectMemAccessExpr(const MemUsage::AddressSpaceUsage &ASU,
 /// Whether memory access expressions have common origin.
 static bool
 hasCommonOrigin(const DenseMap<Register, MemAccessExpr> &MemLocRegToExpr) {
-  Optional<Register> CommonOrigin;
+  std::optional<Register> CommonOrigin;
 
   for (const auto &RegAndExpr : MemLocRegToExpr) {
     const Register Origin = RegAndExpr.second.Origin;
 
-    if (!CommonOrigin.hasValue()) {
+    if (!CommonOrigin.has_value()) {
       CommonOrigin = Origin;
     } else if (CommonOrigin != Origin) {
       LLVM_DEBUG(dbgs() << "Different memory expr origins found:\n"
-                        << "  1: " << printReg(CommonOrigin.getValue()) << "\n"
+                        << "  1: " << printReg(CommonOrigin.value()) << "\n"
                         << "  2: " << printReg(Origin) << "\n");
       return false;
     }
@@ -612,7 +614,7 @@ static MemLocDepResult makeBothDependenciesMemLocDep() {
 }
 
 /// Check if two memory locations may alias inside machine loop.
-static Optional<MemLocDepResult>
+static std::optional<MemLocDepResult>
 checkMemAccessDependency(const Register MemLocReg1, const Register MemLocReg2,
                          const DenseMap<Register, MemAccessExpr> &MemLocToExpr,
                          const unsigned InterestingIterationsCount) {
@@ -622,13 +624,13 @@ checkMemAccessDependency(const Register MemLocReg1, const Register MemLocReg2,
   auto It1 = MemLocToExpr.find(MemLocReg1);
   if (It1 == MemLocToExpr.end()) {
     LLVM_DEBUG(dbgs() << "No expr for " << printReg(MemLocReg1) << "\n");
-    return None;
+    return std::nullopt;
   }
 
   auto It2 = MemLocToExpr.find(MemLocReg2);
   if (It2 == MemLocToExpr.end()) {
     LLVM_DEBUG(dbgs() << "No expr for " << printReg(MemLocReg2) << "\n");
-    return None;
+    return std::nullopt;
   }
 
   const MemAccessExpr &E1 = It1->second;
@@ -640,7 +642,7 @@ checkMemAccessDependency(const Register MemLocReg1, const Register MemLocReg2,
                       << "  Expr 2 reg: " << printReg(MemLocReg2) << "\n"
                       << "  Origin 1: " << printReg(E1.Origin) << "\n"
                       << "  Origin 2: " << printReg(E2.Origin) << "\n");
-    return None;
+    return std::nullopt;
   }
 
   // Analyze the following linear diophantine equation of (X, Y) for possible
@@ -815,7 +817,7 @@ checkMemAccessDependency(const Register MemLocReg1, const Register MemLocReg2,
   MemLocDepResult Result;
   Result.HasLoopIndependentDep = C % std::abs(A + B) == 0;
   Result.HasLoopDependentDep =
-      C % GreatestCommonDivisor64(std::abs(A), std::abs(B)) == 0;
+      C % std::gcd<uint64_t, uint64_t>(std::abs(A), std::abs(B)) == 0;
   return Result;
 }
 
@@ -969,7 +971,7 @@ getTensorIDForAddressReg(const Register Reg, const MachineRegisterInfo &MRI) {
 }
 
 /// Check against load-store memory dependencies in access to tensor memory.
-static Optional<bool>
+static std::optional<bool>
 isMemDependencyInTensorMem(const MemUsage &MU, const MachineRegisterInfo &MRI,
                            const bool IgnoreCheckAgainstStoresToSameTensorId) {
   // Check tensor ids used for load and store operations, ensure there is no
@@ -981,7 +983,7 @@ isMemDependencyInTensorMem(const MemUsage &MU, const MachineRegisterInfo &MRI,
 
     const SmallSet<int, 4> IDs = getTensorIDForAddressReg(RegSrc, MRI);
     if (IDs.empty())
-      return None;
+      return std::nullopt;
 
     LdTensorIDs.insert(IDs.begin(), IDs.end());
   }
@@ -990,12 +992,12 @@ isMemDependencyInTensorMem(const MemUsage &MU, const MachineRegisterInfo &MRI,
 
     const SmallSet<int, 4> IDs = getTensorIDForAddressReg(RegDst, MRI);
     if (IDs.empty())
-      return None;
+      return std::nullopt;
 
     for (const int ID : IDs) {
       if (!IgnoreCheckAgainstStoresToSameTensorId && StTensorIDs.count(ID)) {
         LLVM_DEBUG(dbgs() << ">=2 stores to tensor: " << ID << "\n");
-        return None;
+        return std::nullopt;
       }
       StTensorIDs.insert(ID);
     }
@@ -1004,7 +1006,7 @@ isMemDependencyInTensorMem(const MemUsage &MU, const MachineRegisterInfo &MRI,
     for (const MachineInstr *const MI : RegAndInstructions.second) {
       const SmallSet<int, 4> IDs = parseTensorIDFromMO(MI->getOperand(2), MRI);
       if (IDs.empty())
-        return None;
+        return std::nullopt;
 
       LdTensorIDs.insert(IDs.begin(), IDs.end());
     }
@@ -1013,12 +1015,12 @@ isMemDependencyInTensorMem(const MemUsage &MU, const MachineRegisterInfo &MRI,
     for (const MachineInstr *const MI : RegAndInstructions.second) {
       const SmallSet<int, 4> IDs = parseTensorIDFromMO(MI->getOperand(1), MRI);
       if (IDs.empty())
-        return None;
+        return std::nullopt;
 
       for (const int ID : IDs) {
         if (!IgnoreCheckAgainstStoresToSameTensorId && StTensorIDs.count(ID)) {
           LLVM_DEBUG(dbgs() << ">=2 writes to tensor: " << ID << "\n");
-          return None;
+          return std::nullopt;
         }
         StTensorIDs.insert(ID);
       }
@@ -1049,10 +1051,10 @@ isMemDependencyInTensorMem(const MemUsage &MU, const MachineRegisterInfo &MRI,
 
 namespace {
 struct MLMemoryDAResult {
-  Optional<bool> HasLoopDependentMemStLd;
-  Optional<bool> HasLoopDependentMemStSt;
-  Optional<bool> HasLoopIndependentMemStLd;
-  Optional<bool> HasLoopIndependentMemStSt;
+  std::optional<bool> HasLoopDependentMemStLd;
+  std::optional<bool> HasLoopDependentMemStSt;
+  std::optional<bool> HasLoopIndependentMemStLd;
+  std::optional<bool> HasLoopIndependentMemStSt;
 };
 } // namespace
 
@@ -1102,8 +1104,8 @@ analyzeMemDep(const MachineLoop &ML, const ArrayRef<MLoopLinearIV> IVs,
   //       unrolling, for example) are tolerant to store-store loop-dependent
   //       dependencies.
 
-  const Optional<MemUsage> MU = collectMemUsage(ML, ST);
-  if (!MU.hasValue()) {
+  const std::optional<MemUsage> MU = collectMemUsage(ML, ST);
+  if (!MU.has_value()) {
     LLVM_DEBUG(dbgs() << "Failed to collect mem usage stat.\n");
     return Result;
   }
@@ -1125,7 +1127,7 @@ analyzeMemDep(const MachineLoop &ML, const ArrayRef<MLoopLinearIV> IVs,
 
   // Reject analysis if there is a potential store-store, store-load, load-store
   // dependency to global memory between scalar and tensor operations.
-  if (isMemDependencyInTensorMem(MU.getValue(), MRI,
+  if (isMemDependencyInTensorMem(MU.value(), MRI,
                                  IgnoreCheckAgainstStoresToSameTensorId) !=
       false) {
     LLVM_DEBUG(dbgs() << "Possible alias in global address space\n");
@@ -1151,10 +1153,10 @@ analyzeMemDep(const MachineLoop &ML, const ArrayRef<MLoopLinearIV> IVs,
       return Result;
     }
 
-    const Optional<DenseMap<Register, MemAccessExpr>> MemLocRegToExpr =
+    const std::optional<DenseMap<Register, MemAccessExpr>> MemLocRegToExpr =
         collectMemAccessExpr(*ASU, IVs, MRI, TII);
 
-    if (!MemLocRegToExpr.hasValue()) {
+    if (!MemLocRegToExpr.has_value()) {
       LLVM_DEBUG(dbgs() << "Memory DA is rejected. There are unparsed memory "
                            "access patterns.\n");
       return Result;
@@ -1162,7 +1164,7 @@ analyzeMemDep(const MachineLoop &ML, const ArrayRef<MLoopLinearIV> IVs,
 
     // Ensure origin is common for all registries, otherwise dependency can not
     // be analyzed because there is no restrict/noalias guarantee.
-    if (!hasCommonOrigin(MemLocRegToExpr.getValue())) {
+    if (!hasCommonOrigin(MemLocRegToExpr.value())) {
       LLVM_DEBUG(dbgs() << "Memory DA is rejected. No noalias guarantee.\n");
       return Result;
     }
@@ -1185,17 +1187,17 @@ analyzeMemDep(const MachineLoop &ML, const ArrayRef<MLoopLinearIV> IVs,
                   RegAndMIs1.first == RegAndMIs2.first)
                 continue;
 
-              const Optional<MemLocDepResult> Res = checkMemAccessDependency(
+              const std::optional<MemLocDepResult> Res = checkMemAccessDependency(
                   RegAndMIs1.first, RegAndMIs2.first,
-                  MemLocRegToExpr.getValue(), InterestingIterationsCount);
+                  MemLocRegToExpr.value(), InterestingIterationsCount);
 
-              if (!Res.hasValue())
+              if (!Res.has_value())
                 AnalysisRejectedFlag = true;
 
-              if (Res.hasValue() && Res->HasLoopDependentDep)
+              if (Res.has_value() && Res->HasLoopDependentDep)
                 HasLoopDependentDep = true;
 
-              if (Res.hasValue() && Res->HasLoopIndependentDep)
+              if (Res.has_value() && Res->HasLoopIndependentDep)
                 HasLoopIndependentDep = true;
             }
           }
@@ -1247,13 +1249,13 @@ MLDAReport runMachineLoopDataDependencyAnalysis(
   if (!isDependencyAnalysisSupportedForLoop(ML))
     return Report;
 
-  if (Optional<MLRegistryDAResult> RegRes = analyzeRegDep(ML, MRI)) {
+  if (std::optional<MLRegistryDAResult> RegRes = analyzeRegDep(ML, MRI)) {
     Report.HasLoopDependentReg = RegRes->HasLoopDependentReg;
     Report.PhisDefineLoopDependentReg =
         std::move(RegRes->PhisDefineLoopDependentReg);
   }
 
-  if (Optional<MLMemoryDAResult> MemRes = analyzeMemDep(
+  if (std::optional<MLMemoryDAResult> MemRes = analyzeMemDep(
           ML, LinearIVs, MRI, ST, TII, IgnoreCheckAgainstStoresToSameTensorId,
           InterestingIterationsCount)) {
     Report.HasLoopDependentMemStLd = MemRes->HasLoopDependentMemStLd;

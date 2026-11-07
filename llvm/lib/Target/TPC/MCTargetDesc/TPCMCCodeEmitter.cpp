@@ -918,7 +918,7 @@ void TPCMCCodeEmitter::fillInstrBits(const MCInst& MI,
                                      const MCSubtargetInfo& STI,
                                      bool ignoreNops,
                                      bool isSingle,
-                                     const Optional<uint64_t> &StoreSrcC) const
+                                     const std::optional<uint64_t> &StoreSrcC) const
 {
   bool isDoron1 = STI.getFeatureBits()[TPC::FeatureDoron1];
   const unsigned opcode = MI.getOpcode();
@@ -927,7 +927,7 @@ void TPCMCCodeEmitter::fillInstrBits(const MCInst& MI,
   }
   if (opcode == TPC::BUNDLE) {
     // Lookup instruction with SrcCIsStoreSrcC flag
-    Optional<uint64_t> StoreSrcCLocal;
+    std::optional<uint64_t> StoreSrcCLocal;
     for (auto &I : TPCMCInstrInfo::bundleInstructions(MI)) {
       MCInst &BundleMI = const_cast<MCInst &>(*I.getInst());
       if (TPCII::getSrcCIsStoreSrcC(MCII.get(BundleMI.getOpcode()))) {
@@ -1069,7 +1069,7 @@ void TPCMCCodeEmitter::fillInstrBits(const MCInst& MI,
                StoreSrcCField.startLLVM + StoreSrcCField.sizeBin + 1);
         StoreSrcCMask.flipAllBits();
 
-        APInt StoreSrcCValue = APInt(64, StoreSrcC.getValue())
+        APInt StoreSrcCValue = APInt(64, StoreSrcC.value())
             .shl(StoreSrcCField.startLLVM);
 
         Inst &= StoreSrcCMask.getZExtValue();
@@ -1591,3 +1591,4 @@ int TPCMCCodeEmitter:: isLoopInst(const MCInst &MI) const {
 } // End of namespace llvm.
 
 #include "TPCGenMCCodeEmitter.inc"
+#include <optional>

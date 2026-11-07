@@ -10,7 +10,11 @@ include "llvm/Target/Target.td"
 
 //----------------------------------------------------------------------------//
 
-def TPCInstrInfo : InstrInfo;
+def TPCInstrInfo : InstrInfo {
+  // LLVM 17 removes this option, so the instruction definitions need named
+  // operands by then.
+  let useDeprecatedPositionallyEncodedOperands = 1;
+}
 
 //----------------------------------------------------------------------------//
 // TPC processors features..

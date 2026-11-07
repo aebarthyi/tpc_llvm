@@ -13338,7 +13338,7 @@ void ASTContext::loadTpcTypes() const {
     FeatureMask |= Feature_Float8;
 
   // Load predefined types and put corresponding entries into helper tables.
-  for (unsigned I = 0, E = llvm::array_lengthof(PredefinedTypes); I < E; ++I) {
+  for (unsigned I = 0, E = std::size(PredefinedTypes); I < E; ++I) {
     // Filter types by features.
     const unsigned ThisFeatureMask = PredefinedTypes[I].FeatureMask;
     if ((FeatureMask & ThisFeatureMask) != ThisFeatureMask) {

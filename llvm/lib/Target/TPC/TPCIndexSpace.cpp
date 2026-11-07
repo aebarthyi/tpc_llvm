@@ -108,7 +108,7 @@ extractIntrinFromList(vector<IntrinsicInst *> intrinsicList,
 void TPCIndexMap::collectDataLoop(Function &F, ScalarEvolution *SE,
                                   LoopInfo *LI) {
 
-  for (auto &Bb : F.getBasicBlockList()) {
+  for (auto &Bb : F) {
     if (LI->isLoopHeader(&Bb)) {
       Loop *Lp = LI->getLoopFor(&Bb);
       LoopData L(Lp, SE);
@@ -128,7 +128,7 @@ void TPCIndexMap::collectDataLoop(Function &F, ScalarEvolution *SE,
 
   };
   do {
-    for (auto &Bb : F.getBasicBlockList()) {
+    for (auto &Bb : F) {
 
       listOfLoad = extractIntrinFromList(get_list_of<IntrinsicInst>((&Bb)),
                                          intrinSics[intrinInd].first);

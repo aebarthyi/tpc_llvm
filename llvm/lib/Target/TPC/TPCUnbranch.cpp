@@ -792,7 +792,8 @@ bool TPCUnbranch::runOnFunction(Function &Func) {
     }
 
     const SmallVector<BasicBlock *, 8> BBEndPredecessors(predecessors(bb_end));
-    if (is_splat(BBEndPredecessors) && BBEndPredecessors.front() == accept) {
+    if (!BBEndPredecessors.empty() && all_equal(BBEndPredecessors) &&
+        BBEndPredecessors.front() == accept) {
       // need to check no ref beside branches (phi) in ref BB
       if (!notmovebb.empty()) {
         // can not move,but suc_true already moved

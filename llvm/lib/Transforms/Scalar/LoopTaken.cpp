@@ -70,7 +70,7 @@ INITIALIZE_PASS_END(LoopTaken, "looptaken", "honor loop taken pragma", false,
 static bool insertAssume(Loop *const L, ScalarEvolution &SE,
                          Instruction *InsertP) {
   LLVM_DEBUG(dbgs() << "insertAssume: \n");
-  Optional<Loop::LoopBounds> LB = L->getBounds(SE);
+  std::optional<Loop::LoopBounds> LB = L->getBounds(SE);
   PHINode *p = L->getInductionVariable(SE);
   if (LB && (p != nullptr)) {
     Value &Initial = LB->getInitialIVValue();

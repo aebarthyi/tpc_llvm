@@ -2502,8 +2502,7 @@ void LoopSWPImpl::updateLoopBounds() {
           NewInductionPhiNode->addIncoming(IncomeVal, Pred);
         NewIncomeVal = cast<Value>(NewInductionPhiNode);
         auto PreInsertIt = PreheaderBlock->begin();
-        PreheaderBlock->getInstList().insert(PreInsertIt,
-                                             cast<Instruction>(NewIncomeVal));
+        cast<Instruction>(NewIncomeVal)->insertInto(PreheaderBlock, PreInsertIt);
       }
     }
     NewInductionUpdate = CondLHS->clone();

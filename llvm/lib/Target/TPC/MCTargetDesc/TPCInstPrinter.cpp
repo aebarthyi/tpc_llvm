@@ -46,8 +46,8 @@ const int TPCInstPrinter::TpcAsmParseCompatible = 3;
 static bool FirstOperandPrinded = false;
 
 
-void TPCInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
-  OS << StringRef(getRegisterName(RegNo)).lower();
+void TPCInstPrinter::printRegName(raw_ostream &OS, MCRegister Reg) const {
+  OS << StringRef(getRegisterName(Reg)).lower();
 
   FirstOperandPrinded = true;
 }
@@ -175,7 +175,7 @@ void TPCInstPrinter::printDataType(const MCInst *MI, unsigned OpNum, raw_ostream
     ".i64"
   };
   unsigned Ndx = Op.getImm();
-  assert(Ndx < array_lengthof(OpTypes));
+  assert(Ndx < std::size(OpTypes));
   StringRef DTName = OpTypes[Ndx];
 
   // Don't print datatype operand if instruction mnemonic already contains it.
@@ -226,7 +226,7 @@ void TPCInstPrinter::printComparison(const MCInst *MI, unsigned OpNum, raw_ostre
 
   assert(Op.isImm() && "Switches must be an immediate");
   unsigned Cmp = Op.getImm();
-  assert(Cmp < array_lengthof(LoopCompareText));
+  assert(Cmp < std::size(LoopCompareText));
   O << LoopCompareText[Cmp];
 
   FirstOperandPrinded = true;

@@ -336,7 +336,7 @@ bool CoordUpdateSimplifyImpl::isSimplifyProfitable(std::string Indent) {
   }
 
   // check if we need not worry about potential register spills
-  unsigned BlockSize = HeaderBlock->getInstList().size();
+  unsigned BlockSize = HeaderBlock->size();
   if (BlockSize <= BlockSizeCaution)
     return true;
 
@@ -529,7 +529,7 @@ bool CoordUpdateSimplifyImpl::isSimplifyPossible(std::string Indent) {
 
   // conservatively avoid applying transformation if the block size is beyond
   // the maximum value allowed
-  if (HeaderBlock->getInstList().size() > BlockSizeMax) {
+  if (HeaderBlock->size() > BlockSizeMax) {
     CSP_DEBUG(
         Indent
         << "HeaderBlock is too big to safely simplify coords, exiting ...")

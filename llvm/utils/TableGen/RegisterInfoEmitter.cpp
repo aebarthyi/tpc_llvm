@@ -1192,7 +1192,13 @@ RegisterInfoEmitter::runTargetHeader(raw_ostream &OS, CodeGenTarget &Target,
      << "MCRegister) const override;\n"
      << "  bool isArgumentRegister(const MachineFunction &, "
      << "MCRegister) const override;\n"
+#ifdef LLVM_TPC_COMPILER
+     // TPC's answer for SP0 and VP0 depends on the subtarget, so its
+     // TargetRegisterInfo must be able to override this.
+     << "  bool isConstantPhysReg(MCRegister PhysReg) const override;\n"
+#else
      << "  bool isConstantPhysReg(MCRegister PhysReg) const override final;\n"
+#endif
      << "  /// Devirtualized TargetFrameLowering.\n"
      << "  static const " << TargetName << "FrameLowering *getFrameLowering(\n"
      << "      const MachineFunction &MF);\n";

@@ -204,7 +204,7 @@ PreservedAnalyses TPCLICMPass::run(Loop &L, LoopAnalysisManager &AM,
 
   // Instructions were hoisted out of L, so the cached loop dispositions are
   // stale.
-  AR.SE.forgetLoopDispositions(&L);
+  AR.SE.forgetLoopDispositions();
 
   // Like the legacy pass, preserve the CFG (instructions are only moved).
   PreservedAnalyses PA = getLoopPassPreservedAnalyses();

@@ -923,8 +923,8 @@ private:
 
   const char *TPCHeaderParseBaseError =
     "Unexpected token during parse tpc metadata: '";
-  Optional<TPCMetadataSection> TPCHeader;
-  Optional<std::string> IndexMap;
+  std::optional<TPCMetadataSection> TPCHeader;
+  std::optional<std::string> IndexMap;
 
 public:
   TPCAsmParser(const MCSubtargetInfo &sti, MCAsmParser &Parser,
@@ -1211,7 +1211,7 @@ private:
                                  SlotParser Slot);
 
 
-  bool Error(SMLoc L, const Twine &Msg, SMRange Range = None,
+  bool Error(SMLoc L, const Twine &Msg, SMRange Range = std::nullopt,
              bool MatchingInlineAsm = false) {
     MCAsmParser &Parser = getParser();
     if (MatchingInlineAsm) {
@@ -1256,8 +1256,8 @@ private:
 
   bool parseIndexMap();
 public:
-  bool ParseRegister(unsigned &RegNo, SMLoc &StartLoc, SMLoc &EndLoc) override;
-  OperandMatchResultTy tryParseRegister(unsigned &RegNo, SMLoc &StartLoc, SMLoc &EndLoc) override;
+  bool parseRegister(MCRegister &Reg, SMLoc &StartLoc, SMLoc &EndLoc) override;
+  OperandMatchResultTy tryParseRegister(MCRegister &Reg, SMLoc &StartLoc, SMLoc &EndLoc) override;
   bool ParseImmediate(const MCExpr *&Val, SMLoc &StartLoc, SMLoc &EndLoc);
   bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
                         SMLoc NameLoc, OperandVector &Operands) override;
@@ -1278,6 +1278,7 @@ public:
 #define GET_SUBTARGET_FEATURE_NAME
 #define GET_MATCHER_IMPLEMENTATION
 #include "TPCGenAsmMatcher.inc"
+#include <optional>
 
 
 static bool isDimMask(StringRef Identifier) {
@@ -1289,8 +1290,8 @@ static bool isDimMask(StringRef Identifier) {
   return false;
 }
 
-bool TPCAsmParser::ParseRegister(unsigned &RegNo, SMLoc &StartLoc, SMLoc &EndLoc) {
-  OperandMatchResultTy Res = tryParseRegister(RegNo, StartLoc, EndLoc);
+bool TPCAsmParser::parseRegister(MCRegister &Reg, SMLoc &StartLoc, SMLoc &EndLoc) {
+  OperandMatchResultTy Res = tryParseRegister(Reg, StartLoc, EndLoc);
   if (Res == MatchOperand_Success) {
     Parser.Lex();
     return false;
@@ -1298,7 +1299,7 @@ bool TPCAsmParser::ParseRegister(unsigned &RegNo, SMLoc &StartLoc, SMLoc &EndLoc
   return Error(StartLoc, "invalid register name", SMRange(StartLoc, EndLoc));
 }
 
-OperandMatchResultTy TPCAsmParser::tryParseRegister(unsigned &RegNo, SMLoc &StartLoc, SMLoc &EndLoc) {
+OperandMatchResultTy TPCAsmParser::tryParseRegister(MCRegister &RegNo, SMLoc &StartLoc, SMLoc &EndLoc) {
   MCAsmParser &Parser = getParser();
   const AsmToken &Tok = Parser.getTok();
 
@@ -1813,8 +1814,8 @@ OperandMatchResultTy TPCAsmParser::parseOperand(OperandVector &Operands, StringR
   // !SP1
   if (Tok.is(AsmToken::Exclaim)) {
     consumeToken();
-    unsigned RegNo;
-    if (!ParseRegister(RegNo, StartLoc, EndLoc)) {
+    MCRegister RegNo;
+    if (!parseRegister(RegNo, StartLoc, EndLoc)) {
       PredicateKind PredKind = getPredicateKind(RegNo);
       if (getPredicateKind(RegNo) == NotAPredicate) {
         Error(StartLoc, "expected predicate register", SMRange(StartLoc, EndLoc));
@@ -3154,7 +3155,7 @@ bool TPCAsmParser::parseTPCMetadata() {
      if (StringRef(CurrentFieldInfo->fieldName).compare(TPCMarchName) == 0) {
        StringRef CPU = getSTI().getCPU();
        bool WrongArch = false;
-       switch (TPCHeader.getValue().march) {
+       switch (TPCHeader.value().march) {
        case 1:
          WrongArch = CPU.compare_insensitive("goya") != 0;
          break;
@@ -3387,7 +3388,7 @@ void TPCAsmParser::flushPendingInstructions(MCStreamer &Out) {
     MetadataSection->getFragmentList().clear();
     MCDataFragment* Fragment = new MCDataFragment(MetadataSection);
 
-    const TPCMetadataSection &Header = TPCHeader.getValue();
+    const TPCMetadataSection &Header = TPCHeader.value();
     std::vector<uint8_t> BinaryValue = binarySerializeTPCProgramHeader(Header);
     Fragment->getContents().append(BinaryValue.begin(), BinaryValue.end());
     Fragment->setAlignToBundleEnd(true);

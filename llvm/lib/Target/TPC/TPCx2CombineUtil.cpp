@@ -40,21 +40,21 @@ unsigned TPCx2CombineUtil::X2DRFMaxPressure = 0;
 unsigned TPCx2CombineUtil::X2VRFMaxPressure = 0;
 
 void TPCx2CombineUtil::resetMBBRegPressure(
-    MachineBasicBlock *MBB, RegisterClassInfo *RegClassInfo) const {
+    const MachineBasicBlock *MBB, const RegisterClassInfo *RegClassInfo) const {
   X2RegPressure = 0;
   RegionPressure Pressure;
   RegPressureTracker RPTracker(Pressure);
-  MachineRegisterInfo &MRI = MBB->getParent()->getRegInfo();
-  MachineFunction &MF = *MBB->getParent();
+  const MachineRegisterInfo &MRI = MBB->getParent()->getRegInfo();
+  const MachineFunction &MF = *MBB->getParent();
   const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
   // Initialize the register pressure tracker.
   RPTracker.init(MBB->getParent(), RegClassInfo, nullptr, MBB, MBB->end(),
                  /*TrackLaneMasks*/ false, /*TrackUntiedDefs=*/true);
 
-  for (MachineBasicBlock::iterator MII = MBB->instr_end(),
-                                   MIE = MBB->instr_begin();
+  for (MachineBasicBlock::const_iterator MII = MBB->instr_end(),
+                                         MIE = MBB->instr_begin();
        MII != MIE; --MII) {
-    MachineInstr &MI = *std::prev(MII);
+    const MachineInstr &MI = *std::prev(MII);
     if (MI.isDebugValue() || MI.isDebugLabel())
       continue;
     RegisterOperands RegOpers;

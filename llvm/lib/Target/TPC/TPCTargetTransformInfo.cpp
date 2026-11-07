@@ -521,12 +521,14 @@ int TPCTTIImpl::getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy,
 
 InstructionCost TPCTTIImpl::getShuffleCost(TTI::ShuffleKind Kind,
                                            VectorType *Tp, ArrayRef<int> Mask,
+                                           TTI::TargetCostKind CostKind,
                                            int Index, VectorType *SubTp,
-                                           ArrayRef<const Value *> Args) {
+                                           ArrayRef<const Value *> Args,
+                                           const Instruction *CxtI) {
 
   switch (Kind) {
   default:
-    return BaseT::getShuffleCost(Kind, Tp, Mask, Index, SubTp);
+    return BaseT::getShuffleCost(Kind, Tp, Mask, CostKind, Index, SubTp);
   case TTI::SK_ExtractSubvector:
     // extract subvector is basically a single COPY instruction
     return TTI::TCC_Basic;

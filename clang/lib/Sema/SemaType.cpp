@@ -2444,6 +2444,12 @@ bool Sema::checkArrayElementAlignment(QualType EltTy, SourceLocation Loc) {
   if (Size.isMultipleOf(Alignment))
     return true;
 
+#ifdef LLVM_TPC_COMPILER
+  // bool256 is 32 bytes aligned to 256, and RC99 allows arrays of it.
+  if (getLangOpts().RC99)
+    return true;
+#endif
+
   Diag(Loc, diag::err_array_element_alignment)
       << EltTy << Size.getQuantity() << Alignment.getQuantity();
   return false;

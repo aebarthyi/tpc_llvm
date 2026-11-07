@@ -1873,7 +1873,7 @@ Expr *Sema::buildDefaultArgument(const FunctionProtoType *FT,
     // The last but two argument, income.
     if (ArgTy->isStructureType()) {
       TypeSourceInfo *TInfo = Context.getTrivialTypeSourceInfo(ParamTy);
-      ExprResult Init = BuildInitList(SourceLocation(), None, SourceLocation());
+      ExprResult Init = BuildInitList(SourceLocation(), std::nullopt, SourceLocation());
       assert(Init.isUsable());
       ExprResult R = BuildCompoundLiteralExpr(SourceLocation(), TInfo, SourceLocation(), Init.get());
       assert(R.isUsable());

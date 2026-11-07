@@ -32,11 +32,11 @@ static LangASMap TPCAddrSpaceMap = {
 
 const Builtin::Info TPCTargetInfo::BuiltinInfo[] = {
 #define BUILTIN(ID, TYPE, ATTRS)                                               \
-  { #ID, TYPE, ATTRS, nullptr, RC99_LANG, nullptr },
+  {#ID, TYPE, ATTRS, nullptr, HeaderDesc::NO_HEADER, RC99_LANG},
 #define TARGET_BUILTIN(ID, TYPE, ATTRS, FEATURE)                               \
-  { #ID, TYPE, ATTRS, nullptr, RC99_LANG, FEATURE },
+  {#ID, TYPE, ATTRS, FEATURE, HeaderDesc::NO_HEADER, RC99_LANG},
 #define TPC_BUILTIN(ID, TYPE, ATTRS, FEATURE, DEFARG)                          \
-  { #ID, TYPE, ATTRS, nullptr, RC99_LANG, FEATURE, DEFARG },
+  {#ID, TYPE, ATTRS, FEATURE, HeaderDesc::NO_HEADER, RC99_LANG, DEFARG},
 #include "clang/Basic/BuiltinsTPC.def"
 };
 
@@ -279,7 +279,7 @@ bool TPCTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
 
 ArrayRef<TargetInfo::GCCRegAlias> TPCTargetInfo::getGCCRegAliases() const {
   // TODO: implement
-  return None;
+  return std::nullopt;
 }
 
 const char *TPCTargetInfo::getClobbers() const {

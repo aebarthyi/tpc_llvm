@@ -25,8 +25,8 @@ namespace llvm {
 
 class TPCx2CombineUtil {
 public:
-  void resetMBBRegPressure(MachineBasicBlock *MBB,
-                           RegisterClassInfo *RegClassInfo) const;
+  void resetMBBRegPressure(const MachineBasicBlock *MBB,
+                           const RegisterClassInfo *RegClassInfo) const;
   bool findMACX2Pattern(MachineInstr &Root,
                         SmallVectorImpl<MachineCombinerPattern> &Patterns,
                         bool CheckVRegsPartOfOneDRFX2, bool CheckRegPressureX2,

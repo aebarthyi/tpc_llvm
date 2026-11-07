@@ -40,8 +40,10 @@ class TPCDAGToDAGISel : public SelectionDAGISel {
   const TPCSubtarget *Subtarget;
 
 public:
+  static char ID;
+
   explicit TPCDAGToDAGISel(TPCTargetMachine &tm, CodeGenOpt::Level OL)
-    : SelectionDAGISel(tm, OL), Subtarget(tm.getSubtarget()) {}
+    : SelectionDAGISel(ID, tm, OL), Subtarget(tm.getSubtarget()) {}
 
   bool doInitialization(Module &M) override {
     return false;
@@ -74,6 +76,8 @@ public:
 
 };
 }  // end anonymous namespace
+
+char TPCDAGToDAGISel::ID = 0;
 
 void TPCDAGToDAGISel::Select(SDNode *N) {
   // Dump information about the Node being selected

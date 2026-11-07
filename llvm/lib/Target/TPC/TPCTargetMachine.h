@@ -11,6 +11,7 @@
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/IR/PassManager.h"
 #include <memory>
+#include <optional>
 
 namespace llvm {
 
@@ -204,15 +205,13 @@ class TPCTargetMachine : public LLVMTargetMachine {
 public:
   TPCTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                    StringRef FS, const TargetOptions &Options,
-                   Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
+                   std::optional<Reloc::Model> RM, std::optional<CodeModel::Model> CM,
                    CodeGenOpt::Level OL, bool JIT);
 
   ~TPCTargetMachine() override;
 
   const TPCSubtarget *getSubtarget() const { return Subtarget; }
   const TPCSubtarget *getSubtargetImpl(const Function &F) const override;
-
-  void adjustPassManager(PassManagerBuilder &) override;
   void registerPassBuilderCallbacks(PassBuilder &PB) override;
   void registerDefaultAliasAnalyses(AAManager &AAM) override;
   /// Subtarget features used by TPCEliminateRedundantLinearity.

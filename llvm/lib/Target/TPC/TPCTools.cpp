@@ -136,7 +136,7 @@ Constant *replaceInConstantExpr(Constant *E, Constant *Old, Constant *New,
     return ConstantExpr::getGetElementPtr(GEP->getSourceElementType(), New, Args);
   }
 
-  if (auto *UCE = dyn_cast<UnaryConstantExpr>(E)) {
+  if (auto *UCE = dyn_cast<CastConstantExpr>(E)) {
     assert(Instruction::isCast(UCE->getOpcode()));
     assert(UCE->getOperand(0) == Old);
     PointerType *OT = cast<PointerType>(UCE->getType());
@@ -167,7 +167,7 @@ Value *replaceConstantByMutable(Constant *Usr, Constant *Old, Value *New,
     return Builder.CreateInBoundsGEP(C->getSourceElementType(), NewBase, IndexVals);
   }
 
-  if (auto C = dyn_cast<UnaryConstantExpr>(Usr)) {
+  if (auto C = dyn_cast<CastConstantExpr>(Usr)) {
     assert(Usr->getOperand(0) == Old);
     switch (C->getOpcode()) {
     case Instruction::BitCast:

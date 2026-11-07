@@ -406,7 +406,7 @@ namespace clang {
           StringRef FData = C.getSourceManager().getBufferData(MainFileID);
           EmbedText(getModule(), CodeGenOpts, FData, ".source", "source");
         
-          Optional<FileEntryRef> MainFilePath = C.getSourceManager()
+          OptionalFileEntryRef MainFilePath = C.getSourceManager()
             .getFileEntryRefForID(MainFileID);
           if (MainFilePath) {
             StringRef BareMainFileName = llvm::sys::path::stem(

@@ -13,6 +13,7 @@
 #include "llvm/CodeGen/MachineOperand.h"
 
 #include <cstdint>
+#include <optional>
 
 namespace llvm {
 class MachineRegisterInfo;
@@ -143,7 +144,7 @@ struct PhiIP {
 SmallVector<PhiIP, 4> getAllPhiIPs(MachineInstr &Phi);
 
 /// Find input pair in phi instruction which corresponds to the given MBB.
-Optional<PhiIP> getPhiIPForMBB(MachineInstr &Phi, const MachineBasicBlock &MBB);
+std::optional<PhiIP> getPhiIPForMBB(MachineInstr &Phi, const MachineBasicBlock &MBB);
 
 /// Check whether phi has given inputs only.
 bool isPhiInputs(const MachineInstr &Phi, ArrayRef<const PhiIP*> Inputs);
@@ -152,12 +153,12 @@ bool isPhiInputs(const MachineInstr &Phi, ArrayRef<const PhiIP*> Inputs);
 bool removePhiInputFromMBB(MachineInstr& Phi, const MachineBasicBlock& MBB);
 
 /// Return index of phi operand which denotes the given machine basic block.
-Optional<unsigned> getIndexOfPhiMBBOp(const MachineInstr &Phi,
+std::optional<unsigned> getIndexOfPhiMBBOp(const MachineInstr &Phi,
                                       const MachineBasicBlock &MBB);
 
 /// Return index of phi operand which denotes the input value from the given
 /// machine basic block.
-Optional<unsigned> getIndexOfPhiValOp(const MachineInstr &Phi,
+std::optional<unsigned> getIndexOfPhiValOp(const MachineInstr &Phi,
                                       const MachineBasicBlock &MBB);
 
 /// Insert phi instruction which defines register of class RC and accepts the

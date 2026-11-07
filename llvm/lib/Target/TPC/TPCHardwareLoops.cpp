@@ -53,6 +53,7 @@
 #include <set>
 #include <utility>
 #include <vector>
+#include <optional>
 using namespace llvm;
 
 #define DEBUG_TYPE "hwloops"
@@ -95,7 +96,7 @@ static unsigned getUserSpecifiedLoopHWUnrollCount(MachineLoop &ML) {
 
   MDNode *LoopMD = LatchMBB->getBasicBlock()->getTerminator()->getMetadata(
       LLVMContext::MD_loop);
-  return getUnrollCountFromMetadata(LoopMD).getValueOr(1);
+  return getUnrollCountFromMetadata(LoopMD).value_or(1);
 }
 
 /// Predict loop instructions count at the end of optimization pipeline.
@@ -314,7 +315,7 @@ public:
   bool runOnMachineFunction(MachineFunction &MF) override;
   bool convertToHardwareLoop(MachineLoop *L, int& Layer);
   void setCounters(MachineLoop* L, int& Layer);
-  llvm::Optional<LoopVars> calculateLoop(MachineLoop *L);
+  std::optional<LoopVars> calculateLoop(MachineLoop *L);
 
   StringRef getPassName() const override { return "TPC Hardware Loops"; }
 
@@ -407,7 +408,7 @@ namespace {
 // Split phi instruction inside loop input pairs on internal (from blocks
 // inside loop) and external (from blocks outside of the loop). Return None if
 // phi inputs are only from basic blocks inside loop.
-static llvm::Optional<LoopEIPhiInputs>
+static std::optional<LoopEIPhiInputs>
 GetLoopEIPhiInputs(MachineInstr &Phi, MachineLoop &L) {
   assert(Phi.isPHI() && "precondition: Phi must be a phi instruction");
   assert(L.contains(&Phi) && "precondition: Phi must be inside loop L");
@@ -419,7 +420,7 @@ GetLoopEIPhiInputs(MachineInstr &Phi, MachineLoop &L) {
   }
 
   if (!Res.External.ValOp || !Res.Internal.ValOp)
-    return llvm::None;
+    return std::nullopt;
   return Res;
 }
 
@@ -454,7 +455,7 @@ enum class HWLoopPattern {
   PreIncrement
 };
 
-llvm::Optional<LoopVars> TPCHardwareLoops::calculateLoop(MachineLoop *L) {
+std::optional<LoopVars> TPCHardwareLoops::calculateLoop(MachineLoop *L) {
   MachineBasicBlock *Header = L->getHeader();
   MachineBasicBlock *Latch = L->getLoopLatch();
   MachineBasicBlock *ExitingBlock = L->findLoopControlBlock();
@@ -463,21 +464,21 @@ llvm::Optional<LoopVars> TPCHardwareLoops::calculateLoop(MachineLoop *L) {
   LLVM_DEBUG(dbgs() << "Calculate loop\n");
 
   if (!Header)
-    return llvm::None;
+    return std::nullopt;
 
   // Loops with several backedges can't be converted
   if (!Latch)
-    return llvm::None;
+    return std::nullopt;
 
   // Don't generate hw loop if the loop has more than one exit.
   if (!ExitingBlock)
-    return llvm::None;
+    return std::nullopt;
 
   if (!ExitBlock)
-    return llvm::None;
+    return std::nullopt;
 
   if (!checkLayout(L))
-    return llvm::None;
+    return std::nullopt;
 
   MachineOperand* Pred = nullptr;
   bool InvertCond = false;
@@ -499,7 +500,7 @@ llvm::Optional<LoopVars> TPCHardwareLoops::calculateLoop(MachineLoop *L) {
 
   // If there's no conditional jump inside the loop, it's a precondition loop
   if (!Pred)
-    return llvm::None;
+    return std::nullopt;
 
   MachineInstr* Condition = MRI->getVRegDef(Pred->getReg());
   assert(Condition && "Multidef of a predicate in SSA form");
@@ -509,11 +510,11 @@ llvm::Optional<LoopVars> TPCHardwareLoops::calculateLoop(MachineLoop *L) {
 
   if (getCmpMode(Condition->getOpcode()) == TPCII::LoopErr) {
     // Skip loop if predicate is calculated as AND of several conditions
-    return llvm::None;
+    return std::nullopt;
   }
 
   if (!L->contains(Condition)) {
-    return llvm::None;
+    return std::nullopt;
   }
   assert(L->contains(Condition) && "Condition for backedge is not in the loop");
 
@@ -537,23 +538,23 @@ llvm::Optional<LoopVars> TPCHardwareLoops::calculateLoop(MachineLoop *L) {
   } else if (Op1.isReg() && Op2.isReg()) {
     // Shared iterator between loops
     if (!MRI->getVRegDef(Op1.getReg()) || ! MRI->getVRegDef(Op2.getReg())) {
-      return llvm::None;
+      return std::nullopt;
     }
     if (!L->contains(MRI->getVRegDef(Op1.getReg()))) {
       if (!L->contains(MRI->getVRegDef(Op2.getReg()))) {
-        return llvm::None;
+        return std::nullopt;
       }
       Iterator = &Op2;
       Boundary = &Op1;
       NeedSwapCondition = true;
     } else if (!L->contains(MRI->getVRegDef(Op2.getReg()))) {
       if (!L->contains(MRI->getVRegDef(Op1.getReg()))) {
-        return llvm::None;
+        return std::nullopt;
       }
       Iterator = &Op1;
       Boundary = &Op2;
     } else {
-      return llvm::None;
+      return std::nullopt;
     }
 
     MachineInstr* BoundaryDef = MRI->getVRegDef(Boundary->getReg());
@@ -561,13 +562,13 @@ llvm::Optional<LoopVars> TPCHardwareLoops::calculateLoop(MachineLoop *L) {
       // TODO: If at this point loop invariants are not moved out of the loop
       // we should check wether boundary def is a real invariant and move it
       // ourselfs. If it's not possible, the loop can't be converted.
-      return llvm::None;
+      return std::nullopt;
     }
   }
 
   if (!Iterator || !Boundary) {
     LLVM_DEBUG(dbgs() << "Failed to make hw loop: condition is not parsed\n");
-    return llvm::None;
+    return std::nullopt;
   }
   LLVM_DEBUG(dbgs() << "Boundary from condition: "; Boundary->dump());
   LLVM_DEBUG(dbgs() << "Iterator from condition: "; Iterator->dump());
@@ -610,11 +611,11 @@ llvm::Optional<LoopVars> TPCHardwareLoops::calculateLoop(MachineLoop *L) {
     //   %n = ADD %n-1, c_n-1
     if (!Phi->isPHI()) {
       if (!StepInstr->getOperand(2).isImm())
-        return llvm::None;
+        return std::nullopt;
 
       while(!Phi->isPHI()) {
         if (!TPCII::isAdd(Phi->getDesc())) {
-          return llvm::None;
+          return std::nullopt;
         }
 
         if (Phi->getOperand(2).isImm()) {
@@ -624,7 +625,7 @@ llvm::Optional<LoopVars> TPCHardwareLoops::calculateLoop(MachineLoop *L) {
           StepImmInc += Phi->getOperand(1).getImm();
           Phi = MRI->getVRegDef(Phi->getOperand(2).getReg());
         } else {
-          return llvm::None;
+          return std::nullopt;
         }
       }
     }
@@ -634,7 +635,7 @@ llvm::Optional<LoopVars> TPCHardwareLoops::calculateLoop(MachineLoop *L) {
     if (!L->contains(Phi)) {
       LLVM_DEBUG(dbgs() << "Failed to make hw loop: "
                            "start phi node is out of the loop\n");
-      return llvm::None;
+      return std::nullopt;
     }
 
     // Some sort of double inductive variable. We can't link iterator increment
@@ -646,7 +647,7 @@ llvm::Optional<LoopVars> TPCHardwareLoops::calculateLoop(MachineLoop *L) {
                          });
     if (!IVinPhi) {
       LLVM_DEBUG(dbgs() << "Failed to make hw loop: ind var is not in phi\n");
-      return llvm::None;
+      return std::nullopt;
     }
   } else if (CmpUseDef->isPHI()) {
     // Likely a PreIncrement pattern
@@ -660,17 +661,17 @@ llvm::Optional<LoopVars> TPCHardwareLoops::calculateLoop(MachineLoop *L) {
     if (Phi->getParent() != Header) {
       LLVM_DEBUG(dbgs() << "Failed to make hw loop: "
                            "start phi node is out of the loop header\n");
-      return llvm::None;
+      return std::nullopt;
     }
 
-    const llvm::Optional<LoopEIPhiInputs> StartPhiInputs =
+    const std::optional<LoopEIPhiInputs> StartPhiInputs =
         GetLoopEIPhiInputs(*Phi, *L);
 
     // Start phi must have input from the single Latch block
     if (!StartPhiInputs || StartPhiInputs->Internal.MBBOp->getMBB() != Latch) {
       LLVM_DEBUG(dbgs() << "Failed to make hw loop: "
                            "start phi input is not from the Latch BB\n");
-      return llvm::None;
+      return std::nullopt;
     }
 
     // Operand for <next_it> in Phi instruction
@@ -680,18 +681,18 @@ llvm::Optional<LoopVars> TPCHardwareLoops::calculateLoop(MachineLoop *L) {
     // <next_it> operand must be a register, otherwise hwloop optimization
     // is not applicable. Is it possible to be non-register at all?
     if (!NextItOp.isReg())
-      return llvm::None;
+      return std::nullopt;
 
     StepInstr = MRI->getVRegDef(NextItOp.getReg());
     LLVM_DEBUG(dbgs() << "StepInstr: "; StepInstr->dump());
 
     if (!L->contains(StepInstr) || !isIncrement(StepInstr->getOpcode())) {
       LLVM_DEBUG(dbgs() << "Failed to make hw loop: unsupported step instr\n");
-      return llvm::None;
+      return std::nullopt;
     }
   } else {
     LLVM_DEBUG(dbgs() << "Failed to make hw loop: unrecognized loop pattern\n");
-    return llvm::None;
+    return std::nullopt;
   }
 
   // TODO: Below I assume that step is the second operand and iterator is the first one.
@@ -702,15 +703,15 @@ llvm::Optional<LoopVars> TPCHardwareLoops::calculateLoop(MachineLoop *L) {
   // Skip loop if step is defined inside the loop
   if (Step.isReg() && L->contains(MRI->getVRegDef(Step.getReg()))) {
     LLVM_DEBUG(dbgs() << "Failed to make hw loop: step is in the loop\n");
-    return llvm::None;
+    return std::nullopt;
   }
 
-  const llvm::Optional<LoopEIPhiInputs> PhiInputs =
+  const std::optional<LoopEIPhiInputs> PhiInputs =
       GetLoopEIPhiInputs(*Phi, *L);
   if (!PhiInputs) {
     LLVM_DEBUG(dbgs() << "Failed to make hw loop: start phi has no edges "
                          "from blocks outside the loop\n");
-    return llvm::None;
+    return std::nullopt;
   }
   MachineOperand Start = *PhiInputs->External.ValOp;
 
@@ -741,7 +742,7 @@ llvm::Optional<LoopVars> TPCHardwareLoops::calculateLoop(MachineLoop *L) {
   // Skip loop if start is defined in the loop
   if (Start.isReg() && L->contains(MRI->getVRegDef(Start.getReg()))) {
     LLVM_DEBUG(dbgs() << "Failed to make hw loop: start is in the loop\n");
-    return llvm::None;
+    return std::nullopt;
   }
 
   LoopVars Lv;
@@ -767,7 +768,7 @@ llvm::Optional<LoopVars> TPCHardwareLoops::calculateLoop(MachineLoop *L) {
     Lv.Step.Reg = Step.getReg();
   if (Lv.StepSel && !isIntN(32, Lv.Step.ImmVal)) {
     LLVM_DEBUG(dbgs() << "Failed to make hw loop: step is out of i32 type");
-    return llvm::None;
+    return std::nullopt;
   }
 
   Lv.StartSel = Start.isImm();
@@ -800,14 +801,14 @@ llvm::Optional<LoopVars> TPCHardwareLoops::calculateLoop(MachineLoop *L) {
     if (!Lv.BoundarySel || !Lv.StepSel) {
       LLVM_DEBUG(dbgs() << "Failed to make hw loop: loop is in PreIncrement "
                            "form and boundary/step is not immediate\n");
-      return llvm::None;
+      return std::nullopt;
     }
 
     const int64_t FixedBoundaryImmVal = Lv.Boundary.ImmVal + Lv.Step.ImmVal;
     if (!isIntN(32, FixedBoundaryImmVal)) {
       LLVM_DEBUG(dbgs() << "Failed to make hw loop: loop is in PreIncrement "
                            "form and boundary + step value overflows i32 type\n");
-      return llvm::None;
+      return std::nullopt;
     }
     Lv.Boundary.ImmVal = FixedBoundaryImmVal;
   }
@@ -1271,7 +1272,7 @@ bool TPCHardwareLoops::convertToHardwareLoop(MachineLoop *L,
   if (!isHWLoopTransformationAllowed(*L, *MLI, *TST))
     return Changed;
 
-  llvm::Optional<LoopVars> Lv = calculateLoop(L);
+  std::optional<LoopVars> Lv = calculateLoop(L);
   if (!Lv)
     return Changed;
 
@@ -1319,7 +1320,7 @@ bool TPCHardwareLoops::convertToHardwareLoop(MachineLoop *L,
   }
   assert(Preheader && "Unreachable loop");
  
-  MachineBasicBlock* NewPreheader = stripEntranceCheck(Preheader, Header, L->getExitBlock(), Lv.getPointer());
+  MachineBasicBlock* NewPreheader = stripEntranceCheck(Preheader, Header, L->getExitBlock(), &*Lv);
   if (NewPreheader) {
     InsertPos = NewPreheader->end();
     LoopBlock = NewPreheader;
@@ -1361,7 +1362,7 @@ bool TPCHardwareLoops::convertToHardwareLoop(MachineLoop *L,
 
   //DebugLoc DL = Prolog->begin()->getDebugLoc();
 
-  unsigned LOOP_opc = chooseLoopOpcode(Lv.getValue());
+  unsigned LOOP_opc = chooseLoopOpcode(Lv.value());
   const MachineInstrBuilder& MIB = BuildMI(*LoopBlock, InsertPos, DebugLoc(), TII->get(LOOP_opc));
 
   if (Lv->StartSel) {
