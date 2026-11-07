@@ -79,8 +79,9 @@ struct GlobalResolver : public ModulePass {
       if (mustBeResolved(GV)) {
         if (!GV.use_empty()) {
           PointerType *Ty = GV.getType();
-          bool IsVectorAddrSpace = isTpcVectorType(Ty->getNonOpaquePointerElementType());
-          uint64_t Sz = DL.getTypeAllocSize(Ty->getNonOpaquePointerElementType());
+          Type *ValueTy = GV.getValueType();
+          bool IsVectorAddrSpace = isTpcVectorType(ValueTy);
+          uint64_t Sz = DL.getTypeAllocSize(ValueTy);
           uint64_t Addr;
           if (!IsVectorAddrSpace) {
             Addr = ScalarAddress;
@@ -88,11 +89,11 @@ struct GlobalResolver : public ModulePass {
               Sz = 4;
             } 
             ScalarAddress += Sz;
-            Ty = PointerType::get(Ty->getNonOpaquePointerElementType(), ScalarAddrSpace);
+            Ty = PointerType::get(ValueTy, ScalarAddrSpace);
           } else {
             Addr = VectorAddress;
             VectorAddress += Sz;
-            Ty = PointerType::get(Ty->getNonOpaquePointerElementType(), VectorAddrSpace);
+            Ty = PointerType::get(ValueTy, VectorAddrSpace);
           }
           ConstantInt *AddrVal = ConstantInt::get(Type::getInt32Ty(C), Addr);
           auto PtrRef = ConstantExpr::getIntToPtr(AddrVal, Ty);

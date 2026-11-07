@@ -218,29 +218,28 @@ generation".
 
 **How it works.** For every ``llvm.memcpy`` in each block:
 
-* ``isOnlyCopy``: the size is a ``ConstantInt``. Both pointer operands are
-  ``bitcast`` instructions whose sources have the same pointer-to-struct type.
-  The size itself is not checked (``TODO: check size``). The copy is skipped
-  if the destination is a GEP.
+* ``isOnlyCopy``: the size is a ``ConstantInt`` and both pointers have the same
+  type. One of them must be an ``alloca`` of a structure type whose allocation
+  size equals the copy size. The copy is skipped if the destination is a GEP.
 
 * Return temporary (``isReturnTempValue``): the source is an ``alloca``. Its
-  only users are single-use bitcasts feeding ``lifetime.start``/``end`` or
-  exactly one ``memcpy`` (as its source), plus exactly one ``store`` into it.
-  The pass replaces all uses of the alloca with the memcpy destination, so
-  the store writes straight to the destination. It then erases the alloca, the
-  bitcasts, the lifetime markers and the ``memcpy``.
+  only users are ``lifetime.start``/``end``, exactly one ``memcpy`` (as its
+  source) and exactly one ``store`` into it. The pass replaces all uses of the
+  alloca with the memcpy destination, so the store writes straight to the
+  destination. It then erases the alloca, the lifetime markers and the
+  ``memcpy``.
 
 * Argument temporary (``isArgumentTempValue``): the destination is an
-  ``alloca``. Its only users are single-use bitcasts feeding exactly one
-  ``memcpy`` (as its destination) or ``load`` instructions. The pass replaces
-  all uses of the alloca with the memcpy source, then erases the ``memcpy``,
-  its bitcasts and the alloca.
+  ``alloca``. Its only users are exactly one ``memcpy`` (as its destination) and
+  ``load`` instructions. The pass replaces all uses of the alloca with the
+  memcpy source, then erases the ``memcpy`` and the alloca.
 
 * Dead instructions are collected per block and erased after the block is
   scanned.
 
-**Requirements and effects.** Expects frontend-shaped IR with typed pointers
-(it inspects ``PointerType::getElementType()``). Uses no analyses. The legacy
+**Requirements and effects.** Expects frontend-shaped IR with opaque pointers; it
+does not match typed-pointer IR, whose copies go through bitcasts. Uses no
+analyses. The legacy
 pass declares no preserved analyses, so the new PM version returns ``none()``
 on change and ``all()`` otherwise. Optional: the legacy pass calls
 ``skipFunction``.
@@ -254,16 +253,6 @@ the pass does nothing.
   to the destination at the store's position, not the memcpy's, and reads of
   the temporary become reads of the source. Correctness relies on the
   frontend's patterns.
-
-* ``getCalledFunction()->isIntrinsic()`` is called without a null check
-  (``TPCCopyElision.cpp:134``, ``:193``). An indirect call fed by a bitcast
-  of a candidate alloca would crash.
-
-* Typed-pointer assumptions (``getElementType()``) need rework for opaque
-  pointers.
-
-* Pre-existing warning: ``BCUser`` is set but not used in
-  ``isArgumentTempValue``.
 
 MarkupDirectMMIOAccessPass
 ==========================

@@ -6,33 +6,25 @@
 // values of structure type. For instance, the piece of IR:
 //
 //  %tmp = alloca %struct._int256, align 256
-//  %252 = bitcast %struct._int256* %tmp to i8*
-//  call void @llvm.lifetime.start.p0i8(i64 1024, i8* %252)
-//  store %struct._int256 %270, %struct._int256 *%tmp, align 256
-//  %271 = bitcast %struct._int256* %acc0 to i8*
-//  %272 = bitcast %struct._int256* %tmp to i8*
-//  call void @llvm.memcpy.p0i8.p0i8.i32(i8* align 256 %271, i8* align 256 %272, i32 1024, i1 false)
-//  %273 = bitcast %struct._int256* %tmp to i8*
-//  call void @llvm.lifetime.end.p0i8(i64 1024, i8* %273)
+//  call void @llvm.lifetime.start.p0(i64 1024, ptr %tmp)
+//  store %struct._int256 %270, ptr %tmp, align 256
+//  call void @llvm.memcpy.p0.p0.i32(ptr align 256 %acc0, ptr align 256 %tmp, i32 1024, i1 false)
+//  call void @llvm.lifetime.end.p0(i64 1024, ptr %tmp)
 //
 // can actually be replaced with:
 //
-//  store %struct._int256 %270, %struct._int256* %acc0, align 256
+//  store %struct._int256 %270, ptr %acc0, align 256
 //
 // Similarly, argument of structure type involves extra copy. For instance, the
 // IR piece:
 //
 //  %tmp10 = alloca %struct._float64_pair_t, align 256
-//  %58 = bitcast %struct._float64_pair_t* %tmp10 to i8*
-//  %59 = bitcast %struct._float64_pair_t* %result to i8*
-//  call void @llvm.memcpy.p0i8.p0i8.i32(i8* align 256 %58, i8* align 256 %59, i32 512, i1 false)
-//  %60 = bitcast %struct._float64_pair_t* %tmp10 to <128 x float>*
-//  %61 = load <128 x float>, <128 x float>* %60, align 256
+//  call void @llvm.memcpy.p0.p0.i32(ptr align 256 %tmp10, ptr align 256 %result, i32 512, i1 false)
+//  %61 = load <128 x float>, ptr %tmp10, align 256
 //
 // can be replaced with:
 //
-//  %60 = bitcast %struct._float64_pair_t* %result to <128 x float>*
-//  %61 = load <128 x float>, <128 x float>* %60, align 256
+//  %61 = load <128 x float>, ptr %result, align 256
 //
 // This pass removes the extra IR nodes in hope that it can help code
 // generation.
@@ -93,11 +85,10 @@ static bool isReturnTempValue(Value *V, StoreInst *&StI, SmallVectorImpl<Instruc
 
   // Temp value is an alloca that may be used only in:
   // - start lifetime call, like:
-  //       %252 = bitcast %struct._int256* %tmp to i8*
-  //       call void @llvm.lifetime.start.p0i8(i64 1024, i8* %252)
+  //       call void @llvm.lifetime.start.p0(i64 1024, ptr %tmp)
   //
   // - one store operation, like:
-  //       store %struct._int256 %270, %struct._int256* %tmp, align 256
+  //       store %struct._int256 %270, ptr %tmp, align 256
   //   where the stored value (%270) is a known transformation of some
   //   intrinsic call.
   //       %262 = call <256 x i32> @llvm.tpc.mac.x2.zp.v256i32.v256i8.i1(...)
@@ -111,50 +102,31 @@ static bool isReturnTempValue(Value *V, StoreInst *&StI, SmallVectorImpl<Instruc
   //       %270 = insertvalue %struct._int256 %269, <64 x i32> %266, 3
   //
   // - as a source in one memcpy operation:
-  //       %272 = bitcast %struct._int256* %tmp to i8*
-  //       call void @llvm.memcpy.p0i8.p0i8.i32(i8* align 256 %271, i8* align 256 %272, i32 1024, i1 false)
+  //       call void @llvm.memcpy.p0.p0.i32(ptr align 256 %acc0, ptr align 256 %tmp, i32 1024, i1 false)
   //
   // - end lifetime call:
-  //       %273 = bitcast %struct._int256* %tmp to i8*
-  //       call void @llvm.lifetime.end.p0i8(i64 1024, i8* %273)
+  //       call void @llvm.lifetime.end.p0(i64 1024, ptr %tmp)
 
   auto *Inst = dyn_cast<AllocaInst>(V);
-  if (!isa<AllocaInst>(V))
+  if (!Inst)
     return false;
 
   bool Seen_memcpy = false;
   bool Seen_store = false;
   for (User *U : Inst->users()) {
-    if (auto BC = dyn_cast<BitCastInst>(U)) {
-      if (BC->getNumUses() != 1)
-        return false;
-      auto BCUser = dyn_cast<CallInst>(*BC->user_begin());
-      if (!BCUser)
-        return false;
-      Function *F = BCUser->getCalledFunction();
-      if (!F->isIntrinsic())
-        return false;
-      switch (F->getIntrinsicID()) {
+    if (auto *Call = dyn_cast<IntrinsicInst>(U)) {
+      switch (Call->getIntrinsicID()) {
       case Intrinsic::lifetime_start:
       case Intrinsic::lifetime_end:
-        TempUsers.push_back(BCUser);
-        TempUsers.push_back(BC);
+        TempUsers.push_back(Call);
         break;
       case Intrinsic::memcpy:
         if (Seen_memcpy)
           return false;
         Seen_memcpy = true;
-        TempUsers.push_back(BCUser);
-        TempUsers.push_back(BC);
-        if (BCUser->getOperand(1) != BC)
+        if (Call->getOperand(1) != Inst)
           return false;
-        if (auto DPtr = dyn_cast<BitCastInst>(BCUser->getOperand(0)))
-          if (DPtr->getNumUses() != 1)
-            return false;
-          else
-            TempUsers.push_back(DPtr);
-        else
-          return false;
+        TempUsers.push_back(Call);
         break;
       default:
         return false;
@@ -175,51 +147,31 @@ static bool isReturnTempValue(Value *V, StoreInst *&StI, SmallVectorImpl<Instruc
   return Seen_memcpy && Seen_store;
 }
 
-static bool isArgumentTempValue(Value *V, BitCastInst *&BCI, SmallVectorImpl<Instruction *> &TempUsers) {
-  BCI = nullptr;
+static bool isArgumentTempValue(Value *V, LoadInst *&LdI, SmallVectorImpl<Instruction *> &TempUsers) {
+  LdI = nullptr;
   TempUsers.clear();
 
   auto *Inst = dyn_cast<AllocaInst>(V);
-  if (!isa<AllocaInst>(V))
+  if (!Inst)
     return false;
 
   bool Seen_memcpy = false;
   bool Seen_load = false;
   for (User *U : Inst->users()) {
-    if (auto BC = dyn_cast<BitCastInst>(U)) {
-      if (BC->getNumUses() != 1)
+    if (auto *Call = dyn_cast<IntrinsicInst>(U)) {
+      if (Call->getIntrinsicID() != Intrinsic::memcpy)
         return false;
-      if (auto Call = dyn_cast<CallInst>(*BC->user_begin())) {
-        Function *F = Call->getCalledFunction();
-        if (!F->isIntrinsic())
-          return false;
-        if (F->getIntrinsicID() != Intrinsic::memcpy)
-          return false;
-        //  %58 = bitcast %struct._float64_pair_t* %tmp10 to i8*
-        //  %59 = bitcast %struct._float64_pair_t* %result to i8*
-        //  call void @llvm.memcpy.p0i8.p0i8.i32(i8* align 256 %58, i8* align 256 %59, i32 512, i1 false)
-        if (Seen_memcpy)
-          return false;
-        Seen_memcpy = true;
-        TempUsers.push_back(Call);
-        TempUsers.push_back(BC);
-        if (Call->getOperand(0) != BC)
-          return false;
-        if (auto DPtr = dyn_cast<BitCastInst>(Call->getOperand(1)))
-          if (DPtr->getNumUses() != 1)
-            return false;
-          else
-            TempUsers.push_back(DPtr);
-        else
-          return false;
-      } else if (auto BCUser = dyn_cast<LoadInst>(*BC->user_begin())) {
-        //  %60 = bitcast %struct._float64_pair_t* %tmp10 to <128 x float>*
-        //  %61 = load <128 x float>, <128 x float>* %60, align 256
-        BCI = BC;
-        Seen_load = true;
-      } else {
+      //  call void @llvm.memcpy.p0.p0.i32(ptr align 256 %tmp10, ptr align 256 %result, i32 512, i1 false)
+      if (Seen_memcpy)
         return false;
-      }
+      Seen_memcpy = true;
+      TempUsers.push_back(Call);
+      if (Call->getOperand(0) != Inst)
+        return false;
+    } else if (auto *Load = dyn_cast<LoadInst>(U)) {
+      //  %61 = load <128 x float>, ptr %tmp10, align 256
+      LdI = Load;
+      Seen_load = true;
     } else {
       // This alloca is used in some other way.
       return false;
@@ -229,34 +181,24 @@ static bool isArgumentTempValue(Value *V, BitCastInst *&BCI, SmallVectorImpl<Ins
   return Seen_memcpy && Seen_load;
 }
 
-/// Check if the given memcpy copies a value of structure type.
+/// Check if the given memcpy copies a whole value of structure type, held in an
+/// alloca on one of its sides.
 static bool isOnlyCopy(const MemCpyInst *MemCopy, Value *&Dest, Value *&Src) {
-  Value *DestVal = MemCopy->getOperand(0);
-  Value *SrcVal = MemCopy->getOperand(1);
-  Value *SizeVal = MemCopy->getOperand(2);
-  auto Size = dyn_cast<ConstantInt>(SizeVal);
+  auto *Size = dyn_cast<ConstantInt>(MemCopy->getLength());
   if (!Size)
     return false;
-  auto DestBitCast = dyn_cast<BitCastInst>(DestVal);
-  if (!DestBitCast)
-    return false;
-  auto SrcBitCast = dyn_cast<BitCastInst>(SrcVal);
-  if (!SrcBitCast)
-    return false;
-  Dest = DestBitCast->getOperand(0);
-  Src = SrcBitCast->getOperand(0);   // Probably temporary
-  Type *DestType = Dest->getType();
-  Type *SrcType = Src->getType();
-  if (DestType != SrcType)
-    return false;
-  PointerType *PTy = dyn_cast<PointerType>(DestType);
-  if (!PTy)
-    return false;
-  if (!PTy->getNonOpaquePointerElementType()->isStructTy())
+  Dest = MemCopy->getRawDest();
+  Src = MemCopy->getRawSource();
+  if (Dest->getType() != Src->getType())
     return false;
 
-  // TODO: check size.
-  return true;
+  const DataLayout &DL = MemCopy->getModule()->getDataLayout();
+  auto IsWholeStruct = [&](Value *V) {
+    auto *AI = dyn_cast<AllocaInst>(V);
+    return AI && AI->getAllocatedType()->isStructTy() &&
+           DL.getTypeAllocSize(AI->getAllocatedType()) == Size->getZExtValue();
+  };
+  return IsWholeStruct(Dest) || IsWholeStruct(Src);
 }
 
 bool TpcCopyElision::runOnFunction(Function &F) {
@@ -282,7 +224,7 @@ bool TpcCopyElision::runImpl(Function &F) {
           if (isa<GetElementPtrInst>(Dest))
             continue;
           StoreInst *StI = nullptr;
-          BitCastInst *LdI = nullptr;
+          LoadInst *LdI = nullptr;
           SmallVector<Instruction *, 10> TempUsers;
           if (isReturnTempValue(Src, StI, TempUsers)) {
             assert(StI);
@@ -300,7 +242,7 @@ bool TpcCopyElision::runImpl(Function &F) {
             assert(LdI);
             assert(!TempUsers.empty());
             LLVM_DEBUG(dbgs() << "Copy elision: " << *LdI << '\n');
-            LdI->getOperand(0)->replaceAllUsesWith(Src);
+            LdI->getPointerOperand()->replaceAllUsesWith(Src);
             LLVM_DEBUG(dbgs() << "          To: " << *LdI << '\n');
             LLVM_DEBUG(
               for (auto I : TempUsers)

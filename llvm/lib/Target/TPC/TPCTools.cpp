@@ -130,18 +130,17 @@ Constant *replaceInConstantExpr(Constant *E, Constant *Old, Constant *New,
                                 unsigned NewAddressSpace) {
   if (auto *GEP = dyn_cast<GetElementPtrConstantExpr>(E)) {
     assert(GEP->getOperand(0) == Old);
-    PointerType *OT = cast<PointerType>(GEP->getType());
     SmallVector<Constant *, 8> Args;
     for (unsigned I = 1; I < GEP->getNumOperands(); ++I)
       Args.push_back(cast<Constant>(GEP->getOperand(I)));
-    return ConstantExpr::getGetElementPtr(OT->getNonOpaquePointerElementType(), New, Args);
+    return ConstantExpr::getGetElementPtr(GEP->getSourceElementType(), New, Args);
   }
 
   if (auto *UCE = dyn_cast<UnaryConstantExpr>(E)) {
     assert(Instruction::isCast(UCE->getOpcode()));
     assert(UCE->getOperand(0) == Old);
     PointerType *OT = cast<PointerType>(UCE->getType());
-    PointerType *NT = PointerType::get(OT->getNonOpaquePointerElementType(), NewAddressSpace);
+    PointerType *NT = PointerType::getWithSamePointeeType(OT, NewAddressSpace);
     return ConstantExpr::getCast(UCE->getOpcode(), New, NT);
   }
 
@@ -154,7 +153,7 @@ Value *replaceConstantByMutable(Constant *Usr, Constant *Old, Value *New,
   // User value must have pointer type if it can change address space.
   PointerType *OT = cast<PointerType>(Usr->getType());
   assert(OT->getAddressSpace() != NewAddressSpace);
-  PointerType *NT = PointerType::get(OT->getNonOpaquePointerElementType(), NewAddressSpace);
+  PointerType *NT = PointerType::getWithSamePointeeType(OT, NewAddressSpace);
 
   if (auto C = dyn_cast<GetElementPtrConstantExpr>(Usr)) {
     SmallVector<Value *, 8> IndexVals;
@@ -287,13 +286,7 @@ void rauwConvertingAddressSpace(Value *Old, Value *New, IRBuilder<> *Builder,
     }
     else if (auto *BC = dyn_cast<BitCastInst>(Usr)) {
       PointerType *T = cast<PointerType>(BC->getType());
-      Type* ElT = T->getNonOpaquePointerElementType();
-      if (PointerType*SubPT = dyn_cast<PointerType>(ElT)) {
-        Type* TSubEl = SubPT->getNonOpaquePointerElementType();
-        assert(dyn_cast<PointerType>(TSubEl)==0);
-        ElT = PointerType::get(TSubEl, NewAddressSpace);
-      }
-      PointerType *NT = PointerType::get(ElT, NewAddressSpace);
+      PointerType *NT = PointerType::getWithSamePointeeType(T, NewAddressSpace);
       auto NewBC = BitCastInst::Create(Instruction::CastOps::BitCast, BC->getOperand(0), NT, BC->getName(), BC);
       DEBUG_WITH_TYPE("localizer", dbgs() << "== Replaced:\n");
       DEBUG_WITH_TYPE("localizer", dbgs() << " " << *NewBC << "\n");
@@ -426,11 +419,9 @@ void ValueReplacer::processItem(Value *Old, Value *New) {
 
   unsigned OldAddrSpace = OldType->getAddressSpace();
   unsigned NewAddrSpace = NewType->getAddressSpace();
-  Type *PointeeType = OldType->getNonOpaquePointerElementType();
-  (void) PointeeType;
 
   if (!dyn_cast<BitCastInst>(Old) && dyn_cast<BitCastInst>(New))
-    assert(PointeeType == NewType->getNonOpaquePointerElementType());
+    assert(OldType->hasSameElementTypeAs(NewType));
 
   // If address space is not changed, use usual RAUW mechanism.
   if (OldAddrSpace == NewAddrSpace) {
@@ -490,17 +481,7 @@ void ValueReplacer::processItem(Value *Old, Value *New) {
       assert(T);
       int tas = T->getAddressSpace();
       if (tas == 0) {
-        Type *ElT = T->getNonOpaquePointerElementType();
-        PointerType *SubPT = dyn_cast<PointerType>(ElT);
-        if (SubPT) {
-          int eltas = SubPT->getAddressSpace();
-          if (eltas == 0) { // stack replacing on global
-            Type *TSubEl = SubPT->getNonOpaquePointerElementType();
-            assert(dyn_cast<PointerType>(TSubEl) == 0);
-            ElT = PointerType::get(TSubEl, NewAddrSpace);
-          }
-        }
-        PointerType *NT = PointerType::get(ElT, NewAddrSpace);
+        PointerType *NT = PointerType::getWithSamePointeeType(T, NewAddrSpace);
         auto NBC = new BitCastInst(BC->getOperand(0), NT, BC->getName(), BC);
         DEBUG_WITH_TYPE("replacer", dbgs() << "  Replacing:\n");
         DEBUG_WITH_TYPE("replacer", dbgs() << "    " << *BC << "\n");
@@ -649,7 +630,7 @@ void ValueReplacer::processItem(Value *Old, Value *New) {
         auto *PT = cast<PointerType>(CE->getType());
         if (PT->getAddressSpace() != NewAddrSpace) {
           PointerType *OT = cast<PointerType>(CE->getType());
-          PointerType *NT = PointerType::get(OT->getNonOpaquePointerElementType(), NewAddrSpace);
+          PointerType *NT = PointerType::getWithSamePointeeType(OT, NewAddrSpace);
           auto NCE = ConstantExpr::getCast(CE->getOpcode(), CE->getOperand(0), NT);
           schedule(CE, NCE);
         }

@@ -32,9 +32,7 @@ using namespace llvm;
 STATISTIC(NumPromoted, "Number of alloca's promoted (TPC)");
 
 static bool shouldMoveToReg(AllocaInst *AI) {
-  auto *APT = cast<PointerType>(AI->getType());
-  Type *AT = APT->getPointerElementType();
-  if (auto *PT = dyn_cast<PointerType>(AT))
+  if (auto *PT = dyn_cast<PointerType>(AI->getAllocatedType()))
     if (PT->getAddressSpace() == 3)
       return true;
   return false;
