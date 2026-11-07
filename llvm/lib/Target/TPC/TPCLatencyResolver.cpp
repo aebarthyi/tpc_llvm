@@ -504,7 +504,7 @@ int TPCLatencyResolver::getRequiredDistance(const MachineInstr& DefMI,
           if (UReg == DReg ||
               TRI->isSubRegister(DReg, UReg) ||
               TRI->isSubRegister(UReg, DReg)) {
-            int lat = TII->getOperandLatency(ItinData, *DMI, DefIdx, *UMI, UseIdx);
+            int lat = static_cast<const TPCInstrInfo *>(TII)->getTPCOperandLatency(ItinData, *DMI, DefIdx, *UMI, UseIdx);
             alatency = std::max(alatency, lat);
 
             // It is not allowed to modify a register 3 cycles before a lookup

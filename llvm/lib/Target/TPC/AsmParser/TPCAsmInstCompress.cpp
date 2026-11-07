@@ -30,7 +30,7 @@ void TPCAsmInstCompress::EmitInstruction(MCInst &Inst, MCStreamer &Out,
     IsStoreInBuffer = true;
   else if(isJmpMCInst(Inst, Label)) {
     JmpLabels.push_back(Label);
-    if (!Buffer.empty() && any_isa<MCSymbol *>(Buffer.front())) {
+    if (!Buffer.empty() && any_cast<MCSymbol *>(&Buffer.front()) != nullptr) {
       if(any_cast<MCSymbol *>(Buffer.front())->getName() == Label)
         IsStoreInBuffer = false;
     }
@@ -95,7 +95,7 @@ void TPCAsmInstCompress::onLabelEmited(MCSymbol *Symbol) {
     PendingLabels.push_back(Symbol);
 
   // Loop ending label check
-  if (!Buffer.empty() && any_isa<MCInst>(Buffer.front())) {
+  if (!Buffer.empty() && any_cast<MCInst>(&Buffer.front()) != nullptr) {
     StringRef LoopLabel;
     if (isLoopMCInst(any_cast<MCInst>(Buffer.front()), LoopLabel))
       if (LoopLabel == Symbol->getName())
@@ -120,7 +120,7 @@ void TPCAsmInstCompress::flushBuffer(MCStreamer &Out,
   assert(compressEnabled);
   auto It = Buffer.begin();
   for(; It != Buffer.end(); ++It) {
-    if (any_isa<MCInst>(*It)) {
+    if (any_cast<MCInst>(&*It) != nullptr) {
       auto& Inst = any_cast<MCInst &>(*It);
       StringRef Looplabel;
       if (!isLoopMCInst(Inst, Looplabel)) {
@@ -339,7 +339,7 @@ void TPCAsmInstCompress::flushLoopsInsts(std::vector<Any>::iterator &Iter,
   auto FlushLastFourInstrs = [&LastFourInstrs, &Out, &STI, this]
       (bool IsCompressed) {
     for (Any &Value : LastFourInstrs.buffer) {
-      if (any_isa<MCInst>(Value)) {
+      if (any_cast<MCInst>(&Value) != nullptr) {
         MCInst Inst = any_cast<MCInst &>(Value);
         if (IsCompressed && !DoNotCompressNextInst &&
             maybeCompressInstr(Inst, false, STI))
@@ -364,7 +364,7 @@ void TPCAsmInstCompress::flushLoopsInsts(std::vector<Any>::iterator &Iter,
     assert(LastFourInstrs.instCount > 0);
     for (auto It = LastFourInstrs.buffer.begin();
          It != LastFourInstrs.buffer.end(); ++It) {
-      if(any_isa<MCInst>(*It)) {
+      if(any_cast<MCInst>(&*It) != nullptr) {
         MCInst Result = any_cast<MCInst &>(*It);
         LastFourInstrs.buffer.erase(LastFourInstrs.buffer.begin(), It + 1);
         --LastFourInstrs.instCount;
@@ -380,7 +380,7 @@ void TPCAsmInstCompress::flushLoopsInsts(std::vector<Any>::iterator &Iter,
   };
 
   for (;;) {
-    if (any_isa<MCInst>(*Iter)) {
+    if (any_cast<MCInst>(&*Iter) != nullptr) {
       MCInst Inst = any_cast<MCInst &>(*Iter);
       StringRef LoopLabel;
       if (isLoopMCInst(Inst, LoopLabel)) {

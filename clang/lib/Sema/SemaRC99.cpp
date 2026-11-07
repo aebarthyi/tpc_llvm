@@ -217,7 +217,7 @@ static AlignmentStatus containsShortValue(QualType Ty) {
       unsigned NumFields = 0;
       for (const auto &Field : RDecl->fields()) {
         if (++NumFields > 1) {
-          if (Num != NoShort && RDecl->getTagKind() != TTK_Union)
+          if (Num != NoShort && RDecl->getTagKind() != TagTypeKind::Union)
             return AlignmentConflict;
         }
         QualType FType = Field->getType();
@@ -237,7 +237,7 @@ static AlignmentStatus containsShortValue(QualType Ty) {
         if (Num == AlignmentConflict)
           break;
       }
-      if (Num == AlignmentConflict && RDecl->getTagKind() == TTK_Union)
+      if (Num == AlignmentConflict && RDecl->getTagKind() == TagTypeKind::Union)
         return OneShort;
       return Num;
     }
@@ -1363,7 +1363,7 @@ bool Sema::checkBeforeCodegen(Decl *D) {
       } else {
         if ((FD->getStorageClass() != SC_Extern) &&
             FD->isThisDeclarationADefinition() &&
-            !FD->getName().startswith("__")) {
+            !FD->getName().starts_with("__")) {
           FD->addAttr(AlwaysInlineAttr::CreateImplicit(Context));
           FD->setInlineSpecified(true);
         }
@@ -1384,7 +1384,7 @@ bool Sema::checkBeforeCodegen(Decl *D) {
 bool Sema::isPrintfEnabled(FunctionDecl *FDecl) {
   DeclarationName MemberName = FDecl->getDeclName();
   IdentifierInfo *Member = MemberName.getAsIdentifierInfo();
-  if (Member->getName().startswith("printf_")) {
+  if (Member->getName().starts_with("printf_")) {
     return TpcPrintfPragmaIsOn || LangOpts.UsePrintf;
   }
   return true;

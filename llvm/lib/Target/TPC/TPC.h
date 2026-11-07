@@ -34,7 +34,7 @@ namespace llvm {
     GLOBAL = 3
   };
 
-  FunctionPass *createTPCISelDag(TPCTargetMachine &TM, CodeGenOpt::Level OptLevel);
+  FunctionPass *createTPCISelDag(TPCTargetMachine &TM, CodeGenOptLevel OptLevel);
 //  FunctionPass *createTPCDelaySlotFillerPass(TargetMachine &TM);
 
 //  void LowerTPCMachineInstrToMCInst(const MachineInstr *MI,

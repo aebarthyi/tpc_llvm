@@ -1379,8 +1379,9 @@ void clang::EmbedText(llvm::Module *M, const CodeGenOptions &CGOpts,
                                      llvm::GlobalValue::PrivateLinkage,
                                      TextConstant);
   GV->setSection(SectionName);
-  Type *TextType = Type::getInt8Ty(M->getContext())->getPointerTo(0);
-  Constant* TextConstantPtr = ConstantExpr::getPointerBitCastOrAddrSpaceCast(GV, TextType);
+  llvm::Type *TextType = llvm::PointerType::getUnqual(M->getContext());
+  llvm::Constant *TextConstantPtr =
+      llvm::ConstantExpr::getPointerBitCastOrAddrSpaceCast(GV, TextType);
   if (llvm::GlobalVariable *Old =
       M->getGlobalVariable(ItemName, true)) {
     assert(Old->hasOneUse());
@@ -1391,8 +1392,8 @@ void clang::EmbedText(llvm::Module *M, const CodeGenOptions &CGOpts,
   }
 
   // Recreate llvm.compiler.used.
-  ArrayType *ATy = ArrayType::get(TextType, 1);
-  auto *NewUsed = new GlobalVariable(
+  llvm::ArrayType *ATy = llvm::ArrayType::get(TextType, 1);
+  auto *NewUsed = new llvm::GlobalVariable(
     *M, ATy, false, llvm::GlobalValue::AppendingLinkage,
     llvm::ConstantArray::get(ATy, TextConstantPtr), "llvm.compiler.used");
   NewUsed->setSection("llvm.metadata");

@@ -866,8 +866,8 @@ BitVector TPCInstrInfo::findAvailableReg(MachineInstr &MI, const TargetRegisterC
   MachineBasicBlock &MBB = *MI.getParent();
   RegScavenger RS;
 
-  RS.enterBasicBlock(MBB);
-  RS.forward(MI);
+  RS.enterBasicBlockEnd(MBB);
+  RS.backward(MI);
 
   BitVector Candidates =
       TRI.getAllocatableSet(*MBB.getParent(), RC);
@@ -1882,7 +1882,7 @@ static bool IsMov(const MachineInstr &MI) {
     return false;
 }
 
-int TPCInstrInfo::getOperandLatency(const InstrItineraryData *ItinData,
+int TPCInstrInfo::getTPCOperandLatency(const InstrItineraryData *ItinData,
                                     const MachineInstr &DefMI, unsigned DefIdx,
                                     const MachineInstr &UseMI, unsigned UseIdx) const {
   DEBUG_WITH_TYPE("latency", dbgs() << "== Latency between op" << DefIdx << " and op" << UseIdx << "\n");
@@ -2297,7 +2297,7 @@ int TPCInstrInfo::getOperandLatency(const InstrItineraryData *ItinData,
       // registers.
       DEBUG_WITH_TYPE("latency", dbgs() << "== Latency : replaced use op to " << ShortRegIdx << "\n");
       assert(ShortRegIdx < UseIdx);
-      return getOperandLatency(ItinData, DefMI, DefIdx, UseMI, ShortRegIdx);
+      return getTPCOperandLatency(ItinData, DefMI, DefIdx, UseMI, ShortRegIdx);
     }
 
     // The definition defines a register, which is a part of a long register,
@@ -2309,7 +2309,7 @@ int TPCInstrInfo::getOperandLatency(const InstrItineraryData *ItinData,
     if (DefReg == ShortReg) {
       DEBUG_WITH_TYPE("latency", dbgs() << "== Latency : replaced use op to " << ShortRegIdx << "\n");
       assert(ShortRegIdx < UseIdx);
-      return getOperandLatency(ItinData, DefMI, DefIdx, UseMI, ShortRegIdx);
+      return getTPCOperandLatency(ItinData, DefMI, DefIdx, UseMI, ShortRegIdx);
     }
 
     // Try to find another explicit register operand that represents a
@@ -2322,7 +2322,7 @@ int TPCInstrInfo::getOperandLatency(const InstrItineraryData *ItinData,
           if (Reg == DefReg) {
             DEBUG_WITH_TYPE("latency", dbgs() << "== Latency : replaced use op to " << I << "\n");
             assert(I < UseIdx);
-            return getOperandLatency(ItinData, DefMI, DefIdx, UseMI, I);
+            return getTPCOperandLatency(ItinData, DefMI, DefIdx, UseMI, I);
           }
         }
       }
@@ -2362,7 +2362,7 @@ int TPCInstrInfo::getOperandLatency(const InstrItineraryData *ItinData,
     if (isLongRegister(UseRegClass) && getRegisterInfo().isSubRegister(ShortReg, DefReg)) {
       DEBUG_WITH_TYPE("latency", dbgs() << "== Latency : replaced def op to " << ShortRegOp << "\n");
       assert(ShortRegOp < DefIdx);
-      return getOperandLatency(ItinData, DefMI, ShortRegOp, UseMI, UseIdx);
+      return getTPCOperandLatency(ItinData, DefMI, ShortRegOp, UseMI, UseIdx);
     }
 
     // Another case is when producer and consumer operate different subregisters
@@ -2374,7 +2374,7 @@ int TPCInstrInfo::getOperandLatency(const InstrItineraryData *ItinData,
     if (UseReg == ShortReg) {
       DEBUG_WITH_TYPE("latency", dbgs() << "== Latency : replaced def op to " << ShortRegOp << "\n");
       assert(ShortRegOp < DefIdx);
-      return getOperandLatency(ItinData, DefMI, ShortRegOp, UseMI, UseIdx);
+      return getTPCOperandLatency(ItinData, DefMI, ShortRegOp, UseMI, UseIdx);
     }
 
     // Try to find another explicit register operand that represents a
@@ -2387,7 +2387,7 @@ int TPCInstrInfo::getOperandLatency(const InstrItineraryData *ItinData,
           if (Reg == UseReg)
             DEBUG_WITH_TYPE("latency", dbgs() << "== Latency : replaced use op to " << I << "\n");
             assert(I < UseIdx);
-            return getOperandLatency(ItinData, DefMI, DefIdx, UseMI, I);
+            return getTPCOperandLatency(ItinData, DefMI, DefIdx, UseMI, I);
         }
       }
     }
@@ -3047,6 +3047,18 @@ int TPCInstrInfo::getOperandLatency(const InstrItineraryData *ItinData,
   DEBUG_WITH_TYPE("latency", dbgs() << "== Latency = " << Latency << "\n");
   DEBUG_WITH_TYPE("latency", dbgs() << "=====================================================\n");
 
+  return Latency;
+}
+
+std::optional<unsigned>
+TPCInstrInfo::getOperandLatency(const InstrItineraryData *ItinData,
+                                const MachineInstr &DefMI, unsigned DefIdx,
+                                const MachineInstr &UseMI,
+                                unsigned UseIdx) const {
+  // A negative latency meant "unknown" before LLVM 18.
+  int Latency = getTPCOperandLatency(ItinData, DefMI, DefIdx, UseMI, UseIdx);
+  if (Latency < 0)
+    return std::nullopt;
   return Latency;
 }
 

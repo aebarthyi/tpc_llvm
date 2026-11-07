@@ -1142,7 +1142,15 @@ void TPCMCCodeEmitter::emitBits(raw_ostream& OS, TPCInstrBits *Bits, const MCSub
   EmitInstruction(Instruction, (Bits->compress == 0) ? TPCII::InstructionSize : (TPCII::InstructionSize / 2), OS);
 }
 
-void TPCMCCodeEmitter::encodeInstruction(const MCInst& MI, raw_ostream& OS,
+void TPCMCCodeEmitter::encodeInstruction(const MCInst &MI,
+                                         SmallVectorImpl<char> &CB,
+                                         SmallVectorImpl<MCFixup> &Fixups,
+                                         const MCSubtargetInfo &STI) const {
+  raw_svector_ostream OS(CB);
+  encodeInstructionToStream(MI, OS, Fixups, STI);
+}
+
+void TPCMCCodeEmitter::encodeInstructionToStream(const MCInst& MI, raw_ostream& OS,
                                          SmallVectorImpl<MCFixup>& Fixups,
                                          const MCSubtargetInfo& STI) const
 {

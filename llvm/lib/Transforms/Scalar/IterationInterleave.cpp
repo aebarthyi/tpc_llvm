@@ -366,7 +366,7 @@ class IterationInterleaver {
       }
 
       if (const auto *Intrinsic = dyn_cast<IntrinsicInst>(Inst)) {
-        if (Intrinsic->getName().startswith("llvm.tpc"))
+        if (Intrinsic->getName().starts_with("llvm.tpc"))
           return Type::Compute;
       }
 

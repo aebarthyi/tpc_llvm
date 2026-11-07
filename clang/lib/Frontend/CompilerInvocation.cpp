@@ -1697,29 +1697,29 @@ void CompilerInvocationBase::GenerateCodeGenArgs(const CodeGenOptions &Opts,
   // Mirror of the TPC block in ParseCodeGenArgs. Each option is generated when
   // its field differs from what parsing yields without it.
   if (Opts.VectorLocalMemory != 0)
-    GenerateArg(Args, OPT_vector_local_memory, Twine(Opts.VectorLocalMemory / 1024), SA);
+    GenerateArg(Consumer, OPT_vector_local_memory, Twine(Opts.VectorLocalMemory / 1024));
   if (Opts.ScalarLocalMemory != 1024)
-    GenerateArg(Args, OPT_scalar_local_memory, Twine(Opts.ScalarLocalMemory / 1024), SA);
+    GenerateArg(Consumer, OPT_scalar_local_memory, Twine(Opts.ScalarLocalMemory / 1024));
   if (Opts.SpillVlm != 0)
-    GenerateArg(Args, OPT_spill_vlm, Twine(Opts.SpillVlm / 1024), SA);
+    GenerateArg(Consumer, OPT_spill_vlm, Twine(Opts.SpillVlm / 1024));
   if (Opts.MarkAsUsingPrintf)
-    GenerateArg(Args, OPT_use_printf_in_module, SA);
+    GenerateArg(Consumer, OPT_use_printf_in_module);
   if (Opts.AllLoopsTaken)
-    GenerateArg(Args, OPT_all_loops_taken, SA);
+    GenerateArg(Consumer, OPT_all_loops_taken);
   if (Opts.RegMemCount)
-    GenerateArg(Args, OPT_reg_mem_count, SA);
+    GenerateArg(Consumer, OPT_reg_mem_count);
   if (!Opts.LutWarn)
-    GenerateArg(Args, OPT_disable_lut_warn, SA);
+    GenerateArg(Consumer, OPT_disable_lut_warn);
   if (!Opts.CompressInstructions)
-    GenerateArg(Args, OPT_no_instr_compress, SA);
+    GenerateArg(Consumer, OPT_no_instr_compress);
   if (Opts.LongIRF)
-    GenerateArg(Args, OPT_long_irf, SA);
+    GenerateArg(Consumer, OPT_long_irf);
   if (Opts.TpcDnorm)
-    GenerateArg(Args, OPT_tpc_dnorm, SA);
+    GenerateArg(Consumer, OPT_tpc_dnorm);
   if (Opts.MaxTensor != 16)
-    GenerateArg(Args, OPT_max_tensors, Twine(Opts.MaxTensor), SA);
+    GenerateArg(Consumer, OPT_max_tensors, Twine(Opts.MaxTensor));
   if (Opts.CompileForLibrary)
-    GenerateArg(Args, OPT_tpc_library, SA);
+    GenerateArg(Consumer, OPT_tpc_library);
 #endif
 }
 
@@ -3705,23 +3705,23 @@ void CompilerInvocationBase::GenerateLangArgs(const LangOptions &Opts,
   // Mirror of the TPC block at the end of ParseLangArgs. ('$' in identifiers
   // round-trips through the marshalled -f[no-]dollars-in-identifiers.)
   if (Opts.MainFunction != "main")
-    GenerateArg(Args, OPT_main_function, Opts.MainFunction, SA);
+    GenerateArg(Consumer, OPT_main_function, Opts.MainFunction);
   if (Opts.NumTensors != 8)
-    GenerateArg(Args, OPT_max_tensors, Twine(Opts.NumTensors), SA);
+    GenerateArg(Consumer, OPT_max_tensors, Twine(Opts.NumTensors));
   if (Opts.SlmMaxSize != 1024)
-    GenerateArg(Args, OPT_scalar_local_memory, Twine(Opts.SlmMaxSize), SA);
+    GenerateArg(Consumer, OPT_scalar_local_memory, Twine(Opts.SlmMaxSize));
   if (Opts.VlmMaxSize != 80 * 1024)
-    GenerateArg(Args, OPT_vector_local_memory, Twine(Opts.VlmMaxSize), SA);
+    GenerateArg(Consumer, OPT_vector_local_memory, Twine(Opts.VlmMaxSize));
   if (Opts.BFloat16)
-    GenerateArg(Args, OPT_bfloat16, SA);
+    GenerateArg(Consumer, OPT_bfloat16);
   if (Opts.Float8)
-    GenerateArg(Args, OPT_float8, SA);
+    GenerateArg(Consumer, OPT_float8);
   if (Opts.LongIRF)
-    GenerateArg(Args, OPT_long_irf, SA);
+    GenerateArg(Consumer, OPT_long_irf);
   if (Opts.UsePrintf)
-    GenerateArg(Args, OPT_use_printf_in_module, SA);
+    GenerateArg(Consumer, OPT_use_printf_in_module);
   if (Opts.CompileForLibrary)
-    GenerateArg(Args, OPT_tpc_library, SA);
+    GenerateArg(Consumer, OPT_tpc_library);
 #endif
   if (!Opts.RandstructSeed.empty())
     GenerateArg(Consumer, OPT_frandomize_layout_seed_EQ, Opts.RandstructSeed);
@@ -4791,10 +4791,11 @@ bool CompilerInvocation::CreateFromArgsImpl(
 static void applyTPCDefaults(CompilerInvocation &Res,
                              ArrayRef<const char *> CommandLineArgs) {
   const llvm::Triple T(Res.getTargetOpts().Triple);
-  LangOptions &LangOpts = *Res.getLangOpts();
+  LangOptions &LangOpts = Res.getLangOpts();
   unsigned MissingArgIndex, MissingArgCount;
   InputArgList Args = getDriverOptTable().ParseArgs(
-      CommandLineArgs, MissingArgIndex, MissingArgCount, options::CC1Option);
+      CommandLineArgs, MissingArgIndex, MissingArgCount,
+      llvm::opt::Visibility(options::CC1Option));
 
   if (T.getArch() == llvm::Triple::tpc)
     llvm::TPCCompilerArguments.append(

@@ -2538,7 +2538,7 @@ static SDValue lowerLoadOfLongScalar(LoadSDNode *LoadNode,
   SDLoc DL(LoadNode);
 
   MachinePointerInfo PtrInfo = LoadNode->getPointerInfo();
-  unsigned Alignment = LoadNode->getAlign().value();
+  Align Alignment = LoadNode->getAlign();
   MachineMemOperand *MemOp = LoadNode->getMemOperand();
   AAMDNodes AAInfo = LoadNode->getAAInfo();
 
@@ -2578,7 +2578,7 @@ static SDValue lowerLoadOInt5(LoadSDNode *LoadNode, const TPCTargetLowering &TL,
   SDLoc DL(LoadNode);
 
   MachinePointerInfo PtrInfo = LoadNode->getPointerInfo();
-  unsigned Alignment = LoadNode->getAlign().value();
+  Align Alignment = LoadNode->getAlign();
   MachineMemOperand *MemOp = LoadNode->getMemOperand();
   AAMDNodes AAInfo = LoadNode->getAAInfo();
 
@@ -2801,7 +2801,7 @@ static SDValue lowerStoreOfLongScalar(StoreSDNode *StoreNode,
 
   SmallVector<SDValue, 2> SubRegStores;
   MachinePointerInfo PtrInfo = StoreNode->getPointerInfo();
-  unsigned Alignment = StoreNode->getAlign().value();
+  Align Alignment = StoreNode->getAlign();
 
   MachineSDNode *Node;
 
@@ -2849,7 +2849,7 @@ static SDValue lowerStoreOInt5(StoreSDNode *StoreNode,
   SDLoc DL(StoreNode);
 
   MachinePointerInfo PtrInfo = StoreNode->getPointerInfo();
-  unsigned Alignment = StoreNode->getAlign().value();
+  Align Alignment = StoreNode->getAlign();
   MachineMemOperand *MemOp = StoreNode->getMemOperand();
   AAMDNodes AAInfo = StoreNode->getAAInfo();
 
@@ -2914,7 +2914,7 @@ SDValue TPCTargetLowering::lowerSTORE(SDValue Op, SelectionDAG &DAG) const {
 
   SmallVector<SDValue, 4> SubRegStores;
   MachinePointerInfo PtrInfo = StoreNode->getPointerInfo();
-  unsigned Alignment = StoreNode->getAlign().value();
+  Align Alignment = StoreNode->getAlign();
 
   SDValue SubReg = DAG.getTargetConstant(TPC::sub_0, DL, MVT::i32);
   MachineSDNode *Node = DAG.getMachineNode(TargetOpcode::EXTRACT_SUBREG, DL,
@@ -12785,8 +12785,8 @@ static SDValue expandBinaryOperation(SDValue Op, SelectionDAG &DAG) {
   EVT ResTy = Op->getValueType(0);
   unsigned Operation = Op.getOpcode();
   EVT SubregTy;
-  unsigned Multiplicity = ResTy.getSizeInBits().getFixedSize() /
-                          EVT(MVT::v64i32).getSizeInBits().getFixedSize();
+  unsigned Multiplicity = ResTy.getSizeInBits().getFixedValue() /
+                          EVT(MVT::v64i32).getSizeInBits().getFixedValue();
   switch (ResTy.getSimpleVT().SimpleTy) {
   case MVT::v256f32:
   case MVT::v128f32:

@@ -15,7 +15,7 @@
 // Definitions for all TPC intrinsics.
 //
 
-def global_ptr_ty   : LLVMQualPointerType<3>;             // ptr addrspace(3)
+def tpc_global_ptr_ty   : LLVMQualPointerType<3>;             // ptr addrspace(3)
 
 
 let TargetPrefix = "tpc" in {  // All intrinsics start with "llvm.tpc.".
@@ -100,7 +100,7 @@ def int_tpc_mov           : Intrinsic<[llvm_any_ty],
                                       [IntrNoMem]>;
 
 def int_tpc_get_addr      : Intrinsic<[llvm_v2i32_ty],
-                                      [ global_ptr_ty,      // Ptr
+                                      [ tpc_global_ptr_ty,      // Ptr
                                         llvm_i32_ty,        // Switches
                                         llvm_v2i32_ty,      // Income
                                         llvm_i1_ty,         // Predicate
@@ -108,8 +108,8 @@ def int_tpc_get_addr      : Intrinsic<[llvm_v2i32_ty],
                                       ],
                                       [IntrReadMem]>;
 
-def int_tpc_update_addr   : Intrinsic<[global_ptr_ty],
-                                      [ global_ptr_ty,      // Ptr
+def int_tpc_update_addr   : Intrinsic<[tpc_global_ptr_ty],
+                                      [ tpc_global_ptr_ty,      // Ptr
                                         llvm_v2i32_ty,      // Addr
                                         llvm_i32_ty,        // Switches
                                         llvm_i1_ty,         // Predicate
@@ -119,8 +119,8 @@ def int_tpc_update_addr   : Intrinsic<[global_ptr_ty],
 
 //------ Load slot -------------------------------------------------------------
 
-def int_tpc_gen_addr      : Intrinsic<[global_ptr_ty],
-                                      [llvm_v5i32_ty, llvm_i8_ty, llvm_i32_ty, global_ptr_ty, llvm_i1_ty, llvm_i1_ty],
+def int_tpc_gen_addr      : Intrinsic<[tpc_global_ptr_ty],
+                                      [llvm_v5i32_ty, llvm_i8_ty, llvm_i32_ty, tpc_global_ptr_ty, llvm_i1_ty, llvm_i1_ty],
                                       [IntrNoMem]>;
 def int_tpc_event         : Intrinsic<[],
                                       [llvm_i16_ty, llvm_i32_ty, llvm_i1_ty, llvm_i1_ty],
@@ -135,25 +135,25 @@ def int_tpc_ld_l          : Intrinsic<[llvm_any_ty],
                                       [llvm_i32_ty, llvm_i32_ty, LLVMMatchType<0>, llvm_i1_ty, llvm_i1_ty],
                                       [IntrReadMem]>;
 def int_tpc_ld_g          : Intrinsic<[llvm_any_ty],
-                                      [global_ptr_ty, llvm_i32_ty, LLVMMatchType<0>, llvm_any_ty, llvm_i1_ty],
+                                      [tpc_global_ptr_ty, llvm_i32_ty, LLVMMatchType<0>, llvm_any_ty, llvm_i1_ty],
                                       [IntrReadMem]>;
 def int_tpc_ld_g_inc      : Intrinsic<[llvm_any_ty, llvm_any_ty],
                                       [LLVMMatchType<1>, llvm_i32_ty, llvm_i32_ty, LLVMMatchType<0>, llvm_i1_ty, llvm_i1_ty],
                                       [IntrReadMem, IntrArgMemOnly]>;
 def int_tpc_ld_g_int5     : Intrinsic<[llvm_v5i32_ty],
-                                      [global_ptr_ty, llvm_i32_ty, llvm_i32_ty, llvm_v5i32_ty, llvm_i1_ty, llvm_i1_ty],
+                                      [tpc_global_ptr_ty, llvm_i32_ty, llvm_i32_ty, llvm_v5i32_ty, llvm_i1_ty, llvm_i1_ty],
                                       [IntrReadMem]>;
-def int_tpc_ld_g_int5_inc : Intrinsic<[llvm_v5i32_ty, global_ptr_ty],
-                                      [global_ptr_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_v5i32_ty, llvm_i1_ty, llvm_i1_ty],
+def int_tpc_ld_g_int5_inc : Intrinsic<[llvm_v5i32_ty, tpc_global_ptr_ty],
+                                      [tpc_global_ptr_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_v5i32_ty, llvm_i1_ty, llvm_i1_ty],
                                       [IntrReadMem, IntrArgMemOnly]>;
 def int_tpc_ld_g_partial  : Intrinsic<[llvm_anyvector_ty],
-                                      [global_ptr_ty, llvm_i32_ty, llvm_i32_ty, LLVMMatchType<0>, llvm_any_ty, llvm_i1_ty],
+                                      [tpc_global_ptr_ty, llvm_i32_ty, llvm_i32_ty, LLVMMatchType<0>, llvm_any_ty, llvm_i1_ty],
                                       [IntrNoMem]>;
 def int_tpc_ld_g_partial_inc : Intrinsic<[llvm_any_ty, llvm_any_ty],
                                          [LLVMMatchType<1>, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, LLVMMatchType<0>, llvm_any_ty, llvm_i1_ty],
                                          [IntrReadMem, IntrArgMemOnly]>;
 def int_tpc_prefetch      : Intrinsic<[],
-                                      [ global_ptr_ty,      // Address
+                                      [ tpc_global_ptr_ty,      // Address
                                         llvm_i32_ty,        // Switches
                                         llvm_i1_ty,         // Predicate
                                         llvm_i1_ty          // Polarity
@@ -1089,7 +1089,7 @@ def int_tpc_st_l          : Intrinsic<[],
                                       [llvm_i32_ty, llvm_any_ty, llvm_i32_ty, llvm_i1_ty, llvm_i1_ty],
                                       [IntrWriteMem]>;
 def int_tpc_st_g          : Intrinsic<[],
-                                      [global_ptr_ty, llvm_any_ty, llvm_i32_ty, llvm_i1_ty, llvm_i1_ty],
+                                      [tpc_global_ptr_ty, llvm_any_ty, llvm_i32_ty, llvm_i1_ty, llvm_i1_ty],
                                       [IntrWriteMem, IntrArgMemOnly]>;
 def int_tpc_st_g_inc      : Intrinsic<[llvm_any_ty],
                                       [LLVMMatchType<0>, llvm_any_ty, llvm_i32_ty, llvm_i32_ty, llvm_i1_ty, llvm_i1_ty],
@@ -1222,8 +1222,8 @@ def int_tpc_reset_sqz_cntr    : Intrinsic<[], [llvm_i8_ty, llvm_i32_ty, llvm_i1_
 def int_tpc_cache_flush       : Intrinsic<[], [llvm_i32_ty, llvm_i1_ty, llvm_i1_ty], []>;
 def int_tpc_cache_invalidate  : Intrinsic<[], [llvm_i32_ty, llvm_i1_ty, llvm_i1_ty], []>;
 
-def int_tpc_cache_flush_addr      : Intrinsic<[], [global_ptr_ty, llvm_i32_ty, llvm_i1_ty, llvm_i1_ty], []>;
-def int_tpc_cache_invalidate_addr : Intrinsic<[], [global_ptr_ty, llvm_i32_ty, llvm_i1_ty, llvm_i1_ty], []>;
+def int_tpc_cache_flush_addr      : Intrinsic<[], [tpc_global_ptr_ty, llvm_i32_ty, llvm_i1_ty, llvm_i1_ty], []>;
+def int_tpc_cache_invalidate_addr : Intrinsic<[], [tpc_global_ptr_ty, llvm_i32_ty, llvm_i1_ty, llvm_i1_ty], []>;
 
 def int_tpc_tanh : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>]>;
 def int_tpc_reciprocal : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>]>;

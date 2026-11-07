@@ -20,7 +20,7 @@ using namespace llvm;
 
 
 static bool mustBeResolved(const GlobalVariable &V) {
-  if (V.getName().startswith("llvm."))
+  if (V.getName().starts_with("llvm."))
     return false;
 #ifdef LLVM_TPC_COMPILER
   else if (V.getSection().equals(".source"))

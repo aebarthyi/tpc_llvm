@@ -169,13 +169,14 @@ public:
   TPCTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                    StringRef FS, const TargetOptions &Options,
                    std::optional<Reloc::Model> RM, std::optional<CodeModel::Model> CM,
-                   CodeGenOpt::Level OL, bool JIT);
+                   CodeGenOptLevel OL, bool JIT);
 
   ~TPCTargetMachine() override;
 
   const TPCSubtarget *getSubtarget() const { return Subtarget; }
   const TPCSubtarget *getSubtargetImpl(const Function &F) const override;
-  void registerPassBuilderCallbacks(PassBuilder &PB) override;
+  void registerPassBuilderCallbacks(PassBuilder &PB,
+                                    bool PopulateClassToPassNames) override;
   void registerDefaultAliasAnalyses(AAManager &AAM) override;
   /// Subtarget features used by TPCEliminateRedundantLinearity.
   TPCEliminateRedundantLinearityPassConfig

@@ -180,7 +180,7 @@ bool TPCTransformIntrin::runImpl(Function &Func) {
                 // maybe some is splat
                 if (auto shins = dyn_cast<ShuffleVectorInst>(op0)) {
                   ArrayRef<int> Mask = shins->getShuffleMask();
-                  if (ShuffleVectorInst::isZeroEltSplatMask(Mask)) {
+                  if (ShuffleVectorInst::isZeroEltSplatMask(Mask, Mask.size())) {
                     Constant *CI = ConstantInt::get(I32Type, 0);
                     auto sav0 = op0;
                     op0 = op1;

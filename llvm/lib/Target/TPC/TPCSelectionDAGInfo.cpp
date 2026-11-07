@@ -50,7 +50,7 @@ SDValue TPCSelectionDAGInfo::EmitTargetCodeForMemset(
   SmallVector<SDValue, 8> Chains;
   for (unsigned I = 0, SZ = Sz / UnitSz; I != SZ; ++I) {
     SDValue NewChain = DAG.getStore(Chain, dl, ZeroV,
-                                    DAG.getMemBasePlusOffset(Dst, TypeSize::Fixed(DstOffs), dl),
+                                    DAG.getMemBasePlusOffset(Dst, TypeSize::getFixed(DstOffs), dl),
                                     DstPtrInfo.getWithOffset(DstOffs), Alignment);
     Chains.push_back(NewChain);
     DstOffs += UnitSz;
@@ -82,10 +82,10 @@ SDValue TPCSelectionDAGInfo::EmitTargetCodeForMemcpy(
   SmallVector<SDValue, 8> Chains;
   for (unsigned I = 0, SZ = Sz / UnitSz, Offs = 0; I != SZ; ++I, Offs += UnitSz) {
     SDValue Value = DAG.getLoad(VT, dl, Chain,
-                                DAG.getMemBasePlusOffset(Src, TypeSize::Fixed(Offs), dl, SDNodeFlags()),
+                                DAG.getMemBasePlusOffset(Src, TypeSize::getFixed(Offs), dl, SDNodeFlags()),
                                 SrcPtrInfo, Alignment);
     SDValue NewChain = DAG.getStore(Value.getValue(1), dl, Value,
-                                    DAG.getMemBasePlusOffset(Dst, TypeSize::Fixed(Offs), dl),
+                                    DAG.getMemBasePlusOffset(Dst, TypeSize::getFixed(Offs), dl),
                                     DstPtrInfo.getWithOffset(Offs), Alignment);
     Chains.push_back(NewChain);
   }

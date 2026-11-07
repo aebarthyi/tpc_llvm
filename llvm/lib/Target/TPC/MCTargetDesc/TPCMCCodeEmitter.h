@@ -128,9 +128,13 @@ public:
 
   void EmitInstruction(APInt &Instruction, unsigned Size, raw_ostream &OS) const;
 
-  void encodeInstruction(const MCInst &MI, raw_ostream &OS,
+  void encodeInstruction(const MCInst &MI, SmallVectorImpl<char> &CB,
                          SmallVectorImpl<MCFixup> &Fixups,
                          const MCSubtargetInfo &STI) const override;
+
+  void encodeInstructionToStream(const MCInst &MI, raw_ostream &OS,
+                                 SmallVectorImpl<MCFixup> &Fixups,
+                                 const MCSubtargetInfo &STI) const;
 
   void emitBits(raw_ostream& OS, TPCInstrBits *Bits, const MCSubtargetInfo &STI) const;
 

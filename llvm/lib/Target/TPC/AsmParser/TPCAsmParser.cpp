@@ -1257,7 +1257,7 @@ private:
   bool parseIndexMap();
 public:
   bool parseRegister(MCRegister &Reg, SMLoc &StartLoc, SMLoc &EndLoc) override;
-  OperandMatchResultTy tryParseRegister(MCRegister &Reg, SMLoc &StartLoc, SMLoc &EndLoc) override;
+  ParseStatus tryParseRegister(MCRegister &Reg, SMLoc &StartLoc, SMLoc &EndLoc) override;
   bool ParseImmediate(const MCExpr *&Val, SMLoc &StartLoc, SMLoc &EndLoc);
   bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
                         SMLoc NameLoc, OperandVector &Operands) override;
@@ -1282,7 +1282,7 @@ public:
 
 
 static bool isDimMask(StringRef Identifier) {
-  if (Identifier.startswith("b")) {
+  if (Identifier.starts_with("b")) {
     StringRef Remainder = Identifier.drop_front(1);
     if (Remainder.find_first_not_of("01") == StringRef::npos)
       return true;
@@ -1291,21 +1291,21 @@ static bool isDimMask(StringRef Identifier) {
 }
 
 bool TPCAsmParser::parseRegister(MCRegister &Reg, SMLoc &StartLoc, SMLoc &EndLoc) {
-  OperandMatchResultTy Res = tryParseRegister(Reg, StartLoc, EndLoc);
-  if (Res == MatchOperand_Success) {
+  ParseStatus Res = tryParseRegister(Reg, StartLoc, EndLoc);
+  if (Res.isSuccess()) {
     Parser.Lex();
     return false;
   }
   return Error(StartLoc, "invalid register name", SMRange(StartLoc, EndLoc));
 }
 
-OperandMatchResultTy TPCAsmParser::tryParseRegister(MCRegister &RegNo, SMLoc &StartLoc, SMLoc &EndLoc) {
+ParseStatus TPCAsmParser::tryParseRegister(MCRegister &RegNo, SMLoc &StartLoc, SMLoc &EndLoc) {
   MCAsmParser &Parser = getParser();
   const AsmToken &Tok = Parser.getTok();
 
   // Registers in TPC assembler are always identifiers.
   if (Tok.isNot(AsmToken::Identifier))
-    return MatchOperand_NoMatch;
+    return ParseStatus::NoMatch;
 
   StartLoc = Tok.getLoc();
   EndLoc = Tok.getEndLoc();
@@ -1316,7 +1316,7 @@ OperandMatchResultTy TPCAsmParser::tryParseRegister(MCRegister &RegNo, SMLoc &St
   if (RegNo == 0)
     RegNo = MatchRegisterName(TokStr.lower());
 
-  return RegNo ? MatchOperand_Success : MatchOperand_NoMatch;
+  return RegNo ? ParseStatus::Success : ParseStatus::NoMatch;
 }
 
 bool TPCAsmParser::ParseImmediate(const MCExpr *&Val, SMLoc &StartLoc, SMLoc &EndLoc) {
@@ -1437,13 +1437,13 @@ OperandMatchResultTy TPCAsmParser::parseRegister(OperandVector &Operands) {
   StringRef IdValue = Tok.getString();
   unsigned RegNo = MatchRegisterName(IdValue.upper());
   if (RegNo == 0) {
-    if (IdValue.startswith_insensitive("d") || IdValue.startswith_insensitive("a")) {
+    if (IdValue.starts_with_insensitive("d") || IdValue.starts_with_insensitive("a")) {
       StringRef Number = IdValue.drop_front(1);
       if (Number.consumeInteger(10, RegNo))
         return MatchOperand_NoMatch;
       if (!Number.empty())
         return MatchOperand_NoMatch;
-      if (IdValue.startswith_insensitive("d")) {
+      if (IdValue.starts_with_insensitive("d")) {
         if (RegNo % 2) {
           Error(Tok.getLoc(), "Pair of registers must start with register of even number", SMRange(Tok.getLoc(), Tok.getEndLoc()));
           Parser.Lex();
@@ -1599,26 +1599,26 @@ OperandMatchResultTy TPCAsmParser::parseImmediate(OperandVector &Operands) {
   StringRef Identifier = Tok.getString();
 
   // u32_12, i32_-11, u16_, i16_, i8_, u8_, f32_, f16_
-  bool IsUnsigned = Identifier.startswith_insensitive("u");
-  bool IsSigned = Identifier.startswith_insensitive("i");
-  bool IsFloat = Identifier.startswith_insensitive("f");
-  bool IsBFloat16 = Identifier.startswith_insensitive("bf");
+  bool IsUnsigned = Identifier.starts_with_insensitive("u");
+  bool IsSigned = Identifier.starts_with_insensitive("i");
+  bool IsFloat = Identifier.starts_with_insensitive("f");
+  bool IsBFloat16 = Identifier.starts_with_insensitive("bf");
   if (!IsUnsigned && !IsSigned && !IsFloat && !IsBFloat16)
     return MatchOperand_NoMatch;
 
   StringRef Remainder = Identifier.drop_front(IsBFloat16 ? 2 : 1);
   unsigned BitWidth = 0;
-  if (Remainder.startswith("32_")) {
+  if (Remainder.starts_with("32_")) {
     if (IsBFloat16)
       return MatchOperand_NoMatch;
     BitWidth = 32;
     Remainder = Remainder.drop_front(3);
-  } else if (Remainder.startswith("16_")) {
+  } else if (Remainder.starts_with("16_")) {
     if (IsFloat)
       return MatchOperand_NoMatch;
     BitWidth = 16;
     Remainder = Remainder.drop_front(3);
-  } else if (Remainder.startswith("8_")) {
+  } else if (Remainder.starts_with("8_")) {
     if (IsFloat || IsBFloat16)
       return MatchOperand_NoMatch;
     BitWidth = 8;
@@ -1943,7 +1943,7 @@ static TPCII::OpType parseDataTypeSuffix(StringRef Suffix) {
 // Checks if the instruction represented by the given mnemonic needs datatype
 // as an operand.
 static bool needDataTypeAsOperand(StringRef Mnemonic, SlotParser Slot, const FeatureBitset& Features) {
-  if (Mnemonic.startswith_insensitive("gen_addr"))
+  if (Mnemonic.starts_with_insensitive("gen_addr"))
     return false;
   return true;
 }
@@ -2164,9 +2164,9 @@ bool TPCAsmParser::ParseInstruction(ParseInstructionInfo &Info,
   // Split bare mnemonic and switch for same instructions
   if (Mnemonic.equals_insensitive("mov_group"))
     Mnemonic = BareMnemonic = "mov_g";
-  else if (Mnemonic.startswith_insensitive("mov_dual_group"))
+  else if (Mnemonic.starts_with_insensitive("mov_dual_group"))
     Mnemonic = BareMnemonic = "mov_dg";
-  else if (Mnemonic.startswith_insensitive("mov_dg"))
+  else if (Mnemonic.starts_with_insensitive("mov_dg"))
     Mnemonic = Mnemonic.substr(0, 6);
 
   // The first operand is the instruction name.
@@ -2571,7 +2571,7 @@ bool TPCAsmParser::canLastArgBeAPredicate(StringRef Mnemonic,
       .Default(~0U);
     break;
   case SlotParser::Store:
-    if (Mnemonic.startswith_insensitive("st_l_v")) {
+    if (Mnemonic.starts_with_insensitive("st_l_v")) {
       if(getSTI().getFeatureBits()[TPC::FeatureAddr2]) {
         auto &MayBeMemRIOp = static_cast<TPCOperand &>(*Operands[2].get());
         NumNonPredOperand = MayBeMemRIOp.isMemRI() ? 2U   // STL_L_V 100, S2, VP1
@@ -2579,8 +2579,8 @@ bool TPCAsmParser::canLastArgBeAPredicate(StringRef Mnemonic,
       } else {
         NumNonPredOperand = 2;  // ST_L_V S1, VP1
       }
-    } else if (Mnemonic.startswith_insensitive("st_tnsr")) {
-      if (Mnemonic.startswith_insensitive("st_tnsr_sqz")) {
+    } else if (Mnemonic.starts_with_insensitive("st_tnsr")) {
+      if (Mnemonic.starts_with_insensitive("st_tnsr_sqz")) {
         NumNonPredOperand = ~0U; // st_tnsr_sqz can not use predicates as use regiters
       } else {
         NumNonPredOperand = 3;    // ST_TNSR 1, I3, VP4
@@ -2752,7 +2752,7 @@ bool TPCAsmParser::adjustLongRegister(OperandVector &Operands) {
   unsigned AccRegNo = 0;
   LongRegisterKind Kind;
 
-  if (Mnemonic.startswith_insensitive("mac") || Mnemonic.startswith_insensitive("mul")) {
+  if (Mnemonic.starts_with_insensitive("mac") || Mnemonic.starts_with_insensitive("mul")) {
     if (Operands.size() < 4)
       return true;
 
@@ -2786,7 +2786,7 @@ bool TPCAsmParser::adjustLongRegister(OperandVector &Operands) {
     if (!MRI->getRegClass(TPC::VRFRegClassID).contains(AccRegNo))
       return true;
 
-    if (Mnemonic.startswith_insensitive("mac")) {
+    if (Mnemonic.starts_with_insensitive("mac")) {
       // If MAC has suffix ACC_I16 or ACC_FP32, it uses double registers.
       if (DataType == TPCII::OpType::INT8 || DataType == TPCII::OpType::UINT8) {
         if (HasAccFlag) {
@@ -2838,7 +2838,7 @@ bool TPCAsmParser::adjustLongRegister(OperandVector &Operands) {
         return true;
       }
     }
-  } else if (Mnemonic.startswith_insensitive("ash")) {
+  } else if (Mnemonic.starts_with_insensitive("ash")) {
     if (Operands.size() < 8) {
       return true;
     }
@@ -2857,17 +2857,17 @@ bool TPCAsmParser::adjustLongRegister(OperandVector &Operands) {
       return false;
     }
 
-  } else if (Mnemonic.startswith_insensitive("sel2_")) {
+  } else if (Mnemonic.starts_with_insensitive("sel2_")) {
     const unsigned DestRegOpNum = 3;
     return replaceRegisterWithLong(Operands, DestRegOpNum, LongRegisterKind::DRF);
-  } else if (Mnemonic.startswith_insensitive("get_lut_entry_and_interval_start")) {
+  } else if (Mnemonic.starts_with_insensitive("get_lut_entry_and_interval_start")) {
     const unsigned DestRegOpNum = 3;
     return replaceRegisterWithLong(Operands, DestRegOpNum, LongRegisterKind::DRF);
-  } else if (Mnemonic.startswith_insensitive("lookup_c1c2") ||
-             Mnemonic.startswith_insensitive("lookup_c2")) {
+  } else if (Mnemonic.starts_with_insensitive("lookup_c1c2") ||
+             Mnemonic.starts_with_insensitive("lookup_c2")) {
     const unsigned DestRegOpNum = 2;
     return replaceRegisterWithLong(Operands, DestRegOpNum, LongRegisterKind::DRF);
-  } else if (Mnemonic.startswith_insensitive("udiv_")) {
+  } else if (Mnemonic.starts_with_insensitive("udiv_")) {
     DestRegOpNum = 2;
     LongRegOp = static_cast<TPCOperand*>(Operands[DestRegOpNum].get());
     if (LongRegOp->isReg())
@@ -2887,8 +2887,8 @@ bool TPCAsmParser::adjustLongRegister(OperandVector &Operands) {
     if (!MRI->getRegClass(TPC::SRFRegClassID).contains(AccRegNo))
       return true;
     Kind = LongRegisterKind::ZRF;
-  } else if (Mnemonic.startswith_insensitive("convert_int8") ||
-             Mnemonic.startswith_insensitive("convert_uint8")) {
+  } else if (Mnemonic.starts_with_insensitive("convert_int8") ||
+             Mnemonic.starts_with_insensitive("convert_uint8")) {
     const unsigned DestRegOpNum = 3;
     return replaceRegisterWithLong(Operands, DestRegOpNum, LongRegisterKind::DRF);
   } else if (Mnemonic.equals_insensitive("mov")) {
@@ -2902,7 +2902,7 @@ bool TPCAsmParser::adjustLongRegister(OperandVector &Operands) {
              replaceRegisterWithLong(Operands, 3, LongRegisterKind::DRF);
     }
     return true;
-  } else if (Mnemonic.startswith_insensitive("nearbyint")) {
+  } else if (Mnemonic.starts_with_insensitive("nearbyint")) {
     const unsigned SwitchOpNo = 2;
     TPCOperand *SwitchOp = static_cast<TPCOperand *>(Operands[SwitchOpNo].get());
     unsigned Switches = SwitchOp->getSwitchSet();

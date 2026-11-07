@@ -171,10 +171,16 @@ public:
   /// This is a raw interface to the itinerary that may be directly overridden
   /// by a target. Use computeOperandLatency to get the best estimate of
   /// latency.
-  int getOperandLatency(const InstrItineraryData *ItinData,
-                        const MachineInstr &DefMI, unsigned DefIdx,
-                        const MachineInstr &UseMI,
-                        unsigned UseIdx) const override;
+  std::optional<unsigned> getOperandLatency(const InstrItineraryData *ItinData,
+                                            const MachineInstr &DefMI,
+                                            unsigned DefIdx,
+                                            const MachineInstr &UseMI,
+                                            unsigned UseIdx) const override;
+
+  /// TPC's operand latency, which may be negative when unknown.
+  int getTPCOperandLatency(const InstrItineraryData *ItinData,
+                           const MachineInstr &DefMI, unsigned DefIdx,
+                           const MachineInstr &UseMI, unsigned UseIdx) const;
   
   bool isPredicated(const MachineInstr &MI) const override;
   unsigned getMachineCSELookAheadLimit() const override { return 20; } // default=5 is too small

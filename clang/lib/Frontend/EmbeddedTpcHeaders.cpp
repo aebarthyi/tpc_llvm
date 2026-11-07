@@ -85,7 +85,7 @@ static const char Content_library_doron1[] = {
 
 void clang::registerEmbeddedLibraries(llvm::vfs::InMemoryFileSystem &FS, CompilerInstance &CI) {
   CompilerInvocation &Invocation = CI.getInvocation();
-  if (!Invocation.getLangOpts()->CompileForLibrary) {
+  if (!Invocation.getLangOpts().CompileForLibrary) {
     if (Triple(Invocation.getTargetOpts().Triple).getArch() == Triple::ArchType::tpc) {
       StringRef StaticContent;
       StringRef BitcodeName;

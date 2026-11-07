@@ -48,7 +48,7 @@ MCAsmBackend *createTPCAsmBackend(const Target &T,
 } //namespace llvm
 
 TPCAsmBackend::TPCAsmBackend(const Target& T, const Triple& TT)
-  : MCAsmBackend(support::endianness::little) {
+  : MCAsmBackend(llvm::endianness::little) {
 }
 
 std::unique_ptr<MCObjectTargetWriter> TPCAsmBackend::createObjectTargetWriter() const {

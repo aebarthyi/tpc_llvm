@@ -949,7 +949,7 @@ bool TPCPacketizerList::isLegalToPacketizeTogether(SUnit *SUI, SUnit *SUJ) {
             Register R = Op.getReg();
             int idx = J.findRegisterUseOperandIdx(R, false, HRI);
             if (idx != -1) {
-              int lat = TII->getOperandLatency(ItinData, I, i, J, idx);
+              int lat = static_cast<const TPCInstrInfo *>(TII)->getTPCOperandLatency(ItinData, I, i, J, idx);
               if (lat == 0) {
                 LLVM_DEBUG(dbgs() << "Failed due to ANTI dependency (zero latency) with " << J << "\n");
                 return false;

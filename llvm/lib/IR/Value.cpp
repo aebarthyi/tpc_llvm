@@ -1255,18 +1255,10 @@ void ValueHandleBase::ValueIsRAUWd(Value *Old, Value *New) {
   assert(Old->HasValueHandle &&"Should only be called if ValueHandles present");
   assert(Old != New && "Changing value into itself!");
 #ifdef LLVM_TPC_COMPILER
-  if (Old->getType()->isPointerTy() && Old->getType() != New->getType()) {
-    assert(New->getType()->isPointerTy());
-    PointerType *OldPT = cast<PointerType>(Old->getType());
-    PointerType *NewPT = cast<PointerType>(New->getType());
-    (void)OldPT;
-    (void)NewPT;
-    assert(OldPT->hasSameElementTypeAs(NewPT) &&
-           "replaceAllUses of value with new value of different type!");
-  } else {
-  assert(Old->getType() == New->getType() &&
+  // TPC replaces pointers with pointers into another address space.
+  assert((Old->getType() == New->getType() ||
+          (Old->getType()->isPointerTy() && New->getType()->isPointerTy())) &&
          "replaceAllUses of value with new value of different type!");
-  }
 #else
   assert(Old->getType() == New->getType() &&
          "replaceAllUses of value with new value of different type!");

@@ -1913,7 +1913,7 @@ void DwarfDebug::collectEntityInfo(DwarfCompileUnit &TheCU,
         de->getElement(0) == dwarf::DW_OP_TPC_glob_adress) {
         // address already calculated in Resolver
         // no need to get Location list here
-        RegVar->initializeDbgValue(MInsn);
+        RegVar->emplace<Loc::Single>(MInsn);
         continue;
       }
     }

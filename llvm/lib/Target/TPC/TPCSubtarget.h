@@ -127,7 +127,7 @@ public:
   bool enablePostRAScheduler() const override { return false; }
 #else
   bool enablePostRAScheduler() const override { return true; }
-  CodeGenOpt::Level getOptLevelToEnablePostRAScheduler() const override { return CodeGenOpt::None; }
+  CodeGenOptLevel getOptLevelToEnablePostRAScheduler() const override { return CodeGenOptLevel::None; }
 #endif
   class TPCDAGMutation : public ScheduleDAGMutation {
   public:

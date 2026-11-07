@@ -5666,7 +5666,7 @@ def _serialize_diags : Separate<["-", "--"], "serialize-diagnostics">,
 def _version : Flag<["--"], "version">,
   Visibility<[ClangOption, CLOption, DXCOption, FlangOption]>,
   HelpText<"Print version information">;
-def _versionTPC : Flag<["--"], "tpcversion">, Flags<[CoreOption, CC1Option]>,
+def _versionTPC : Flag<["--"], "tpcversion">, Visibility<[ClangOption, CLOption, DXCOption, CC1Option]>,
     HelpText<"Print TPC version information">;
 def _signed_char : Flag<["--"], "signed-char">, Alias<fsigned_char>;
 def _std : Separate<["--"], "std">, Alias<std_EQ>;
@@ -8455,50 +8455,50 @@ def _SLASH_ZW : CLJoined<"ZW">;
 //===----------------------------------------------------------------------===//
 
 def main_function : Separate<["-"], "main-function">,
-  Flags<[CC1Option]>,
+  Visibility<[ClangOption, CC1Option]>,
   HelpText<"Name of the function that is program entry point">;
 def max_tensors : Separate<["-"], "max-tensors">,
-  Flags<[CC1Option]>,
+  Visibility<[ClangOption, CC1Option]>,
   HelpText<"Number of tensors that are allowed in program">;
 def vector_local_memory : Separate<["-"], "vlm">,
-  Flags<[CC1Option]>,
+  Visibility<[ClangOption, CC1Option]>,
   HelpText<"Amount of vector local memory in KB">;
 def scalar_local_memory : Separate<["-"], "slm">,
-  Flags<[CC1Option]>,
+  Visibility<[ClangOption, CC1Option]>,
   HelpText<"Amount of scalar local memory in KB">;
 def tpc_dnorm : Flag<["-"], "tpc-dnorm">,
-    Flags<[CC1Option, CC1AsOption]>,
+    Visibility<[ClangOption, CC1Option, CC1AsOption]>,
     HelpText<"Support subnormal numbers.">;
 def no_tpc_dnorm : Flag<["-"], "no-tpc-dnorm">,
-    Flags<[CC1Option, CC1AsOption]>,
+    Visibility<[ClangOption, CC1Option, CC1AsOption]>,
     HelpText<"Do not support subnormal numbers. Legacy mode.">;
 def spill_vlm : Separate<["-"], "spill-vlm">,
-  Flags<[CC1Option]>,
+  Visibility<[ClangOption, CC1Option]>,
   HelpText<"Amount of vector local memory in KB reserved for vector spills">;
-def use_printf_in_module :  Flag<["-"], "use-printf">, Flags<[CC1Option]>;
-def all_loops_taken : Flag<["-"], "all-loops-taken">, Flags<[CC1Option]>;
+def use_printf_in_module :  Flag<["-"], "use-printf">, Visibility<[ClangOption, CC1Option]>;
+def all_loops_taken : Flag<["-"], "all-loops-taken">, Visibility<[ClangOption, CC1Option]>;
 def float8 : Flag<["-"], "float8">,
-    Flags<[CC1Option, NoDriverOption]>, HelpText<"Enable type 8-bit floating types">;
+    Visibility<[CC1Option]>, HelpText<"Enable type 8-bit floating types">;
 def no_float8 : Flag<["-"], "no-float8">,
-    Flags<[CC1Option, NoDriverOption]>, HelpText<"Disable 8-bit floating types">;
+    Visibility<[CC1Option]>, HelpText<"Disable 8-bit floating types">;
 def bfloat16 : Flag<["-"], "bfloat16">,
-    Flags<[CC1Option, NoDriverOption]>, HelpText<"Enable type _BFloat16">;
+    Visibility<[CC1Option]>, HelpText<"Enable type _BFloat16">;
 def no_bfloat16 : Flag<["-"], "no-bfloat16">,
-    Flags<[CC1Option, NoDriverOption]>, HelpText<"Disable type _BFloat16">;
-def reg_mem_count : Flag<["-"], "reg-mem-count">, Flags<[CC1Option]>;
-def disable_lut_warn : Flag<["-"], "disable-lut-warn">, Flags<[CC1Option]>;
-def no_tpc_defs : Flag<["-"], "no-tpc-defs">, Flags<[CC1Option]>, HelpText<"Disable inclusion of builtin headers">;
-def tpc_special : Flag<["-"], "tpc-special">, Flags<[CC1Option]>, HelpText<"Force inclusion of 'tpc-special.h'">;
-def instr_compress : Flag<["-"], "instr-compress">, Flags<[CC1Option, CC1AsOption]>;
-def no_instr_compress : Flag<["-"], "no-instr-compress">, Flags<[CC1Option, CC1AsOption]>;
-def long_irf : Flag<["-"], "long-irf">, Flags<[CC1Option]>,
+    Visibility<[CC1Option]>, HelpText<"Disable type _BFloat16">;
+def reg_mem_count : Flag<["-"], "reg-mem-count">, Visibility<[ClangOption, CC1Option]>;
+def disable_lut_warn : Flag<["-"], "disable-lut-warn">, Visibility<[ClangOption, CC1Option]>;
+def no_tpc_defs : Flag<["-"], "no-tpc-defs">, Visibility<[ClangOption, CC1Option]>, HelpText<"Disable inclusion of builtin headers">;
+def tpc_special : Flag<["-"], "tpc-special">, Visibility<[ClangOption, CC1Option]>, HelpText<"Force inclusion of 'tpc-special.h'">;
+def instr_compress : Flag<["-"], "instr-compress">, Visibility<[ClangOption, CC1Option, CC1AsOption]>;
+def no_instr_compress : Flag<["-"], "no-instr-compress">, Visibility<[ClangOption, CC1Option, CC1AsOption]>;
+def long_irf : Flag<["-"], "long-irf">, Visibility<[ClangOption, CC1Option]>,
   HelpText<"Use IRF dimensions longer than 32 bits">;
-def no_long_irf : Flag<["-"], "no-long-irf">, Flags<[CC1Option]>,
+def no_long_irf : Flag<["-"], "no-long-irf">, Visibility<[ClangOption, CC1Option]>,
   HelpText<"Use 32 bits IRF dimensions">;
-def disable_instruction_scheduling : Flag<["-"], "disable-instruction-scheduling">, Flags<[CC1Option]>, HelpText<"Disable instruction scheduling and bundling">;
-def tpc_library : Flag<["-"], "tpc-library">, Flags<[CC1Option]>, HelpText<"Compile for IR library">;
-def load_tpc_library : Flag<["-"], "load-tpc-library">, Flags<[CC1Option]>, HelpText<"Load TPC IR library">;
-def no_load_tpc_library : Flag<["-"], "no-load-tpc-library">, Flags<[CC1Option]>, HelpText<"Skip loading TPC IR library">;
+def disable_instruction_scheduling : Flag<["-"], "disable-instruction-scheduling">, Visibility<[ClangOption, CC1Option]>, HelpText<"Disable instruction scheduling and bundling">;
+def tpc_library : Flag<["-"], "tpc-library">, Visibility<[ClangOption, CC1Option]>, HelpText<"Compile for IR library">;
+def load_tpc_library : Flag<["-"], "load-tpc-library">, Visibility<[ClangOption, CC1Option]>, HelpText<"Load TPC IR library">;
+def no_load_tpc_library : Flag<["-"], "no-load-tpc-library">, Visibility<[ClangOption, CC1Option]>, HelpText<"Skip loading TPC IR library">;
 
 //===----------------------------------------------------------------------===//
 // clang-dxc Options

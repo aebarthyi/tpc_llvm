@@ -1624,7 +1624,8 @@ disassembleObject(ObjectFile &Obj, const ObjectFile &DbgObj,
 
 #ifdef LLVM_TPC_COMPILER
   if (AllSymbols.empty() && Obj.isELF() && isTPCTarget(&Obj))
-    collectSymbolsTpc(&Obj, *DisAsm, Ctx, AbsoluteSymbols);
+    collectSymbolsTpc(&Obj, *PrimaryTarget.DisAsm, *PrimaryTarget.Context,
+                      AbsoluteSymbols);
   else
 #endif
   if (AllSymbols.empty() && Obj.isELF())

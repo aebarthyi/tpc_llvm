@@ -536,7 +536,7 @@ bool TPCSelectorPreshaperLegacyPass::runOnFunction(Function &Func) {
   IntegerType *I32Type = Type::getInt32Ty(Ctx);
   IntegerType *I64Type = Type::getInt64Ty(Ctx);
   IntegerType *I16Type = Type::getInt16Ty(Ctx);
-  PointerType *I32PtrType = Type::getInt32PtrTy(Ctx, AS /* scalar address space */);
+  PointerType *I32PtrType = PointerType::get(Ctx, AS /* scalar address space */);
   FixedVectorType* Int64Type = FixedVectorType::get(I32Type, 64);
   FixedVectorType* Int128Type = FixedVectorType::get(I32Type, 128);
   FixedVectorType *Short128Type = FixedVectorType::get(I16Type, 128);
@@ -1326,7 +1326,7 @@ Value *TPCSelectorPreshaperLegacyPass::replace(Value *V, FixedVectorType *DType)
     Value *Src = EEI->getOperand(0);
     ConstantInt *Ndx = cast<ConstantInt>(EEI->getOperand(1));
     auto SVT = cast<FixedVectorType>(Src->getType());
-    unsigned Factor = SVT->getPrimitiveSizeInBits().getFixedSize() / DType->getPrimitiveSizeInBits().getFixedSize();
+    unsigned Factor = SVT->getPrimitiveSizeInBits().getFixedValue() / DType->getPrimitiveSizeInBits().getFixedValue();
     unsigned NewVSize = Factor * DType->getNumElements();
     auto *NewDVT = FixedVectorType::get(cast<VectorType>(DType)->getElementType(), NewVSize);
     Value *NewSrc = replace(Src, NewDVT);

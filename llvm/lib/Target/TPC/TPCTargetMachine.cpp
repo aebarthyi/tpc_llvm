@@ -73,7 +73,7 @@ static StringRef normalizeCPUName(StringRef CPU) {
 TPCTargetMachine::TPCTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                                    StringRef FS, const TargetOptions &Options,
                                    std::optional<Reloc::Model> RM, std::optional<CodeModel::Model> CM,
-                                   CodeGenOpt::Level OL, bool JIT)
+                                   CodeGenOptLevel OL, bool JIT)
   :  LLVMTargetMachine(T, DataLayoutStringTPC, TT, normalizeCPUName(CPU), FS,
                        Options, getEffectiveRelocModel(RM), getEffectiveCodeModel(CM, CodeModel::Kernel), OL),
                        TLOF(std::make_unique<TPCTargetObjectFile>()) {
@@ -223,7 +223,8 @@ void TPCTargetMachine::registerDefaultAliasAnalyses(AAManager &AAM) {
   AAM.registerFunctionAnalysis<TPCAA>();
 }
 
-void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
+void TPCTargetMachine::registerPassBuilderCallbacks(
+    PassBuilder &PB, bool PopulateClassToPassNames) {
   PB.registerAnalysisRegistrationCallback([](FunctionAnalysisManager &FAM) {
     FAM.registerPass([] { return TPCAA(); });
   });
@@ -382,10 +383,10 @@ void TPCPassConfig::addIRPasses() {
 }
 
 void TPCPassConfig::addMachineSSAOptimization() {
-  if (getOptLevel() > CodeGenOpt::None)
+  if (getOptLevel() > CodeGenOptLevel::None)
     addPass(createTPCHWWAGeneral());
   TargetPassConfig::addMachineSSAOptimization();
-  if (getOptLevel() > CodeGenOpt::None) {
+  if (getOptLevel() > CodeGenOptLevel::None) {
     addPass(createTPCPredicateOptimizer());
     addPass(createTPCSetIndxCoalescer());
     addPass(createTPCIncMerger());
@@ -394,7 +395,7 @@ void TPCPassConfig::addMachineSSAOptimization() {
 }
 
 void TPCPassConfig::addPreEmitPass() {
-  bool NoOpt = (getOptLevel() == CodeGenOpt::None);
+  bool NoOpt = (getOptLevel() == CodeGenOptLevel::None);
 
   addPass(createTPCLutCacheCounter());
   // Create Packets.
@@ -418,7 +419,7 @@ void TPCPassConfig::addPreEmitPass() {
 }
 
 bool TPCPassConfig::addPreISel() {
-  bool NoOpt = (getOptLevel() == CodeGenOpt::None);
+  bool NoOpt = (getOptLevel() == CodeGenOptLevel::None);
   if (!NoOpt) {
     addPass(createTPCFMAoptPass());
     addPass(createTPCUnbranchPass());
@@ -442,9 +443,9 @@ bool TPCPassConfig::addILPOpts() {
 void TPCPassConfig::addPreRegAlloc() {
   addPass(createTPCSwapFakePredicate());
   addPass(createTPCScalarSink());
-  if (getOptLevel() != CodeGenOpt::None)
+  if (getOptLevel() != CodeGenOptLevel::None)
     addBlockPlacement();
-  if (getOptLevel() >= CodeGenOpt::Default) {
+  if (getOptLevel() >= CodeGenOptLevel::Default) {
     addPass(createTPCImmToReg());
 #ifdef DEPRECATED_TPC_ADDR_OPT
     addPass(createTPCAddrOpt());
@@ -458,7 +459,7 @@ void TPCPassConfig::addPreRegAlloc() {
     // TODO: some kernels fail because of this pass
     addPass(createTPCMovCoalescer());
   }
-  if (getOptLevel() == CodeGenOpt::None)
+  if (getOptLevel() == CodeGenOptLevel::None)
    addPass(createTPCHWWAGeneral());
 
   addPass(createTPCHWWA2());

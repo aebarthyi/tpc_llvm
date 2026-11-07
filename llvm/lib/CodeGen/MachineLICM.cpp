@@ -242,7 +242,8 @@ namespace {
 
     bool IsCheapInstruction(MachineInstr &MI) const;
 
-    bool CanCauseHighRegPressure(const DenseMap<unsigned, int> &Cost,
+    bool CanCauseHighRegPressure(MachineLoop *CurLoop,
+                                 const DenseMap<unsigned, int> &Cost,
                                  bool Cheap);
 
     void UpdateBackTraceRegPressure(const MachineInstr *MI);
@@ -1142,7 +1143,8 @@ bool MachineLICMBase::IsCheapInstruction(MachineInstr &MI) const {
 /// Visit BBs from header to current BB, check if hoisting an instruction of the
 /// given cost matrix can cause high register pressure.
 bool
-MachineLICMBase::CanCauseHighRegPressure(const DenseMap<unsigned, int>& Cost,
+MachineLICMBase::CanCauseHighRegPressure(MachineLoop *CurLoop,
+                                         const DenseMap<unsigned, int>& Cost,
                                          bool CheapInstr) {
   for (const auto &RPIdAndCost : Cost) {
     if (RPIdAndCost.second <= 0)
@@ -1285,7 +1287,7 @@ bool MachineLICMBase::IsProfitableToHoist(MachineInstr &MI,
 
   // Visit BBs from header to current BB, if hoisting this doesn't cause
   // high register pressure, then it's safe to proceed.
-  if (!CanCauseHighRegPressure(Cost, CheapInstr)) {
+  if (!CanCauseHighRegPressure(CurLoop, Cost, CheapInstr)) {
     LLVM_DEBUG(dbgs() << "Hoist non-reg-pressure: " << MI);
     ++NumLowRP;
     return true;

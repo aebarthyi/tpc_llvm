@@ -140,7 +140,7 @@ Constant *replaceInConstantExpr(Constant *E, Constant *Old, Constant *New,
     assert(Instruction::isCast(UCE->getOpcode()));
     assert(UCE->getOperand(0) == Old);
     PointerType *OT = cast<PointerType>(UCE->getType());
-    PointerType *NT = PointerType::getWithSamePointeeType(OT, NewAddressSpace);
+    PointerType *NT = PointerType::get(OT->getContext(), NewAddressSpace);
     return ConstantExpr::getCast(UCE->getOpcode(), New, NT);
   }
 
@@ -153,7 +153,7 @@ Value *replaceConstantByMutable(Constant *Usr, Constant *Old, Value *New,
   // User value must have pointer type if it can change address space.
   PointerType *OT = cast<PointerType>(Usr->getType());
   assert(OT->getAddressSpace() != NewAddressSpace);
-  PointerType *NT = PointerType::getWithSamePointeeType(OT, NewAddressSpace);
+  PointerType *NT = PointerType::get(OT->getContext(), NewAddressSpace);
 
   if (auto C = dyn_cast<GetElementPtrConstantExpr>(Usr)) {
     SmallVector<Value *, 8> IndexVals;
@@ -286,7 +286,7 @@ void rauwConvertingAddressSpace(Value *Old, Value *New, IRBuilder<> *Builder,
     }
     else if (auto *BC = dyn_cast<BitCastInst>(Usr)) {
       PointerType *T = cast<PointerType>(BC->getType());
-      PointerType *NT = PointerType::getWithSamePointeeType(T, NewAddressSpace);
+      PointerType *NT = PointerType::get(T->getContext(), NewAddressSpace);
       auto NewBC = BitCastInst::Create(Instruction::CastOps::BitCast, BC->getOperand(0), NT, BC->getName(), BC);
       DEBUG_WITH_TYPE("localizer", dbgs() << "== Replaced:\n");
       DEBUG_WITH_TYPE("localizer", dbgs() << " " << *NewBC << "\n");
@@ -420,9 +420,6 @@ void ValueReplacer::processItem(Value *Old, Value *New) {
   unsigned OldAddrSpace = OldType->getAddressSpace();
   unsigned NewAddrSpace = NewType->getAddressSpace();
 
-  if (!dyn_cast<BitCastInst>(Old) && dyn_cast<BitCastInst>(New))
-    assert(OldType->hasSameElementTypeAs(NewType));
-
   // If address space is not changed, use usual RAUW mechanism.
   if (OldAddrSpace == NewAddrSpace) {
     DEBUG_WITH_TYPE("replacer", dbgs() << "   Use RAUW as address spaces are the same\n");
@@ -481,7 +478,7 @@ void ValueReplacer::processItem(Value *Old, Value *New) {
       assert(T);
       int tas = T->getAddressSpace();
       if (tas == 0) {
-        PointerType *NT = PointerType::getWithSamePointeeType(T, NewAddrSpace);
+        PointerType *NT = PointerType::get(T->getContext(), NewAddrSpace);
         auto NBC = new BitCastInst(BC->getOperand(0), NT, BC->getName(), BC);
         DEBUG_WITH_TYPE("replacer", dbgs() << "  Replacing:\n");
         DEBUG_WITH_TYPE("replacer", dbgs() << "    " << *BC << "\n");
@@ -630,7 +627,7 @@ void ValueReplacer::processItem(Value *Old, Value *New) {
         auto *PT = cast<PointerType>(CE->getType());
         if (PT->getAddressSpace() != NewAddrSpace) {
           PointerType *OT = cast<PointerType>(CE->getType());
-          PointerType *NT = PointerType::getWithSamePointeeType(OT, NewAddrSpace);
+          PointerType *NT = PointerType::get(OT->getContext(), NewAddrSpace);
           auto NCE = ConstantExpr::getCast(CE->getOpcode(), CE->getOperand(0), NT);
           schedule(CE, NCE);
         }

@@ -42,7 +42,7 @@ class TPCDAGToDAGISel : public SelectionDAGISel {
 public:
   static char ID;
 
-  explicit TPCDAGToDAGISel(TPCTargetMachine &tm, CodeGenOpt::Level OL)
+  explicit TPCDAGToDAGISel(TPCTargetMachine &tm, CodeGenOptLevel OL)
     : SelectionDAGISel(ID, tm, OL), Subtarget(tm.getSubtarget()) {}
 
   bool doInitialization(Module &M) override {
@@ -60,7 +60,7 @@ public:
   /// SelectInlineAsmMemoryOperand - Implement addressing mode selection for
   /// inline asm expressions.
   bool SelectInlineAsmMemoryOperand(const SDValue &Op,
-                                    unsigned ConstraintID,
+                                    InlineAsm::ConstraintCode ConstraintID,
                                     std::vector<SDValue> &OutOps) override;
 
 
@@ -147,13 +147,13 @@ bool TPCDAGToDAGISel::SelectAddrRI(SDValue &N, SDValue &Base, SDValue &Offset) {
 /// inline asm expressions.
 bool
 TPCDAGToDAGISel::SelectInlineAsmMemoryOperand(const SDValue &Op,
-                                                unsigned ConstraintID,
+                                                InlineAsm::ConstraintCode ConstraintID,
                                                 std::vector<SDValue> &OutOps) {
   return false;
 }
 
 namespace llvm {
-FunctionPass *createTPCISelDag(TPCTargetMachine &TM, CodeGenOpt::Level OptLevel) {
+FunctionPass *createTPCISelDag(TPCTargetMachine &TM, CodeGenOptLevel OptLevel) {
   return new TPCDAGToDAGISel(TM, OptLevel);
 }
 } // namespace llvm
