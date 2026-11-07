@@ -1,0 +1,95 @@
+# TPC fork tooling
+
+Downstream-only tooling for maintaining this TPC fork of LLVM. Nothing in this
+directory exists upstream, so upstream merges never touch it, and it is not part
+of the LLVM CMake build.
+
+## Differential tests (`difftest/`)
+
+`difftest/run.py` checks the fork compiler for functional correctness against
+Habana's closed-source `tpc-clang`. It compiles every kernel in
+`difftest/kernels/` with both compilers, runs the objects on the TPC simulator
+with identical, fixed-seed inputs, and compares the output tensors bit for bit.
+
+### Setup
+
+It needs an extracted `habanalabs-tools` package (closed compiler + simulator),
+located through `TPC_HOME`:
+
+```sh
+source ~/tpc-1.24.2/env.sh        # sets TPC_HOME, PATH, LD_LIBRARY_PATH
+```
+
+The habanatools headers and libraries are Intel-confidential; they are used in
+place and must never be copied into this repository. `run.py` builds its small
+simulator driver (`sim_runner.cpp`) against them on first use.
+
+### Running
+
+```sh
+# Candidate = build/bin/tpc-clang by default.
+tpc/difftest/run.py
+
+# During the upstream port: compare a new build against the last good one, so
+# pre-existing differences from Habana's compiler are not reported as failures.
+tpc/difftest/run.py --candidate build-port/bin/tpc-clang --baseline build/bin/tpc-clang
+
+# A/B the same compiler with different flags.
+tpc/difftest/run.py --candidate-flags=-flegacy-pass-manager
+
+# Only some kernels or architectures.
+tpc/difftest/run.py --arch gaudi2 tpc/difftest/kernels/add_f32.c
+
+# Compile parity: does every RC99 lit-test source still compile (or still fail
+# to compile) the same way Habana's compiler and the baseline do?
+tpc/difftest/run.py --compile-parity --baseline build/bin/tpc-clang
+```
+
+Results, one line per kernel and architecture:
+
+| Verdict | Meaning |
+|---------|---------|
+| `PASS`  | Candidate output equals the reference output. |
+| `KNOWN` | Candidate differs from the reference exactly like the baseline does (a pre-existing difference). |
+| `FAIL`  | Anything else, including a change in the candidate's `.tpc_metadata` relative to the baseline. |
+| `SKIP`  | The reference compiler cannot build the kernel for that architecture. |
+
+`run.py` exits non-zero on any `FAIL`. Work files (objects, inputs, outputs) are
+kept under `build/tpc-difftest/<kernel>/<arch>/` for debugging.
+
+### Writing a kernel
+
+A kernel is a TPC-C file whose tensors and launch geometry are declared in
+`// DIFFTEST:` comments, much like lit `RUN:` lines:
+
+```c
+// DIFFTEST: arch gaudi gaudi2             simulated archs: gaudi, gaudi2, gaudi3
+// DIFFTEST: in  f32 256 6 3 range=-4,4    input tensor: dtype, dims (dim 0 first), value range
+// DIFFTEST: out f32 256 6 3               output tensor
+// DIFFTEST: index-space 4 6 3             index-space geometry (missing dims = 1)
+// DIFFTEST: scalar f32 0.5                scalar kernel parameter (f32, i32, u32), in order
+// DIFFTEST: tolerance ulp 2               optional: allow small float differences
+// DIFFTEST: cflags -O1                    optional: extra flags for every compiler
+```
+
+As with the graph compiler, inputs come before outputs: list all `in` lines
+before any `out` line, in the same order as the kernel's `tensor` parameters.
+Data types: `f32 bf16 f16 i32 u32 i16 u16 i8 u8 f8_152 f8_143`. Unwritten
+output elements keep the fill byte `0xCD`.
+
+Keep each kernel focused on one feature, so a failure points at a cause.
+
+### Known issues
+
+* **Metadata format.** The fork writes `.tpc_metadata` version 12; current
+  habanatools expect version 20, which added fields such as `irf32Mode`. On
+  version 12 objects the simulator assumes irf44 mode (gaudi2 kernels then write
+  nothing) or crashes (gaudi). `run.py` therefore copies the reference object's
+  metadata section into each fork object before simulating, and separately
+  requires the candidate's own metadata to match the baseline's byte for byte.
+  Fork-built objects will not run correctly under SynapseAI 1.24 until the fork
+  emits version 20 metadata.
+* **`srem_var_i32`.** The fork crashes on signed scalar remainder by a
+  non-constant divisor; expected `KNOWN` until fixed.
+* **`doron1`.** The fork asserts (`hasDoron1()`) for this arch, which accounts
+  for nearly all failures in the fork's own lit suite.
