@@ -6,7 +6,7 @@
 #include "MCTargetDesc/TPCMCInstrInfo.h"
 #include "TPCSubtarget.h"
 
-#include "llvm/ADT/Optional.h"
+#include <optional>
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/IR/IntrinsicsTPC.h"

@@ -181,7 +181,7 @@ LANGSTANDARD_ALIAS(gnucxx26, "gnu++26")
 LANGSTANDARD(rcxx, "rc++",
              CXX, "Restricted C++ for TPC target",
              LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus17 |
-             CPlusPlus20 | CPlusPlus2b | HexFloat | GNUMode)
+             CPlusPlus20 | CPlusPlus23 | HexFloat | GNUMode)
 
 // OpenCL
 LANGSTANDARD(opencl10, "cl1.0",

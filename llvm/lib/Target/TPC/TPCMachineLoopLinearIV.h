@@ -3,7 +3,7 @@
 
 #include "TPCLoopData.h"
 
-#include "llvm/ADT/Optional.h"
+#include <optional>
 #include "llvm/CodeGen/Register.h"
 #include <optional>
 

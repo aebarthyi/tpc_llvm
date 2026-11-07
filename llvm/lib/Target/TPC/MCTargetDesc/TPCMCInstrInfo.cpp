@@ -113,7 +113,7 @@ unsigned TPCMCInstrInfo::getThirdImmBits(MCInstrInfo const &MCII,
 
 TPCII::OpType TPCMCInstrInfo::getOpType(const MCInstrDesc &Desc, const MCInst &Inst) {
   for (unsigned i = 0; i < Inst.getNumOperands(); ++i) {
-    const MCOperandInfo &Info = Desc.OpInfo[i];
+    const MCOperandInfo &Info = Desc.operands()[i];
     if (Info.OperandType == TPC::OPERAND_DATATYPE) {
       auto Op = Inst.getOperand(i);
       return (TPCII::OpType)Op.getImm();
@@ -124,7 +124,7 @@ TPCII::OpType TPCMCInstrInfo::getOpType(const MCInstrDesc &Desc, const MCInst &I
 
 TPCII::OpType TPCMCInstrInfo::getOpType(const MCInstrDesc &Desc, const MachineInstr &Inst) {
   for (unsigned i = 0; i < Inst.getNumOperands(); ++i) {
-    const MCOperandInfo &Info = Desc.OpInfo[i];
+    const MCOperandInfo &Info = Desc.operands()[i];
     if (Info.OperandType == TPC::OPERAND_DATATYPE) {
       auto Op = Inst.getOperand(i);
       return (TPCII::OpType)Op.getImm();
@@ -214,7 +214,7 @@ bool TPCMCInstrInfo::useImmSlotForImm(const MCOperandInfo &Info, int64_t imm, bo
 
 template<class T> std::tuple<int, bool> GetPredicatePolarity(const T &MI, const MCInstrDesc &Desc) {
   for (int I = Desc.getNumOperands() - 2; I >= 0; --I) {
-    if (Desc.OpInfo[I].OperandType == TPC::OperandType::OPERAND_PREDICATE) {
+    if (Desc.operands()[I].OperandType == TPC::OperandType::OPERAND_PREDICATE) {
       assert(MI.getOperand(I).isReg() && "Expect OPERAND_PREDICATE is reg");
       assert(MI.getOperand(I+1).isImm() && "Expect polarity here");
       return std::make_tuple(I, MI.getOperand(I+1).getImm() & 1);

@@ -10,7 +10,7 @@
 #define LLVM_LIB_TARGET_TPC_MCTARGETDESC_TPCMCASMINFO_H
 
 #include "llvm/MC/MCAsmInfoELF.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
 
 namespace llvm {
 

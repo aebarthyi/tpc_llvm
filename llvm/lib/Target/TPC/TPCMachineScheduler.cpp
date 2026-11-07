@@ -513,7 +513,7 @@ void TPCMachineScheduler::schedule() {
 
   buildDAGWithRegPressure();
 
-  postprocessDAG();
+  postProcessDAG();
 
   SmallVector<SUnit*, 8> TopRoots, BotRoots;
   findRootsAndBiasEdges(TopRoots, BotRoots);

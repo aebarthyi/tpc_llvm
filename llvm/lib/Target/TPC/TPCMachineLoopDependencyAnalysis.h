@@ -3,7 +3,7 @@
 
 #include "TPCMachineLoopLinearIV.h"
 
-#include "llvm/ADT/Optional.h"
+#include <optional>
 #include "llvm/ADT/SmallPtrSet.h"
 #include <optional>
 

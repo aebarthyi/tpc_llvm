@@ -21,7 +21,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #ifdef LLVM_TPC_COMPILER
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
 #endif
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/BlockFrequencyInfo.h"

@@ -12,7 +12,7 @@
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/TargetOptions.h"
 #include "llvm/ADT/StringSwitch.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Target/TargetInfoTPC.h"
 
@@ -56,7 +56,7 @@ public:
                             DiagnosticsEngine &Diags) override;
   ArrayRef<const char *> getGCCRegNames() const override;
   ArrayRef<TargetInfo::GCCRegAlias> getGCCRegAliases() const override;
-  const char *getClobbers() const override;
+  std::string_view getClobbers() const override;
   bool validateAsmConstraint(const char *&Name,
                              TargetInfo::ConstraintInfo &Info) const override;
 

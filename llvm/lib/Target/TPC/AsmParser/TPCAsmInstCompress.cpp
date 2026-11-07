@@ -236,8 +236,7 @@ bool TPCAsmInstCompress::isVPUInstWithVPUExtSwitch(const MCInst &MI) const {
 
   const auto &GetSwitch =[&Desc](const MCInst MI){
     for (unsigned I = Desc.getNumOperands() - 1; I >= 0; --I) {
-      assert(Desc.OpInfo);
-      const MCOperandInfo OpInfo = Desc.OpInfo[I];
+      const MCOperandInfo OpInfo = Desc.operands()[I];
       if (OpInfo.OperandType == TPC::OperandType::OPERAND_SWITCH) {
         const MCOperand &MCOperand = MI.getOperand(I);
         assert(MCOperand.isImm());

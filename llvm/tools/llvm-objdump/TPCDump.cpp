@@ -10,6 +10,7 @@
 #include "llvm-objdump.h"
 #include "tpc-encoding-info.h"
 #include "tpc-encoding-cover.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCDisassembler/MCDisassembler.h"

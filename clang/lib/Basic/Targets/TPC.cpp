@@ -284,7 +284,7 @@ ArrayRef<TargetInfo::GCCRegAlias> TPCTargetInfo::getGCCRegAliases() const {
   return std::nullopt;
 }
 
-const char *TPCTargetInfo::getClobbers() const {
+std::string_view TPCTargetInfo::getClobbers() const {
   // TODO: implement
   return "";
 }

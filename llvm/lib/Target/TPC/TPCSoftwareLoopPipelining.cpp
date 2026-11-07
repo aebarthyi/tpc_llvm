@@ -20,7 +20,7 @@
 #include "MCTargetDesc/TPCMCTargetDesc.h"
 #include "MCTargetDesc/TPCMCInstrInfo.h"
 #include "llvm/InitializePasses.h"
-#include "llvm/ADT/Optional.h"
+#include <optional>
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/LoopIterator.h"
@@ -2251,7 +2251,7 @@ void TPCPipeliner::replaceWithZero(MachineOperand& ReplaceMO, TPCII::OpType ot) 
 // Return index of machine basic block argument in the given phi instruction
 static std::optional<unsigned> getBBIndexAsPhiOperand(MachineInstr &Phi,
                                                        MachineBasicBlock &BB) {
-  for (auto &Item: enumerate(Phi.uses())) {
+  for (auto Item : enumerate(Phi.uses())) {
     if (Item.value().isMBB() && Item.value().getMBB() == &BB)
       return Item.index();
   }

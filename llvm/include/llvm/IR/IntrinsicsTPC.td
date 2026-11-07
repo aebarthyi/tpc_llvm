@@ -15,10 +15,7 @@
 // Definitions for all TPC intrinsics.
 //
 
-class GlobalPointerType<LLVMType elty>
-  : LLVMQualPointerType<elty, 3>;
-
-def global_ptr_ty   : GlobalPointerType<llvm_i8_ty>;             // i8*
+def global_ptr_ty   : LLVMQualPointerType<3>;             // ptr addrspace(3)
 
 
 let TargetPrefix = "tpc" in {  // All intrinsics start with "llvm.tpc.".

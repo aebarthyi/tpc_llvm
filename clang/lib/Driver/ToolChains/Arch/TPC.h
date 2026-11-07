@@ -7,7 +7,7 @@
 
 #include "clang/Driver/Driver.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
 #include "llvm/Option/Option.h"
 #include <string>
 #include <vector>

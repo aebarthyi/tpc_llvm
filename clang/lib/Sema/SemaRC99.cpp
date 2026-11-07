@@ -1600,7 +1600,7 @@ Stmt *Sema::getArgumentAddress(VarDecl *Ptr, VarDecl *TensorOffset) {
   Expr *Init = ActOnIntegerConstant(Loc, getLangOpts().NumTensors - 1).get();
   Args.push_back(Idx);
   Args.push_back(Init);
-  Args.push_back(IntegerLiteral::Create(getASTContext(), llvm::APInt::getNullValue(32), getASTContext().IntTy, Loc));
+  Args.push_back(IntegerLiteral::Create(getASTContext(), llvm::APInt::getZero(32), getASTContext().IntTy, Loc));
   Args.push_back(new (getASTContext()) CXXNullPtrLiteralExpr(ResultTy, Ptr->getLocation()));
   Args.push_back(new (getASTContext()) CXXBoolLiteralExpr(true, getASTContext().BoolTy, Ptr->getLocation()));
   Args.push_back(new (getASTContext()) CXXBoolLiteralExpr(false, getASTContext().BoolTy, Ptr->getLocation()));

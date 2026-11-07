@@ -705,7 +705,7 @@ bool removePhiInputFromMBB(MachineInstr &Phi, const MachineBasicBlock &MBB) {
 std::optional<unsigned> getIndexOfPhiMBBOp(const MachineInstr &Phi,
                                       const MachineBasicBlock &MBB) {
   assert(Phi.isPHI());
-  for (auto &Item : enumerate(Phi.operands())) {
+  for (auto Item : enumerate(Phi.operands())) {
     if (Item.value().isMBB() && Item.value().getMBB() == &MBB)
       return Item.index();
   }

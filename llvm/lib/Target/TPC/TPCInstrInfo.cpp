@@ -654,15 +654,17 @@ void TPCInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   }
 
   RegScavenger RS;
-  RS.enterBasicBlock(MBB);
-  RS.forward(I);
+  RS.enterBasicBlockEnd(MBB);
+  RS.backward(I);
 
   MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
 
   if (SrcSQZ && DstSQZ) {
-    Register Src1 = RS.scavengeRegister(&TPC::SRFRegClass, 0);
+    Register Src1 = RS.scavengeRegisterBackwards(TPC::SRFRegClass, I,
+                                                  /*RestoreAfter=*/false, 0);
     RS.setRegUsed(Src1);
-    Register Src2 = RS.scavengeRegister(&TPC::SRFRegClass, 0);
+    Register Src2 = RS.scavengeRegisterBackwards(TPC::SRFRegClass, I,
+                                                  /*RestoreAfter=*/false, 0);
     RS.setRegUsed(Src2);
     
     Register SrcSub1 = TRI.getSubReg(SrcReg, TPC::sub_0);
@@ -712,7 +714,8 @@ void TPCInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
       .addReg(TPC::SPRF_TRUE)
       .addImm(0);
 
-    Register SRFTemp = RS.scavengeRegister(&TPC::SRFRegClass, 0);
+    Register SRFTemp = RS.scavengeRegisterBackwards(TPC::SRFRegClass, I,
+                                                  /*RestoreAfter=*/false, 0);
     RS.setRegUsed(SRFTemp);
 
     BuildMI(MBB, I, DL, get(TPC::MOVsip), SRFTemp)
@@ -3348,7 +3351,7 @@ bool TPCInstrInfo::isIRFProducerWithDimMask(const MachineInstr &MI,
       bool HasImmOp = TPCII::getHasImm(MCID);
       unsigned NumImmFound = 0;
       for (unsigned I = MCID.getNumDefs(), E = MCID.getNumOperands(); I < E; ++I) {
-        const MCOperandInfo &Op = MCID.OpInfo[I];
+        const MCOperandInfo &Op = MCID.operands()[I];
         if (Op.OperandType == MCOI::OperandType::OPERAND_IMMEDIATE) {
           ++NumImmFound;
           if (NumImmFound == 2 || !HasImmOp) {
@@ -3713,7 +3716,7 @@ int llvm::getIncome(const MachineInstr &I) {
 unsigned llvm::getSwitches(const MachineInstr &MI) {
   const MCInstrDesc &Desc = MI.getDesc();
   for (unsigned I = Desc.getNumOperands() - 1; I >= 0; --I) {
-    const MCOperandInfo &OpInfo = Desc.OpInfo[I];
+    const MCOperandInfo &OpInfo = Desc.operands()[I];
     if (OpInfo.OperandType == TPC::OperandType::OPERAND_SWITCH) {
       const MachineOperand &SwitchesMO = MI.getOperand(I);
       assert(SwitchesMO.isImm() && "Expect OPERAND_SWITCH is immediate");
@@ -3730,7 +3733,7 @@ TPCII::OpType llvm::getOpType(const MachineInstr &MI) {
   // First try to find operand that represents value type.
   const MCInstrDesc &MCInstD = MI.getDesc();
   for (unsigned I = 0, E = MCInstD.getNumOperands(); I < E; ++I) {
-    const MCOperandInfo &Op = MCInstD.OpInfo[I];
+    const MCOperandInfo &Op = MCInstD.operands()[I];
     if (Op.OperandType == TPC::OPERAND_DATATYPE) {
       const MachineOperand &MOp = MI.getOperand(I);
       assert(MOp.isImm());
@@ -3745,7 +3748,7 @@ TPCII::OpType llvm::getOpType(const MachineInstr &MI) {
 bool llvm::useImmSlotForImm(const MachineInstr & I, int64_t Val)
 {
   const MCInstrDesc &IDesc = I.getDesc();
-  const MCOperandInfo &IInfo = IDesc.OpInfo[TPCII::getImmFieldOpNum(IDesc)];
+  const MCOperandInfo &IInfo = IDesc.operands()[TPCII::getImmFieldOpNum(IDesc)];
   bool isSigned = TPCMCInstrInfo::isInstTypeSigned(IDesc, I);
   return TPCMCInstrInfo::useImmSlotForImm(IInfo, Val, isSigned);
 }

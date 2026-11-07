@@ -5,7 +5,7 @@
 #include "TPCSubtarget.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/ADT/Optional.h"
+#include <optional>
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Analysis/LoopAnalysisManager.h"
 #include "llvm/Analysis/LoopPass.h"

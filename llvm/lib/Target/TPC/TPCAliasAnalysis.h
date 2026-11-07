@@ -14,7 +14,7 @@
 #define LLVM_LIB_TARGET_TPC_TPCALIASANALYSIS_H
 
 #include "TPC.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Module.h"

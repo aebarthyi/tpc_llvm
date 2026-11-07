@@ -73,7 +73,8 @@ bool TPCSwapFakePredicate::runOnMachineFunction(MachineFunction &MF) {
         MachineOperand &MO = MI.getOperand(I);
         if (!MO.isReg())
           continue;
-        if (!MI.isPseudo() && MI.getDesc().OpInfo[I].OperandType ==
+        if (!MI.isPseudo() && I < MI.getDesc().getNumOperands() &&
+            MI.getDesc().operands()[I].OperandType ==
             TPC::OperandType::OPERAND_PREDICATE) {
           assert(I < MI.getNumOperands() - 1);
           MachineOperand PolarityMO = MI.getOperand(I + 1);

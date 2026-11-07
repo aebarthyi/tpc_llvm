@@ -2240,7 +2240,7 @@ bool TPCII::getDefaultSwitches(StringRef Mnemonic, SlotParser Slot, OpType Type,
 static TPCII::OpType guessDataType(const MCInst *MI, unsigned OpNum, const MCInstrDesc &MCID) {
   // We expect datatype just before switch set.
   if (OpNum) {
-      const MCOperandInfo &Info = MCID.OpInfo[OpNum - 1];
+      const MCOperandInfo &Info = MCID.operands()[OpNum - 1];
       if (Info.OperandType == TPC::OPERAND_DATATYPE) {
         const MCOperand &Op = MI->getOperand(OpNum - 1);
         assert(Op.isImm() && Op.getImm() <= TPCII::OpType::Max);

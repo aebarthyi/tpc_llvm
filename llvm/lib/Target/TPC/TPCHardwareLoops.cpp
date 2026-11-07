@@ -21,7 +21,7 @@
 #include "TPCMachineInstrTools.h"
 #include "TPCSubtarget.h"
 #include "MCTargetDesc/TPCMCTargetDesc.h"
-#include "llvm/ADT/Optional.h"
+#include <optional>
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"

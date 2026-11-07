@@ -16,7 +16,7 @@
 #include "TPCTargetMachine.h"
 #include "SCEVParser.h"
 
-#include "llvm/ADT/Optional.h"
+#include <optional>
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/LoopInfo.h"

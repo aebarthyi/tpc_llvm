@@ -1109,7 +1109,7 @@ void TPCMCCodeEmitter::fillInstrBits(const MCInst& MI,
          opImm = MI.getOperand(opNum).getSFPImm();
       }
       const MCInstrDesc &Desc = MCII.get(MI.getOpcode());
-      const MCOperandInfo &Info = Desc.OpInfo[opNum];
+      const MCOperandInfo &Info = Desc.operands()[opNum];
       if (!STI.getFeatureBits()[TPC::FeatureShortImm]
         || TPCMCInstrInfo::useImmSlotForImm(Info, opImm, TPCMCInstrInfo::isInstTypeSigned(Desc, MI))) {
         // encode immediate in the IMM slot (otherwise, it is encoded in place of the operand)
@@ -1304,7 +1304,7 @@ unsigned TPCMCCodeEmitter::encodeTPCImm(
   int64_t Imm = ImmOp.getImm();
 
   const MCInstrDesc &Desc = MCII.get(Inst.getOpcode());
-  const MCOperandInfo &Info = Desc.OpInfo[OpNo];
+  const MCOperandInfo &Info = Desc.operands()[OpNo];
   if (!STI.getFeatureBits()[TPC::FeatureShortImm]
     || TPCMCInstrInfo::useImmSlotForImm(Info, Imm, TPCMCInstrInfo::isInstTypeSigned(Desc, Inst)))
   {

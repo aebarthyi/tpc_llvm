@@ -342,7 +342,7 @@ void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
           // Remove 'optnone' so that instruction combining can run.
           FPM.addPass(AttributeAdjusterPass());
           // Instruction combining greatly simplifies instruction selection.
-          FPM.addPass(InstCombinePass(2));
+          FPM.addPass(InstCombinePass(InstCombineOptions().setMaxIterations(2)));
           MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
           if (!Options.CompileForLibrary) {
             MPM.addPass(GlobalizerPass());
@@ -425,7 +425,7 @@ bool TPCPassConfig::addPreISel() {
   }
   addPass(createTPCSelectorPreshaper());
   addPass(createTPCSingleUseScalarOptimizer());
-  addPass(createAggressiveDCEPass());
+  addPass(createDeadCodeEliminationPass());
   return false;
 }
 
