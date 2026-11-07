@@ -809,7 +809,7 @@ class CastOp<ValueType T> {
                      CastToImm32))))))))));
 }
 
-class SelInstructionForPredicate<PatFrag P> {
+class SelInstructionForPredicate<SDPatternOperator P> {
   string Pred = !cast<string>(P);
   string Name = !if(!eq(Pred, "seteq"), "SEL_EQ",
                 !if(!eq(Pred, "setne"), "SEL_NEQ",
@@ -1062,7 +1062,7 @@ def NOPst : StoreInstUncond<0b011111, "nop">;
 
 //------ Helpers ---------------------------------------------------------------
 
-multiclass LoadMapVRF<PatFrag LdOp, dag Addr, SDNode Insn> {
+multiclass LoadMapVRF<SDPatternOperator LdOp, dag Addr, Instruction Insn> {
   def _v256i8   : Pat<(v256i8   (LdOp Addr)),
                       (v256i8   (Insn Addr, (IMPLICIT_DEF), SPRF_TRUE, (i1 0)))>;
   def _v128i16  : Pat<(v128i16  (LdOp Addr)),
@@ -1075,7 +1075,7 @@ multiclass LoadMapVRF<PatFrag LdOp, dag Addr, SDNode Insn> {
                       (v128bf16 (Insn Addr, (IMPLICIT_DEF), SPRF_TRUE, (i1 0)))>;
 }
 
-multiclass LoadMapSRF<PatFrag LdOp, dag Addr, SDNode Insn> {
+multiclass LoadMapSRF<SDPatternOperator LdOp, dag Addr, Instruction Insn> {
   def _i8   : Pat<(i8   (LdOp Addr)),
                   (i8   (Insn Addr, (IMPLICIT_DEF), SPRF_TRUE, (i1 0)))>;
   def _i16  : Pat<(i16  (LdOp Addr)),
@@ -1089,14 +1089,14 @@ multiclass LoadMapSRF<PatFrag LdOp, dag Addr, SDNode Insn> {
 }
 
 // Mappin of unary operation on integer scalar.
-multiclass UnaryIntegerScalar<PatFrag Op, SDNode InstrS> {
+multiclass UnaryIntegerScalar<SDPatternOperator Op, Instruction InstrS> {
   def i32s  : Pat<(Op i32:$op), (InstrS $op, OpType.INT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def i16s  : Pat<(Op i16:$op), (InstrS $op, OpType.INT16, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def i8s   : Pat<(Op i8:$op),  (InstrS $op, OpType.INT8,  (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
 }
 
 // Mapping of unary operation on float scalar.
-multiclass UnaryFloatScalar<PatFrag Op, SDNode InstrS> {
+multiclass UnaryFloatScalar<SDPatternOperator Op, Instruction InstrS> {
   def f32s  : Pat<(Op f32:$op),  (InstrS $op, OpType.FP32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def bf16s : Pat<(Op bf16:$op), (InstrS $op, OpType.BF16, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>, Requires<[BF16]>;
   def f16s  : Pat<(Op f16:$op),  (InstrS $op, OpType.FP16, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>, Requires<[FP16]>;
@@ -1105,7 +1105,7 @@ multiclass UnaryFloatScalar<PatFrag Op, SDNode InstrS> {
 }
 
 // Mapping of binary operation on integer signed scalars.
-multiclass BinarySignedScalar<PatFrag Op, SDNode InstrSS, SDNode InstrSI> {
+multiclass BinarySignedScalar<SDPatternOperator Op, Instruction InstrSS, Instruction InstrSI> {
   def i32s  : Pat<(Op i32:$op1, i32:$op2), (InstrSS $op1, $op2,               OpType.INT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def i32i  : Pat<(Op i32:$op1, imm:$op2), (InstrSI $op1, (CastToImm32 $op2), OpType.INT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def i16s  : Pat<(Op i16:$op1, i16:$op2), (InstrSS $op1, $op2,               OpType.INT16, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
@@ -1116,7 +1116,7 @@ multiclass BinarySignedScalar<PatFrag Op, SDNode InstrSS, SDNode InstrSI> {
 
 // Mapping of binary operation on integer signed scalars for shift operations.
 // In this case the second operand is always i32.
-multiclass BinaryShiftScalar<PatFrag Op, SDNode InstrSS, SDNode InstrSI> {
+multiclass BinaryShiftScalar<SDPatternOperator Op, Instruction InstrSS, Instruction InstrSI> {
   def i32s  : Pat<(Op i32:$op1, i32:$op2),       (InstrSS $op1, $op2,           OpType.INT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def i32i  : Pat<(Op i32:$op1, (i32 imm:$op2)), (InstrSI $op1, (i32 imm:$op2), OpType.INT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def i16s  : Pat<(Op i16:$op1, i32:$op2),       (InstrSS $op1, $op2,           OpType.INT16, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
@@ -1126,7 +1126,7 @@ multiclass BinaryShiftScalar<PatFrag Op, SDNode InstrSS, SDNode InstrSI> {
 }
 
 // Mapping of binary operation on integer unsigned scalars.
-multiclass BinaryUnsignedScalar<PatFrag Op, SDNode InstrSS, SDNode InstrSI> {
+multiclass BinaryUnsignedScalar<SDPatternOperator Op, Instruction InstrSS, Instruction InstrSI> {
   def u32s  : Pat<(Op i32:$op1, i32:$op2), (InstrSS $op1, $op2,               OpType.UINT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def u32i  : Pat<(Op i32:$op1, imm:$op2), (InstrSI $op1, (CastToImm32 $op2), OpType.UINT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def u16s  : Pat<(Op i16:$op1, i16:$op2), (InstrSS $op1, $op2,               OpType.UINT16, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
@@ -1136,7 +1136,7 @@ multiclass BinaryUnsignedScalar<PatFrag Op, SDNode InstrSS, SDNode InstrSI> {
 }
 
 // Mapping of binary operation on float scalars.
-multiclass BinaryFloatScalar<PatFrag Op, SDNode InstrSS, SDNode InstrSI> {
+multiclass BinaryFloatScalar<SDPatternOperator Op, Instruction InstrSS, Instruction InstrSI> {
   def f32s : Pat<(Op f32:$op1, f32:$op2),         (InstrSS $op1, $op2,             OpType.FP32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def f32i : Pat<(Op f32:$op1, (f32 fpimm:$op2)), (InstrSI $op1, (FPToImm32 $op2), OpType.FP32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   let Predicates = [BF16] in {
@@ -1163,7 +1163,7 @@ def AddDnormSupport : SDNodeXForm<imm, [{
   return CurDAG->getTargetConstant(SwitchVal, SDLoc(N), MVT::i32);
 }]>;
 
-multiclass BinaryFloatArithScalar<PatFrag Op, SDNode InstrSS, SDNode InstrSI> {
+multiclass BinaryFloatArithScalar<SDPatternOperator Op, Instruction InstrSS, Instruction InstrSI> {
   def f32s : Pat<(Op f32:$op1, f32:$op2),         (InstrSS $op1, $op2,             OpType.FP32, (AddDnormSupport (i32 0)), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def f32i : Pat<(Op f32:$op1, (f32 fpimm:$op2)), (InstrSI $op1, (FPToImm32 $op2), OpType.FP32, (AddDnormSupport (i32 0)), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   let Predicates = [BF16] in {
@@ -1178,7 +1178,7 @@ multiclass BinaryFloatArithScalar<PatFrag Op, SDNode InstrSS, SDNode InstrSI> {
 
 // Mapping of binary operation on index values. Scalar variants have scalar
 // argument as the second operand (SHL/SHR).
-multiclass BinaryIndexScalar<PatFrag Op, SDNode InstrNS, SDNode InstrNI> {
+multiclass BinaryIndexScalar<SDPatternOperator Op, Instruction InstrNS, Instruction InstrNI> {
   def s : Pat<(Op v5i32:$op1, (v5i32 (vsplati5 i32:$op2))),
               (InstrNS $op1, $op2, (i32 31), OpType.INT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def i : Pat<(Op v5i32:$op1, (v5i32 (vsplati5 (i32 imm:$op2)))),
@@ -1187,14 +1187,14 @@ multiclass BinaryIndexScalar<PatFrag Op, SDNode InstrNS, SDNode InstrNI> {
 
 // Mapping of binary operation on index values. Scalar variants have immediate
 // scalar argument as the second operand (CMP_*).
-multiclass CmpIndexOp<PatFrag Op, SDNode InstrNI> {
+multiclass CmpIndexOp<SDPatternOperator Op, Instruction InstrNI> {
   def i : Pat<(Op v5i32:$op1, (v5i32 (vsplati5 (i32 imm:$op2)))),
               (InstrNI $op1, (CastToImm32 $op2), (i32 31), OpType.INT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
 }
 
 // Mapping of binary operation on index values. Scalar variants have scalar
 // argument as the first operand (as ADD, SUB etc).
-multiclass BinaryIndexOp1<PatFrag Op, SDNode InstrNN, SDNode InstrNS, SDNode InstrNI> {
+multiclass BinaryIndexOp1<SDPatternOperator Op, Instruction InstrNN, Instruction InstrNS, Instruction InstrNI> {
   def I : Pat<(Op v5i32:$op1, v5i32:$op2),
               (InstrNN $op1, $op2, (i32 31), OpType.INT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def s : Pat<(Op (v5i32 (vsplati5 i32:$op1)), v5i32:$op2),
@@ -1204,21 +1204,21 @@ multiclass BinaryIndexOp1<PatFrag Op, SDNode InstrNN, SDNode InstrNS, SDNode Ins
 }
 
 // Mapping of unary operation on integer vector.
-multiclass UnaryIntegerVector<PatFrag Op, SDNode InstrV> {
+multiclass UnaryIntegerVector<SDPatternOperator Op, Instruction InstrV> {
   def i32v : Pat<(Op v64i32:$op),  (InstrV $op, OpType.INT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def i16v : Pat<(Op v128i16:$op), (InstrV $op, OpType.INT16, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def i8v  : Pat<(Op v256i8:$op),  (InstrV $op, OpType.INT8,  (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
 }
 
 // Mapping of unary operation on float vector.
-multiclass UnaryFloatVector<PatFrag Op, SDNode InstrV> {
+multiclass UnaryFloatVector<SDPatternOperator Op, Instruction InstrV> {
   def f32v  : Pat<(Op v64f32:$op),   (InstrV $op, OpType.FP32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def bf16v : Pat<(Op v128bf16:$op), (InstrV $op, OpType.BF16, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>, Requires<[BF16]>;
   def fp16v : Pat<(Op v128f16:$op),  (InstrV $op, OpType.FP16, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>, Requires<[FP16]>;
 }
 
 // Mapping of binary operation on integer vectors.
-multiclass BinaryIntegerVector<PatFrag Op, SDNode InstrVV, SDNode InstrVS, SDNode InstrVI> {
+multiclass BinaryIntegerVector<SDPatternOperator Op, Instruction InstrVV, Instruction InstrVS, Instruction InstrVI> {
   def i32vv  : Pat<(Op v64i32:$op1,  v64i32:$op2                         ), (InstrVV $op1, $op2,               OpType.INT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def i32vs  : Pat<(Op v64i32:$op1,  (v64i32 (vsplati32 i32:$op2))       ), (InstrVS $op1, $op2,               OpType.INT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def i32vi  : Pat<(Op v64i32:$op1,  (v64i32 (vsplati32 (i32 imm:$op2))) ), (InstrVI $op1, (CastToImm32 $op2), OpType.INT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
@@ -1230,7 +1230,7 @@ multiclass BinaryIntegerVector<PatFrag Op, SDNode InstrVV, SDNode InstrVS, SDNod
   def i8vi   : Pat<(Op v256i8:$op1,  (v256i8 (vsplati8 (i8 imm:$op2)))   ), (InstrVI $op1, (CastToImm32 $op2), OpType.INT8,  (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
 }
 
-multiclass CmpOpVect<PatFrag Op, SDNode InstrVV, SDNode InstrVS, SDNode InstrVI> {
+multiclass CmpOpVect<SDPatternOperator Op, Instruction InstrVV, Instruction InstrVS, Instruction InstrVI> {
   def i32vv  : Pat<(v64i1  (Op v64i32:$op1,  v64i32:$op2                         )), (InstrVV $op1, $op2,               OpType.INT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def i32vs  : Pat<(v64i1  (Op v64i32:$op1,  (v64i32 (vsplati32 i32:$op2))       )), (InstrVS $op1, $op2,               OpType.INT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def i32vi  : Pat<(v64i1  (Op v64i32:$op1,  (v64i32 (vsplati32 (i32 imm:$op2))) )), (InstrVI $op1, (CastToImm32 $op2), OpType.INT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
@@ -1242,7 +1242,7 @@ multiclass CmpOpVect<PatFrag Op, SDNode InstrVV, SDNode InstrVS, SDNode InstrVI>
   def i8vi   : Pat<(v256i1 (Op v256i8:$op1,  (v256i8 (vsplati8 (i8 imm:$op2)))   )), (InstrVI $op1, (CastToImm32 $op2), OpType.INT8,  (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
 }
 
-multiclass FCmpOpVect<PatFrag Op, SDNode InstrVV, SDNode InstrVS, SDNode InstrVI> {
+multiclass FCmpOpVect<SDPatternOperator Op, Instruction InstrVV, Instruction InstrVS, Instruction InstrVI> {
   def f32vv  : Pat<(v64i1  (Op v64f32:$op1,     v64f32:$op2                              )), (InstrVV $op1, $op2,               OpType.FP32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def f32vs  : Pat<(v64i1  (Op v64f32:$op1,     (v64f32 (vsplatf32 f32:$op2))            )), (InstrVS $op1, $op2,               OpType.FP32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def f32vi  : Pat<(v64i1  (Op v64f32:$op1,     (v64f32 (vsplatf32 (f32 fpimm:$op2)))    )), (InstrVI $op1, (CastToImm32 $op2), OpType.FP32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
@@ -1260,7 +1260,7 @@ multiclass FCmpOpVect<PatFrag Op, SDNode InstrVV, SDNode InstrVS, SDNode InstrVI
   def f852vi : Pat<(v256i1 (Op v256f8_152:$op1, (v256f8_152 (vsplatf8_152 (f8_152 fpimm:$op2))))), (InstrVI $op1, (CastToImm32 $op2), OpType.FP8_152, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
 }
 
-multiclass CmpOpUVect<PatFrag Op, SDNode InstrVV, SDNode InstrVS, SDNode InstrVI> {
+multiclass CmpOpUVect<SDPatternOperator Op, Instruction InstrVV, Instruction InstrVS, Instruction InstrVI> {
   def i32vv  : Pat<(v64i1  (Op v64i32:$op1,  v64i32:$op2                         )), (InstrVV $op1, $op2,               OpType.UINT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def i32vs  : Pat<(v64i1  (Op v64i32:$op1,  (v64i32 (vsplati32 i32:$op2))       )), (InstrVS $op1, $op2,               OpType.UINT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def i32vi  : Pat<(v64i1  (Op v64i32:$op1,  (v64i32 (vsplati32 (i32 imm:$op2))) )), (InstrVI $op1, (CastToImm32 $op2), OpType.UINT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
@@ -1274,7 +1274,7 @@ multiclass CmpOpUVect<PatFrag Op, SDNode InstrVV, SDNode InstrVS, SDNode InstrVI
 
 
 // Mapping of binary operation on float vectors.
-multiclass BinaryFloatVector<PatFrag Op, SDNode InstrVV, SDNode InstrVS, SDNode InstrVI> {
+multiclass BinaryFloatVector<SDPatternOperator Op, Instruction InstrVV, Instruction InstrVS, Instruction InstrVI> {
   def f32vv  : Pat<(Op v64f32:$op1,   v64f32:$op2                          ), (InstrVV $op1, $op2,             OpType.FP32, (AddDnormSupport (i32 0)), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def f32vs  : Pat<(Op v64f32:$op1,   (v64f32 (vsplatf32 f32:$op2))        ), (InstrVS $op1, $op2,             OpType.FP32, (AddDnormSupport (i32 0)), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
   def f32vi  : Pat<(Op v64f32:$op1,   (v64f32 (vsplatf32 (f32 fpimm:$op2)))), (InstrVI $op1, (FPToImm32 $op2), OpType.FP32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))>;
@@ -1329,7 +1329,7 @@ multiclass StoreInst_ST_L_V<bits<6> opc, string asm_string> {
 
 // Mapping of intrinsics of binary operation on index vectors. Scalar variants
 // have scalar argument as the first operand (as ADD, SUB etc).
-multiclass BinaryIndexIntrinsicsOp1<SDNode Intrin, string IName, ValueType RT = v5i32> {
+multiclass BinaryIndexIntrinsicsOp1<SDPatternOperator Intrin, string IName, ValueType RT = v5i32> {
   def II:  Pat<(RT (Intrin v5i32:$x0, v5i32:$x1, (i32 imm:$mask), (i8 imm:$dt), (i32 imm:$sw), RT:$income, i1:$pred, (i1 imm:$polarity))),
                (RT (ConstructInsn<IName, v5i32, v5i32, i1>.Insn
                     v5i32:$x0, v5i32:$x1, (i32 imm:$mask), (i8 imm:$dt), (i32 imm:$sw), RT:$income, i1:$pred, (i1 imm:$polarity)))>;
@@ -1368,7 +1368,7 @@ multiclass BinaryIndexIntrinsicsOp1<SDNode Intrin, string IName, ValueType RT = 
 // Additional mapping intrinsics of commutative binary operation on index vectors.
 // The instructions corresponding to these intrinsics expect scalar argument to
 // be the first one. In this mappings it is allowed to be the second argument.
-multiclass BinaryIndexIntrinsicsOp1Commutative<SDNode Intrin, string IName, ValueType RT = v5i32> {
+multiclass BinaryIndexIntrinsicsOp1Commutative<SDPatternOperator Intrin, string IName, ValueType RT = v5i32> {
   def Is:  Pat<(RT (Intrin v5i32:$x0, (v5i32 (vsplati5 i32:$x1)), (i32 imm:$mask), (i8 imm:$dt), (i32 imm:$sw), RT:$income, i1:$pred, (i1 imm:$polarity))),
                (RT (ConstructInsn<IName, i32, v5i32, i1>.Insn
                     i32:$x1, v5i32:$x0, (i32 imm:$mask), (i8 imm:$dt), (i32 imm:$sw), RT:$income, i1:$pred, (i1 imm:$polarity)))>;
@@ -1400,7 +1400,7 @@ multiclass BinaryIndexIntrinsicsOp1Commutative<SDNode Intrin, string IName, Valu
 
 // Mapping of intrinsics of binary operation on index vectors. Scalar variants
 // have scalar argument as the second operand (SHL/SHR).
-multiclass BinaryIndexShiftIntrinsics<SDNode Intrin, string IName, ValueType RT = v5i32> {
+multiclass BinaryIndexShiftIntrinsics<SDPatternOperator Intrin, string IName, ValueType RT = v5i32> {
   def II:  Pat<(RT (Intrin v5i32:$x0, v5i32:$x1, (i32 imm:$mask), (i8 imm:$dt), (i32 imm:$sw), RT:$income, i1:$pred, (i1 imm:$polarity))),
                (RT (!cast<Instruction>(!strconcat(IName, "IIp"))
                     v5i32:$x0, v5i32:$x1, (i32 imm:$mask), (i8 imm:$dt), (i32 imm:$sw), RT:$income, i1:$pred, (i1 imm:$polarity)))>;
@@ -1438,7 +1438,7 @@ multiclass BinaryIndexShiftIntrinsics<SDNode Intrin, string IName, ValueType RT 
 
 // Mapping of intrinsics of binary operation on index vectors. Scalar variants
 // have immediate scalar argument as the second operand (CMP_*).
-multiclass IndexCmpIntrinsic<SDNode Intrin, string IName, ValueType RT = v5i32> {
+multiclass IndexCmpIntrinsic<SDPatternOperator Intrin, string IName, ValueType RT = v5i32> {
   def II:  Pat<(RT (Intrin v5i32:$x0, v5i32:$x1, (i32 imm:$mask), (i8 imm:$dt), (i32 imm:$sw), RT:$income, i1:$pred, (i1 imm:$polarity))),
                (RT (!cast<Instruction>(!strconcat(IName, "IIp"))
                     v5i32:$x0, v5i32:$x1, (i32 imm:$mask), (i8 imm:$dt), (i32 imm:$sw), RT:$income, i1:$pred, (i1 imm:$polarity)))>;
@@ -1461,7 +1461,7 @@ multiclass IndexCmpIntrinsic<SDNode Intrin, string IName, ValueType RT = v5i32> 
 }
 
 // Mapping of intrinsics of unary operation on index vectors.
-multiclass UnaryIndexIntrinsics<SDNode Intrin, string IName, ValueType RT = v5i32> {
+multiclass UnaryIndexIntrinsics<SDPatternOperator Intrin, string IName, ValueType RT = v5i32> {
   // Constant mask
   def : Pat<(v5i32 (Intrin v5i32:$src, (i32 imm:$mask), (i8 imm:$dt), (i32 imm:$sw), v5i32:$income, i1:$pred, (i1 imm:$polarity))),
             (v5i32 (ConstructInsn<IName, v5i32, v5i32, i1>.Insn
@@ -1484,14 +1484,14 @@ multiclass UnaryIndexIntrinsics<SDNode Intrin, string IName, ValueType RT = v5i3
                     SRF:$src, MRF:$mask, (i8 imm:$dt), (i32 imm:$sw), IRF:$income, SPRF:$pred, (i1 imm:$polarity)))>;
 }
 
-multiclass BinaryScalarIntrinsics<SDNode Intrin, string IName, ValueType T, ValueType RT = T> {
+multiclass BinaryScalarIntrinsics<SDPatternOperator Intrin, string IName, ValueType T, ValueType RT = T> {
   def : Pat<(RT (Intrin T:$x0, T:$x1, (i8 imm:$dt), (i32 imm:$sw), RT:$income, i1:$pred, (i1 imm:$polarity))),
             (RT (ConstructInsn<IName, T, T, i1>.Insn T:$x0, T:$x1, (i8 imm:$dt), (i32 imm:$sw), RT:$income, i1:$pred, (i1 imm:$polarity)))>;
   def : Pat<(RT (Intrin T:$x0, (T ImmNode<T>.Node:$x1), (i8 imm:$dt), (i32 imm:$sw), RT:$income, i1:$pred, (i1 imm:$polarity))),
             (RT (ConstructInsn<IName, T, iAny, i1>.Insn T:$x0, (CastOp<T>.Cast $x1), (i8 imm:$dt), (i32 imm:$sw), RT:$income, i1:$pred, (i1 imm:$polarity)))>;
 }
 
-multiclass BinaryScalarIntrinsicsDnorm<SDNode Intrin, string IName, ValueType T, ValueType RT = T> {
+multiclass BinaryScalarIntrinsicsDnorm<SDPatternOperator Intrin, string IName, ValueType T, ValueType RT = T> {
   def : Pat<(RT (Intrin T:$x0, T:$x1, (i8 imm:$dt), (i32 imm:$sw), RT:$income, i1:$pred, (i1 imm:$polarity))),
             (RT (ConstructInsn<IName, T, T, i1>.Insn T:$x0, T:$x1, (i8 imm:$dt), (AddDnormSupport (i32 imm:$sw)), RT:$income, i1:$pred, (i1 imm:$polarity)))>;
   def : Pat<(RT (Intrin T:$x0, (T ImmNode<T>.Node:$x1), (i8 imm:$dt), (i32 imm:$sw), RT:$income, i1:$pred, (i1 imm:$polarity))),
@@ -1502,7 +1502,7 @@ multiclass BinaryScalarIntrinsicsDnorm<SDNode Intrin, string IName, ValueType T,
 // should use another intrinsic, like 'tpc_add_mask', but the former usage is
 // still in use. In such case mask is represented by 'switchset' argument and
 // may be only a constant, in contrast to 'tpc_add_mask'.
-multiclass BinaryIndexIntrinsicsCompat<SDNode Intrin, string IName, ValueType RT = v5i32> {
+multiclass BinaryIndexIntrinsicsCompat<SDPatternOperator Intrin, string IName, ValueType RT = v5i32> {
   def II: Pat<(RT (Intrin v5i32:$x0, v5i32:$x1, (i8 imm:$dt), (i32 imm:$sw), RT:$income, i1:$pred, (i1 imm:$polarity))),
               (RT (ConstructInsn<IName, v5i32, v5i32, i1>.Insn
                    v5i32:$x0, v5i32:$x1, (i32 imm:$sw), (i8 imm:$dt), (i32 0), RT:$income, i1:$pred, (i1 imm:$polarity)))>;
@@ -1520,7 +1520,7 @@ multiclass BinaryIndexIntrinsicsCompat<SDNode Intrin, string IName, ValueType RT
                     (i32 imm:$x0), v5i32:$x1, (i32 imm:$sw), (i8 imm:$dt), (i32 0), RT:$income, i1:$pred, (i1 imm:$polarity)))>;
 }
 
-multiclass BinaryVectorIntrinsics<SDNode Intrin, string IName, ValueType T1, ValueType T2, ValueType P, ValueType RT = T1> {
+multiclass BinaryVectorIntrinsics<SDPatternOperator Intrin, string IName, ValueType T1, ValueType T2, ValueType P, ValueType RT = T1> {
   def : Pat<(RT (Intrin
                  T1:$op1,
                  T2:$op2,
@@ -1563,7 +1563,7 @@ multiclass BinaryVectorIntrinsics<SDNode Intrin, string IName, ValueType T1, Val
                  (i8 imm:$optype), (i32 imm:$sw), RT:$income, P:$P, (i1 imm:$polarity)))>;
 }
 
-multiclass BinaryVectorIntrinsicsDnorm<SDNode Intrin, string IName, ValueType T1, ValueType T2, ValueType P, ValueType RT = T1> {
+multiclass BinaryVectorIntrinsicsDnorm<SDPatternOperator Intrin, string IName, ValueType T1, ValueType T2, ValueType P, ValueType RT = T1> {
   def : Pat<(RT (Intrin
                  T1:$op1,
                  T2:$op2,
@@ -1606,7 +1606,7 @@ multiclass BinaryVectorIntrinsicsDnorm<SDNode Intrin, string IName, ValueType T1
                  (i8 imm:$optype), (AddDnormSupport (i32 imm:$sw)), RT:$income, P:$P, (i1 imm:$polarity)))>;
 }
 
-multiclass ShiftVectorIntrinsics<SDNode Intrin, string IName, ValueType T1, ValueType T2, ValueType P, ValueType RT = T1> {
+multiclass ShiftVectorIntrinsics<SDPatternOperator Intrin, string IName, ValueType T1, ValueType T2, ValueType P, ValueType RT = T1> {
   def : Pat<(RT (Intrin
                  T1:$op1,
                  T2:$op2,
@@ -3041,7 +3041,7 @@ foreach type = [i32, i16, i8] in
 
 //------ CMP_HIGH32 ------------------------------------------------------------
 
-multiclass Cmp64Instrinsic<SDNode Intrin, string IName> {
+multiclass Cmp64Instrinsic<SDPatternOperator Intrin, string IName> {
   def : Pat<(i1 (Intrin v2i32:$src1, v2i32:$src2, (i8 imm:$dt), (i32 imm:$sw), i1:$income, i1:$pred, (i1 imm:$polarity))),
           (i1 (!cast<Instruction>(!strconcat(IName, "_HIGH32"))
             (i32 (EXTRACT_SUBREG v2i32:$src1, sub_s1)), (i32 (EXTRACT_SUBREG v2i32:$src2, sub_s1)), (i8 imm:$dt), (i32 imm:$sw),
@@ -4014,7 +4014,7 @@ class ConstructName<bits<4> Type, string IBaseName> {
   string IName = !strconcat(IBaseName, OperandType<Type>.Suffix);
 }
 
-multiclass MacMulIntrinsics<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
+multiclass MacMulIntrinsics<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         OpTypeProps<T>.Arg:$x0,
@@ -4059,7 +4059,7 @@ multiclass MacMulIntrinsics<SDNode Intrinsic, bits<4> T, ValueType ResTy, string
   }
 }
 
-multiclass MacMulIntrinsicsDnorm<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
+multiclass MacMulIntrinsicsDnorm<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         OpTypeProps<T>.Arg:$x0,
@@ -4104,7 +4104,7 @@ multiclass MacMulIntrinsicsDnorm<SDNode Intrinsic, bits<4> T, ValueType ResTy, s
   }
 }
 
-multiclass MacMulIntrinsicsAcc<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
+multiclass MacMulIntrinsicsAcc<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         OpTypeProps<T>.Arg:$x0,
@@ -4149,7 +4149,7 @@ multiclass MacMulIntrinsicsAcc<SDNode Intrinsic, bits<4> T, ValueType ResTy, str
   }
 }
 
-multiclass MacMulIntrinsicsAccDnorm<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
+multiclass MacMulIntrinsicsAccDnorm<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         OpTypeProps<T>.Arg:$x0,
@@ -4194,7 +4194,7 @@ multiclass MacMulIntrinsicsAccDnorm<SDNode Intrinsic, bits<4> T, ValueType ResTy
   }
 }
 
-multiclass MacMulX2Intrinsics<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
+multiclass MacMulX2Intrinsics<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         OpTypeProps<T>.Arg:$x0,
@@ -4259,7 +4259,7 @@ multiclass MacMulX2Intrinsics<SDNode Intrinsic, bits<4> T, ValueType ResTy, stri
   }
 }
 
-multiclass MacMulX2IntrinsicsDnorm<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
+multiclass MacMulX2IntrinsicsDnorm<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         OpTypeProps<T>.Arg:$x0,
@@ -4324,7 +4324,7 @@ multiclass MacMulX2IntrinsicsDnorm<SDNode Intrinsic, bits<4> T, ValueType ResTy,
   }
 }
 
-multiclass MacX2IntrinsicsAcc<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I> {
+multiclass MacX2IntrinsicsAcc<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         OpTypeProps<T>.Arg:$x0,
@@ -4389,7 +4389,7 @@ multiclass MacX2IntrinsicsAcc<SDNode Intrinsic, bits<4> T, ValueType ResTy, stri
   }
 }
 
-multiclass MacZPIntrinsics<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
+multiclass MacZPIntrinsics<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         OpTypeProps<T>.Arg:$x0,
@@ -4444,7 +4444,7 @@ multiclass MacZPIntrinsics<SDNode Intrinsic, bits<4> T, ValueType ResTy, string 
   }
 }
 
-multiclass MacZPIntrinsicsAcc<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
+multiclass MacZPIntrinsicsAcc<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         OpTypeProps<T>.Arg:$x0,
@@ -4499,7 +4499,7 @@ multiclass MacZPIntrinsicsAcc<SDNode Intrinsic, bits<4> T, ValueType ResTy, stri
   }
 }
 
-multiclass MacX2ZPIntrinsics<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I> {
+multiclass MacX2ZPIntrinsics<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         OpTypeProps<T>.Arg:$x0,
@@ -4574,7 +4574,7 @@ multiclass MacX2ZPIntrinsics<SDNode Intrinsic, bits<4> T, ValueType ResTy, strin
   }
 }
 
-multiclass MacX2ZPIntrinsicsAcc<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I> {
+multiclass MacX2ZPIntrinsicsAcc<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         OpTypeProps<T>.Arg:$x0,
@@ -4649,7 +4649,7 @@ multiclass MacX2ZPIntrinsicsAcc<SDNode Intrinsic, bits<4> T, ValueType ResTy, st
   }
 }
 
-multiclass MacMulX2IntrinsicsGen4<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
+multiclass MacMulX2IntrinsicsGen4<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         DoubleVector<OpTypeProps<T>.Arg>.Type:$x0,
@@ -4804,7 +4804,7 @@ multiclass MacMulX2IntrinsicsGen4<SDNode Intrinsic, bits<4> T, ValueType ResTy, 
   }
 }
 
-multiclass MacMulX2IntrinsicsGen4Dnorm<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
+multiclass MacMulX2IntrinsicsGen4Dnorm<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         DoubleVector<OpTypeProps<T>.Arg>.Type:$x0,
@@ -5196,7 +5196,7 @@ multiclass MaddInstrX2<bits<6> OpCode, RegisterClass Rdst, bits<4> Type, string 
   def svvvm : VpuInst_MADD_X2<OpCode, Rdst, SRF,            VRF,            DRF,            VRF,            asmstr, Type, VPred>;
 }
 
-multiclass MaddIntrinsics<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
+multiclass MaddIntrinsics<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         OpTypeProps<T>.Arg:$x0,
@@ -5251,7 +5251,7 @@ multiclass MaddIntrinsics<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I
   }
 }
 
-multiclass MaddIntrinsicsDnorm<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
+multiclass MaddIntrinsicsDnorm<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         OpTypeProps<T>.Arg:$x0,
@@ -5306,7 +5306,7 @@ multiclass MaddIntrinsicsDnorm<SDNode Intrinsic, bits<4> T, ValueType ResTy, str
   }
 }
 
-multiclass MaddIntrinsicsAcc<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
+multiclass MaddIntrinsicsAcc<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         OpTypeProps<T>.Arg:$x0,
@@ -5361,7 +5361,7 @@ multiclass MaddIntrinsicsAcc<SDNode Intrinsic, bits<4> T, ValueType ResTy, strin
   }
 }
 
-multiclass MaddIntrinsicsAccDnorm<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
+multiclass MaddIntrinsicsAccDnorm<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         OpTypeProps<T>.Arg:$x0,
@@ -5416,7 +5416,7 @@ multiclass MaddIntrinsicsAccDnorm<SDNode Intrinsic, bits<4> T, ValueType ResTy, 
   }
 }
 
-multiclass MaddZPIntrinsics<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
+multiclass MaddZPIntrinsics<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         OpTypeProps<T>.Arg:$x0,
@@ -5481,7 +5481,7 @@ multiclass MaddZPIntrinsics<SDNode Intrinsic, bits<4> T, ValueType ResTy, string
   }
 }
 
-multiclass MaddZPIntrinsicsAcc<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
+multiclass MaddZPIntrinsicsAcc<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         OpTypeProps<T>.Arg:$x0,
@@ -5546,7 +5546,7 @@ multiclass MaddZPIntrinsicsAcc<SDNode Intrinsic, bits<4> T, ValueType ResTy, str
   }
 }
 
-multiclass MaddIntrinsicsX2<SDNode Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
+multiclass MaddIntrinsicsX2<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string I, SDNode ImmNode> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy (Intrinsic
                         DoubleVector<OpTypeProps<T>.Arg>.Type:$x0,
@@ -5853,7 +5853,7 @@ foreach pred = [i1, v256i1] in {
   defm : BinaryVectorIntrinsicsDnorm<int_tpc_add, "ADD", v256f32, v256f8_152, pred>;
 }
 
-multiclass AddSubX2IntrinsicsGen4<SDNode Intrinsic, bits<4> T, ValueType ResTy, string Name, SDNode ImmNode> {
+multiclass AddSubX2IntrinsicsGen4<SDPatternOperator Intrinsic, bits<4> T, ValueType ResTy, string Name, SDNode ImmNode> {
   foreach pred = [i1, v256i1] in {
     def : Pat<(ResTy
                 (Intrinsic
@@ -6677,7 +6677,7 @@ let Predicates = [FP8] in
 
 //------ SEL* ------------------------------------------------------------------
 
-multiclass VpuSelIntrinsicsBin<SDNode Intrin, string IName, ValueType T1, ValueType T2, ValueType P, ValueType RT = T1> {
+multiclass VpuSelIntrinsicsBin<SDPatternOperator Intrin, string IName, ValueType T1, ValueType T2, ValueType P, ValueType RT = T1> {
   // VRF, VRF, VRF, VRF
   def : Pat<(RT (Intrin
                  T2:$src1, T2:$src2, T1:$src3, T1:$src4,
@@ -6883,7 +6883,7 @@ multiclass CONVERT_INTG2<bits<6> OpCode, RegisterClass Rsrc1, string asmstr> {
   def vim  : VpuInstConvertIntGen2 <OpCode, Rsrc1, SRF, VPred, asmstr, 1 /*hasImm*/>, Requires<[Gen2Plus]>;
 }
 
-multiclass ConvertIntIntrinsics<SDNode Intrin, string IName, ValueType dt, ValueType st, ValueType sht, ValueType pred> {
+multiclass ConvertIntIntrinsics<SDPatternOperator Intrin, string IName, ValueType dt, ValueType st, ValueType sht, ValueType pred> {
   def : Pat<(dt (Intrin st:$src1, sht:$src2, (i32 imm:$sw), dt:$income, pred:$pred, (i1 imm:$polarity))),
             (dt (ConstructInsn<IName, v64i32, v256i8, pred>.Insn
                  st:$src1, VRF:$src2, (i32 imm:$sw), VRF:$income, pred:$pred, (i1 imm:$polarity)))>;
@@ -7215,7 +7215,7 @@ foreach func = [0, 1, 2, 3, 4, 5] in // funcId (RECIP, RSQRT, SQRT, LOG, EXP, TA
 
 //====== Store slot ============================================================
 
-multiclass StoreIntrinsics<SDNode IntrinA1, SDNode IntrinA2, string IName> {
+multiclass StoreIntrinsics<SDPatternOperator IntrinA1, SDPatternOperator IntrinA2, string IName> {
   let Predicates = [Addr2] in
     foreach pred = [i1] in
       foreach type = [v256i1, v256i8, v128i16, v64i32,
@@ -7941,7 +7941,7 @@ foreach T = [v64f32, v128bf16, v128f16, v256f8_143, v256f8_152, v64i32, v128i16,
 
 // Select folded with compare.
 
-multiclass SelPatterns<PatFrag Pred, ValueType TC, ValueType TD, bits<4> OpType> {
+multiclass SelPatterns<SDPatternOperator Pred, ValueType TC, ValueType TD, bits<4> OpType> {
   def : Pat<(TD (vselect (VectorPredicate<TC>.Type (Pred TC:$c1, TC:$c2)), TD:$d1, TD:$d2)),
             (TD (SelInstructionForPredicate<Pred>.InstrVVVV TC:$c1, TC:$c2, TD:$d1, TD:$d2, OpType, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0)))>;
   def : Pat<(TD (vselect (VectorPredicate<TC>.Type (Pred TC:$c1, (TC (SplatNode<TC>.Splat VectorElement<TC>.Type:$c2)))), TD:$d1, TD:$d2)),
@@ -8826,13 +8826,13 @@ def DUMMY : VPUInstDummy<0b000000, "dummy $op1, $op2, $op3, $op4, $op5, $op6, $o
 
 // Saturation arithmetic intrinsics.
 
-multiclass SatScalar<ValueType T, SDNode Intrinsic, SDNode Iss, SDNode Isi, bits<4> OType> {
+multiclass SatScalar<ValueType T, SDPatternOperator Intrinsic, Instruction Iss, Instruction Isi, bits<4> OType> {
   def : Pat<(T (Intrinsic T:$x1, T:$x2)),
             (T (Iss SRF:$x1, SRF:$x2, OType, SW.ST, (IMPLICIT_DEF), SPRF_TRUE, (i1 0)))>;
   def : Pat<(T (Intrinsic T:$x1, (T imm:$x2))),
             (T (Isi SRF:$x1, (CastToImm32 $x2), OType, SW.ST, (IMPLICIT_DEF), SPRF_TRUE, (i1 0)))>;
 }
-multiclass SatVector<ValueType T, SDNode Intrinsic, SDNode Ivv, SDNode Ivs, SDNode Ivi, bits<4> OType> {
+multiclass SatVector<ValueType T, SDPatternOperator Intrinsic, Instruction Ivv, Instruction Ivs, Instruction Ivi, bits<4> OType> {
   def : Pat<(T (Intrinsic T:$x1, T:$x2)),
             (T (Ivv VRF:$x1, VRF:$x2, OType, SW.ST, (IMPLICIT_DEF), SPRF_TRUE, (i1 0)))>;
   def : Pat<(T (Intrinsic T:$x1, (SplatNode<T>.Splat VectorElement<T>.Type:$x2))),

@@ -398,7 +398,7 @@ static Value *emitOperand(CodeGenFunction *CGF, const Expr *E) {
     LValue IncomeLV = CGF->EmitAggExprToLValue(E);
     Value *Ptr = IncomeLV.getPointer(*CGF);
     Ptr = CGF->Builder.CreateBitOrPointerCast(Ptr, llvm::PointerType::get(ResultTy, 0));
-    return CGF->Builder.CreateAlignedLoad(Ptr, CharUnits::fromQuantity(256));
+    return CGF->Builder.CreateAlignedLoad(ResultTy, Ptr, CharUnits::fromQuantity(256));
   }
 
   return CGF->EmitScalarExpr(E);
@@ -6129,7 +6129,7 @@ static void setTPCPrintfIndex(CodeGenFunction *cgf) {
     ASTContext &C = cgf->getContext();
     IdentifierInfo &CII = C.Idents.get("__PrintfTensorIndex");
     DeclContext::lookup_result res = C.getTranslationUnitDecl()->lookup(&CII);
-    assert(res.size() == 1);
+    assert(res.isSingleResult());
     VarDecl *VD = cast<VarDecl>(res.front());
     StorageClass SC = VD->getStorageClass();
     if (SC == StorageClass::SC_Register && VD->hasAttr<AsmLabelAttr>()) {

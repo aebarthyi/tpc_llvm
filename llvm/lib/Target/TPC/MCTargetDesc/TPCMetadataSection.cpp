@@ -199,7 +199,7 @@ TPCMetadataSection llvm::binaryDeserializeTPCProgramHeader(
 const TPCMetadataFieldInfo *
 llvm::getTPCMetadataFieldInfo(const StringRef FieldName) {
   for (const TPCMetadataFieldInfo &I : TPCMetadataFieldsInfo)
-    if (FieldName.compare_lower(I.fieldName) == 0)
+    if (FieldName.compare_insensitive(I.fieldName) == 0)
       return &I;
   return nullptr;
 }

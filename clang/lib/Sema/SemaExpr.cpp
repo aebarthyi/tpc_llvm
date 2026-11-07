@@ -6568,7 +6568,7 @@ ExprResult Sema::BuildCallExpr(Scope *Scope, Expr *Fn, SourceLocation LParenLoc,
         auto Zero = IntegerLiteral::Create(Context,
             llvm::APInt(Context.getIntWidth(Context.IntTy), 0), Context.IntTy,
             LParenLoc);
-        return CStyleCastExpr::Create(Context, Context.VoidTy, VK_RValue,
+        return CStyleCastExpr::Create(Context, Context.VoidTy, VK_PRValue,
             CK_ToVoid, Zero, nullptr, FPOptionsOverride(),
             Context.getTrivialTypeSourceInfo(Context.IntTy, LParenLoc),
             LParenLoc, LParenLoc);

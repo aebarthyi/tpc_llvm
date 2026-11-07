@@ -1777,7 +1777,7 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
         getTok().getString().front() == '\n')
 #ifdef LLVM_TPC_COMPILER
     {
-      const Triple &Trip = getContext().getObjectFileInfo()->getTargetTriple();
+      const Triple &Trip = getContext().getTargetTriple();
       if (Trip.getArch() == Triple::tpc) {
         getTargetParser().onEndOfStatement();
         Out.AddBlankLine();

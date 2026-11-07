@@ -50,9 +50,9 @@ AliasResult TPCAAResult::getAliasResult(unsigned AS1,
                                         unsigned AS2) const {
   if (AS1 == 0 || AS2 == 0) {
     // unknown addrspace
-    return MayAlias;
+    return AliasResult::MayAlias;
   }
-  return AS1 == AS2 ? MayAlias : NoAlias;
+  return AS1 == AS2 ? AliasResult::MayAlias : AliasResult::NoAlias;
 }
 
 AliasResult TPCAAResult::alias(const MemoryLocation &LocA,
@@ -61,8 +61,8 @@ AliasResult TPCAAResult::alias(const MemoryLocation &LocA,
   unsigned asB = LocB.Ptr->getType()->getPointerAddressSpace();
 
   AliasResult Result = getAliasResult(asA, asB);
-  if (Result == NoAlias) return Result;
-  if (asA != asB && asA != 0 && asB != 0) return NoAlias;
+  if (Result == AliasResult::NoAlias) return Result;
+  if (asA != asB && asA != 0 && asB != 0) return AliasResult::NoAlias;
 
   // Forward the query to the next alias analysis.
   return AAResultBase::alias(LocA, LocB, AAQI);

@@ -362,7 +362,7 @@ bool TPCTTIImpl::getLoadStoreConfig(
   return true;
 }
 
-int TPCTTIImpl::getInstructionLatency(const Instruction *I) {
+InstructionCost TPCTTIImpl::getInstructionLatency(const Instruction *I) {
   unsigned latency = TPCTTIImpl::DEFAULT_LATENCY;
   TPCLatencyEvaluation::InstructionForLatencyDetermination Src;
 
@@ -474,7 +474,7 @@ unsigned TPCTTIImpl::getLatency(
   return (unsigned)latency;
 }
 
-int TPCTTIImpl::getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
+InstructionCost TPCTTIImpl::getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
                                       TTI::TargetCostKind CostKind) {
   if (CostKind == TTI::TargetCostKind::TCK_Latency) {
     TPCLatencyEvaluation::InstructionForLatencyDetermination src;
@@ -519,12 +519,13 @@ int TPCTTIImpl::getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy,
   return TPCTTIImpl::DEFAULT_LATENCY;
 }
 
-int TPCTTIImpl::getShuffleCost(TTI::ShuffleKind Kind, VectorType *Tp,
-                               int Index, VectorType *SubTp) {
+InstructionCost TPCTTIImpl::getShuffleCost(TTI::ShuffleKind Kind,
+                                           VectorType *Tp, ArrayRef<int> Mask,
+                                           int Index, VectorType *SubTp) {
 
   switch (Kind) {
   default:
-    return BaseT::getShuffleCost(Kind, Tp, Index, SubTp);
+    return BaseT::getShuffleCost(Kind, Tp, Mask, Index, SubTp);
   case TTI::SK_ExtractSubvector:
     // extract subvector is basically a single COPY instruction
     return TTI::TCC_Basic;

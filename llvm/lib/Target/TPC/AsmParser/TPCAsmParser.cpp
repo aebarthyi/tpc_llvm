@@ -1434,13 +1434,13 @@ OperandMatchResultTy TPCAsmParser::parseRegister(OperandVector &Operands) {
   StringRef IdValue = Tok.getString();
   unsigned RegNo = MatchRegisterName(IdValue.upper());
   if (RegNo == 0) {
-    if (IdValue.startswith_lower("d") || IdValue.startswith_lower("a")) {
+    if (IdValue.startswith_insensitive("d") || IdValue.startswith_insensitive("a")) {
       StringRef Number = IdValue.drop_front(1);
       if (Number.consumeInteger(10, RegNo))
         return MatchOperand_NoMatch;
       if (!Number.empty())
         return MatchOperand_NoMatch;
-      if (IdValue.startswith_lower("d")) {
+      if (IdValue.startswith_insensitive("d")) {
         if (RegNo % 2) {
           Error(Tok.getLoc(), "Pair of registers must start with register of even number", SMRange(Tok.getLoc(), Tok.getEndLoc()));
           Parser.Lex();
@@ -1510,7 +1510,7 @@ OperandMatchResultTy TPCAsmParser::parseNumber(OperandVector &Operands) {
       // 'u' and 'U' supported
       const AsmToken &Suffix = Lexer.getTok();
       if (Suffix.is(AsmToken::Identifier) &&
-          Suffix.getString().compare_lower("u") == 0 &&
+          Suffix.getString().compare_insensitive("u") == 0 &&
           (Suffix.getLoc().getPointer() - EndLoc.getPointer()) == 0) {
         consumeToken();
         EndLoc = Suffix.getEndLoc();
@@ -1533,10 +1533,10 @@ OperandMatchResultTy TPCAsmParser::parseNumber(OperandVector &Operands) {
       EndLoc = Suffix.getEndLoc();
       consumeToken();
       const StringRef& SuffixStr = Suffix.getString();
-      if(SuffixStr.compare_lower("f") == 0) {
-      } else if(SuffixStr.compare_lower("h") == 0) {
+      if(SuffixStr.compare_insensitive("f") == 0) {
+      } else if(SuffixStr.compare_insensitive("h") == 0) {
         Semantics = &APFloat::IEEEhalf();
-      } else if(SuffixStr.compare_lower("bf") == 0) {
+      } else if(SuffixStr.compare_insensitive("bf") == 0) {
         Semantics = &APFloat::BFloat();
       } else {
         Error(Suffix.getLoc(), "invalid suffix for real number",
@@ -1598,10 +1598,10 @@ OperandMatchResultTy TPCAsmParser::parseImmediate(OperandVector &Operands) {
   StringRef Identifier = Tok.getString();
 
   // u32_12, i32_-11, u16_, i16_, i8_, u8_, f32_, f16_
-  bool IsUnsigned = Identifier.startswith_lower("u");
-  bool IsSigned = Identifier.startswith_lower("i");
-  bool IsFloat = Identifier.startswith_lower("f");
-  bool IsBFloat16 = Identifier.startswith_lower("bf");
+  bool IsUnsigned = Identifier.startswith_insensitive("u");
+  bool IsSigned = Identifier.startswith_insensitive("i");
+  bool IsFloat = Identifier.startswith_insensitive("f");
+  bool IsBFloat16 = Identifier.startswith_insensitive("bf");
   if (!IsUnsigned && !IsSigned && !IsFloat && !IsBFloat16)
     return MatchOperand_NoMatch;
 
@@ -1942,7 +1942,7 @@ static TPCII::OpType parseDataTypeSuffix(StringRef Suffix) {
 // Checks if the instruction represented by the given mnemonic needs datatype
 // as an operand.
 static bool needDataTypeAsOperand(StringRef Mnemonic, SlotParser Slot, const FeatureBitset& Features) {
-  if (Mnemonic.startswith_lower("gen_addr"))
+  if (Mnemonic.startswith_insensitive("gen_addr"))
     return false;
   return true;
 }
@@ -1956,7 +1956,7 @@ bool TPCAsmParser::parseAsSeparateSwitch(
 
   bool Result = false;
   if (CurrentSlot == SlotParser::Scalar) {
-    if (Switch.equals_lower("div_mod") &&
+    if (Switch.equals_insensitive("div_mod") &&
         (SwitchValue & TPCII::SW_DIV_MODE_BOTH)) {
       auto BothDivMode = TPCOperand::CreateBothDivMod(
         TPCII::SW_DIV_MODE_BOTH, Range.Start, Range.End);
@@ -1965,50 +1965,50 @@ bool TPCAsmParser::parseAsSeparateSwitch(
       Result = true;
     }
   } else if (CurrentSlot == SlotParser::Vector) {
-    if ((Mnemonic.equals_lower("mac") || Mnemonic.equals_lower("add") ||
-         Mnemonic.equals_lower("sub") || Mnemonic.equals_lower("madd") ||
-         Mnemonic.equals_lower("mul")) &&
-        (Switch.equals_lower("acc_fp32") || Switch.equals_lower("acc_i16"))) {
+    if ((Mnemonic.equals_insensitive("mac") || Mnemonic.equals_insensitive("add") ||
+         Mnemonic.equals_insensitive("sub") || Mnemonic.equals_insensitive("madd") ||
+         Mnemonic.equals_insensitive("mul")) &&
+        (Switch.equals_insensitive("acc_fp32") || Switch.equals_insensitive("acc_i16"))) {
       auto Accumulator = TPCOperand::CreateAccumulator(Range.Start, Range.End);
       TempOperand = Accumulator.get();
       Operands.insert(Operands.begin() + 3, std::move(Accumulator));
       Result = true;
-    } else if (Switch.equals_lower("rhaz_rs")) {
+    } else if (Switch.equals_insensitive("rhaz_rs")) {
       auto Rhaz = TPCOperand::CreateRhazRs(1, Range.Start, Range.End);
       TempOperand = Rhaz.get();
       Operands.insert(Operands.begin() + 3, std::move(Rhaz));
       Result = true;
-    } else if (Switch.equals_lower("x2") && (
-                 Mnemonic.equals_lower("add") ||
-                 Mnemonic.equals_lower("sub") ||
-                 Mnemonic.equals_lower("madd"))) {
+    } else if (Switch.equals_insensitive("x2") && (
+                 Mnemonic.equals_insensitive("add") ||
+                 Mnemonic.equals_insensitive("sub") ||
+                 Mnemonic.equals_insensitive("madd"))) {
       auto X2 = TPCOperand::CreateX2(TPCII::SW_X2_ARITHMETIC,
                                      Range.Start, Range.End);
       TempOperand = X2.get();
       Operands.insert(Operands.begin() + 3, std::move(X2));
       Result = true;
-    } else if (((Switch.equals_lower("mdg_type") &&
+    } else if (((Switch.equals_insensitive("mdg_type") &&
                  (SwitchValue & TPCII::SW_MDG_TYPE_MASK) ==
                  TPCII::SW_MDG_TYPE_ALL) ||
-                Switch.equals_lower("all")) &&
-               Mnemonic.equals_lower("mov_dg")) {
+                Switch.equals_insensitive("all")) &&
+               Mnemonic.equals_insensitive("mov_dg")) {
       auto MovDGAll = TPCOperand::CreateMovDGAll(TPCII::SW_MDG_TYPE_ALL,
                                                  Range.Start, Range.End);
       TempOperand = MovDGAll.get();
       Operands.insert(Operands.begin() + 1, std::move(MovDGAll));
-    } else if (((Switch.equals_lower("mdg_type") &&
+    } else if (((Switch.equals_insensitive("mdg_type") &&
                  (SwitchValue & TPCII::SW_MDG_TYPE_MASK) ==
                  TPCII::SW_MDG_TYPE_PACK) ||
-                Switch.equals_lower("pack")) &&
-               Mnemonic.equals_lower("mov_dg")){
+                Switch.equals_insensitive("pack")) &&
+               Mnemonic.equals_insensitive("mov_dg")){
       auto MovDGPack = TPCOperand::CreateMovDGPack(TPCII::SW_MDG_TYPE_PACK,
                                                  Range.Start, Range.End);
       TempOperand = MovDGPack.get();
       Operands.insert(Operands.begin() + 1, std::move(MovDGPack));
-    } else if (Switch.equals_lower("mdg_type") &&
+    } else if (Switch.equals_insensitive("mdg_type") &&
                (SwitchValue & TPCII::SW_MDG_TYPE_MASK) ==
                  TPCII::SW_MDG_TYPE_UNPACK &&
-               Mnemonic.equals_lower("mov_dg")) {
+               Mnemonic.equals_insensitive("mov_dg")) {
       auto MovDGUnpack = TPCOperand::CreateMovDGUnpack(
             TPCII::SW_MDG_TYPE_UNPACK, Range.Start, Range.End);
       TempOperand = MovDGUnpack.get();
@@ -2031,10 +2031,10 @@ bool TPCAsmParser::parseAsSeparateSwitch(
 static bool shallSuffixBeAPartOfMnemonic(StringRef Mnemonic, StringRef Suffix,
                                          SlotParser Slot, bool &NeedAsSwitch) {
   // TODO: Initially Slot is Unknown.
-  if (Mnemonic.equals_lower("mov") /*&& Slot == SlotParser::Load*/)
-    return Suffix.equals_lower("from_hw_reg") || Suffix.equals_lower("to_hw_reg");
+  if (Mnemonic.equals_insensitive("mov") /*&& Slot == SlotParser::Load*/)
+    return Suffix.equals_insensitive("from_hw_reg") || Suffix.equals_insensitive("to_hw_reg");
 
-  if (Mnemonic.equals_lower("convert") && Suffix.equals_lower("i64"))
+  if (Mnemonic.equals_insensitive("convert") && Suffix.equals_insensitive("i64"))
     return true;
 
   if (StringSwitch<bool>(Suffix)
@@ -2044,15 +2044,15 @@ static bool shallSuffixBeAPartOfMnemonic(StringRef Mnemonic, StringRef Suffix,
       .CasesLower("f32", "bf16", "f16", true)
       .CasesLower("f8_143", "f8_152", true)
       .Default(false)) {
-    if (Mnemonic.equals_lower("mac") && Slot == SlotParser::Vector) {
+    if (Mnemonic.equals_insensitive("mac") && Slot == SlotParser::Vector) {
       NeedAsSwitch = true;
       return true;
     }
-    if (Mnemonic.equals_lower("madd") && Slot == SlotParser::Vector) {
+    if (Mnemonic.equals_insensitive("madd") && Slot == SlotParser::Vector) {
       NeedAsSwitch = true;
       return true;
     }
-    if (Mnemonic.equals_lower("mul") && Slot == SlotParser::Vector) {
+    if (Mnemonic.equals_insensitive("mul") && Slot == SlotParser::Vector) {
       NeedAsSwitch = true;
       return true;
     }
@@ -2161,11 +2161,11 @@ bool TPCAsmParser::ParseInstruction(ParseInstructionInfo &Info,
   }
 
   // Split bare mnemonic and switch for same instructions
-  if (Mnemonic.equals_lower("mov_group"))
+  if (Mnemonic.equals_insensitive("mov_group"))
     Mnemonic = BareMnemonic = "mov_g";
-  else if (Mnemonic.startswith_lower("mov_dual_group"))
+  else if (Mnemonic.startswith_insensitive("mov_dual_group"))
     Mnemonic = BareMnemonic = "mov_dg";
-  else if (Mnemonic.startswith_lower("mov_dg"))
+  else if (Mnemonic.startswith_insensitive("mov_dg"))
     Mnemonic = Mnemonic.substr(0, 6);
 
   // The first operand is the instruction name.
@@ -2267,7 +2267,7 @@ bool TPCAsmParser::ParseInstruction(ParseInstructionInfo &Info,
   }
 
   const MCParsedAsmOperand *LabelOperand = nullptr;
-  if (Mnemonic.compare_lower("jmpr") == 0) {
+  if (Mnemonic.compare_insensitive("jmpr") == 0) {
     assert(Operands.size() >= 2);
     if (Operands[1]->isImm()) {
       LabelOperand = Operands[1].get();
@@ -2275,7 +2275,7 @@ bool TPCAsmParser::ParseInstruction(ParseInstructionInfo &Info,
                  getStringFromLoc(LabelOperand->getStartLoc(),
                                   LabelOperand->getEndLoc()) << " detected\n");
     }
-  } else if (Mnemonic.compare_lower("loop") == 0) {
+  } else if (Mnemonic.compare_insensitive("loop") == 0) {
      assert(Operands.size() >= 6);
      LabelOperand = Operands[5].get();
      LLVM_DEBUG(dbgs() << "LOOP instuction with label: " <<
@@ -2287,7 +2287,7 @@ bool TPCAsmParser::ParseInstruction(ParseInstructionInfo &Info,
                                            LabelOperand->getEndLoc()));
 
   // Add AUTO_INC for ld_g for goya2
-  if (BareMnemonic.equals_lower("ld_g") &&
+  if (BareMnemonic.equals_insensitive("ld_g") &&
       getSTI().getFeatureBits()[TPC::FeatureGreco]){
     TPCOperand &SwitchSetOp = static_cast<TPCOperand &>(*Operands[SwitchSetPos]);
     unsigned SwitchValue = SwitchSetOp.getSwitchSet();
@@ -2340,8 +2340,8 @@ bool TPCAsmParser::ParseInstruction(ParseInstructionInfo &Info,
         Op2.getRegClass() == TPC::SRFRegClassID;
   };
   // Check instruction with two immediate
-  if (BareMnemonic.compare_lower("add") == 0 ||
-      BareMnemonic.compare_lower("sub") == 0) {
+  if (BareMnemonic.compare_insensitive("add") == 0 ||
+      BareMnemonic.compare_insensitive("sub") == 0) {
     // Skip if not x2 and if not FP32
     if (IsX2Switch() && IsFP32Type()) {
       const TPCOperand &SrcBOp =
@@ -2356,8 +2356,8 @@ bool TPCAsmParser::ParseInstruction(ParseInstructionInfo &Info,
         return true;
       }
     }
-  } else if (BareMnemonic.compare_lower("mac") == 0 ||
-             BareMnemonic.compare_lower("mul") == 0) {
+  } else if (BareMnemonic.compare_insensitive("mac") == 0 ||
+             BareMnemonic.compare_insensitive("mul") == 0) {
     // Skip if not x2 and if not FP32
     if (IsX2Switch() && IsFP32Type()) {
       const TPCOperand &SrcBOp =
@@ -2426,7 +2426,7 @@ bool TPCAsmParser::ParseDirective(AsmToken DirectiveID) {
   const char *MultipleDefErrorMessage = "Multi definition {0} is denied";
   bool ParseResult = true;
   if (SectionNameToken.getString()
-      .equals_lower(BinaryTPCMetadataSectionName)) {
+      .equals_insensitive(BinaryTPCMetadataSectionName)) {
     // Check TPC header exists
     if (TPCHeader) {
       Error(DirectiveID.getLoc(),
@@ -2439,7 +2439,7 @@ bool TPCAsmParser::ParseDirective(AsmToken DirectiveID) {
     Lexer.Lex();
     ParseResult = parseTPCMetadata();
   } else if (SectionNameToken.getString().
-             equals_lower(IndexMapSectionName)) {
+             equals_insensitive(IndexMapSectionName)) {
     if (IndexMap) {
       Error(DirectiveID.getLoc(),
             formatv(MultipleDefErrorMessage,
@@ -2559,7 +2559,7 @@ bool TPCAsmParser::canLastArgBeAPredicate(StringRef Mnemonic,
       .Default(~0U);
     break;
   case SlotParser::Store:
-    if (Mnemonic.startswith_lower("st_l_v")) {
+    if (Mnemonic.startswith_insensitive("st_l_v")) {
       if(getSTI().getFeatureBits()[TPC::FeatureAddr2]) {
         auto &MayBeMemRIOp = static_cast<TPCOperand &>(*Operands[2].get());
         NumNonPredOperand = MayBeMemRIOp.isMemRI() ? 2U   // STL_L_V 100, S2, VP1
@@ -2567,8 +2567,8 @@ bool TPCAsmParser::canLastArgBeAPredicate(StringRef Mnemonic,
       } else {
         NumNonPredOperand = 2;  // ST_L_V S1, VP1
       }
-    } else if (Mnemonic.startswith_lower("st_tnsr")) {
-      if (Mnemonic.startswith_lower("st_tnsr_sqz")) {
+    } else if (Mnemonic.startswith_insensitive("st_tnsr")) {
+      if (Mnemonic.startswith_insensitive("st_tnsr_sqz")) {
         NumNonPredOperand = ~0U; // st_tnsr_sqz can not use predicates as use regiters
       } else {
         NumNonPredOperand = 3;    // ST_TNSR 1, I3, VP4
@@ -2740,7 +2740,7 @@ bool TPCAsmParser::adjustLongRegister(OperandVector &Operands) {
   unsigned AccRegNo = 0;
   LongRegisterKind Kind;
 
-  if (Mnemonic.startswith_lower("mac") || Mnemonic.startswith_lower("mul")) {
+  if (Mnemonic.startswith_insensitive("mac") || Mnemonic.startswith_insensitive("mul")) {
     if (Operands.size() < 4)
       return true;
 
@@ -2774,7 +2774,7 @@ bool TPCAsmParser::adjustLongRegister(OperandVector &Operands) {
     if (!MRI->getRegClass(TPC::VRFRegClassID).contains(AccRegNo))
       return true;
 
-    if (Mnemonic.startswith_lower("mac")) {
+    if (Mnemonic.startswith_insensitive("mac")) {
       // If MAC has suffix ACC_I16 or ACC_FP32, it uses double registers.
       if (DataType == TPCII::OpType::INT8 || DataType == TPCII::OpType::UINT8) {
         if (HasAccFlag) {
@@ -2826,7 +2826,7 @@ bool TPCAsmParser::adjustLongRegister(OperandVector &Operands) {
         return true;
       }
     }
-  } else if (Mnemonic.startswith_lower("ash")) {
+  } else if (Mnemonic.startswith_insensitive("ash")) {
     if (Operands.size() < 8) {
       return true;
     }
@@ -2845,17 +2845,17 @@ bool TPCAsmParser::adjustLongRegister(OperandVector &Operands) {
       return false;
     }
 
-  } else if (Mnemonic.startswith_lower("sel2_")) {
+  } else if (Mnemonic.startswith_insensitive("sel2_")) {
     const unsigned DestRegOpNum = 3;
     return replaceRegisterWithLong(Operands, DestRegOpNum, LongRegisterKind::DRF);
-  } else if (Mnemonic.startswith_lower("get_lut_entry_and_interval_start")) {
+  } else if (Mnemonic.startswith_insensitive("get_lut_entry_and_interval_start")) {
     const unsigned DestRegOpNum = 3;
     return replaceRegisterWithLong(Operands, DestRegOpNum, LongRegisterKind::DRF);
-  } else if (Mnemonic.startswith_lower("lookup_c1c2") ||
-             Mnemonic.startswith_lower("lookup_c2")) {
+  } else if (Mnemonic.startswith_insensitive("lookup_c1c2") ||
+             Mnemonic.startswith_insensitive("lookup_c2")) {
     const unsigned DestRegOpNum = 2;
     return replaceRegisterWithLong(Operands, DestRegOpNum, LongRegisterKind::DRF);
-  } else if (Mnemonic.startswith_lower("udiv_")) {
+  } else if (Mnemonic.startswith_insensitive("udiv_")) {
     DestRegOpNum = 2;
     LongRegOp = static_cast<TPCOperand*>(Operands[DestRegOpNum].get());
     if (LongRegOp->isReg())
@@ -2875,11 +2875,11 @@ bool TPCAsmParser::adjustLongRegister(OperandVector &Operands) {
     if (!MRI->getRegClass(TPC::SRFRegClassID).contains(AccRegNo))
       return true;
     Kind = LongRegisterKind::ZRF;
-  } else if (Mnemonic.startswith_lower("convert_int8") ||
-             Mnemonic.startswith_lower("convert_uint8")) {
+  } else if (Mnemonic.startswith_insensitive("convert_int8") ||
+             Mnemonic.startswith_insensitive("convert_uint8")) {
     const unsigned DestRegOpNum = 3;
     return replaceRegisterWithLong(Operands, DestRegOpNum, LongRegisterKind::DRF);
-  } else if (Mnemonic.equals_lower("mov")) {
+  } else if (Mnemonic.equals_insensitive("mov")) {
     const unsigned SwitchOpNo = 1;
     TPCOperand *SwitchOp = static_cast<TPCOperand *>(Operands[SwitchOpNo].get());
     if (SwitchOp->isDataType())
@@ -2890,7 +2890,7 @@ bool TPCAsmParser::adjustLongRegister(OperandVector &Operands) {
              replaceRegisterWithLong(Operands, 3, LongRegisterKind::DRF);
     }
     return true;
-  } else if (Mnemonic.startswith_lower("nearbyint")) {
+  } else if (Mnemonic.startswith_insensitive("nearbyint")) {
     const unsigned SwitchOpNo = 2;
     TPCOperand *SwitchOp = static_cast<TPCOperand *>(Operands[SwitchOpNo].get());
     unsigned Switches = SwitchOp->getSwitchSet();
@@ -2923,7 +2923,7 @@ static bool checkHALT(OperandVector &Operands) {
   TPCOperand &Op = static_cast<TPCOperand &>(*Operands[0]);
   assert(Op.isToken() && "Leading operand should always be a mnemonic!");
   StringRef Mnemonic = Op.getToken();
-  return Mnemonic.equals_lower("halt") && Operands.size() == 1;
+  return Mnemonic.equals_insensitive("halt") && Operands.size() == 1;
 }
 
 
@@ -3156,22 +3156,22 @@ bool TPCAsmParser::parseTPCMetadata() {
        bool WrongArch = false;
        switch (TPCHeader.getValue().march) {
        case 1:
-         WrongArch = CPU.compare_lower("goya") != 0;
+         WrongArch = CPU.compare_insensitive("goya") != 0;
          break;
        case 2:
-         WrongArch = CPU.compare_lower("gaudi") != 0;
+         WrongArch = CPU.compare_insensitive("gaudi") != 0;
          break;
        case 3:
-         WrongArch = CPU.compare_lower("greco") != 0;
+         WrongArch = CPU.compare_insensitive("greco") != 0;
          break;
        case 4:
-         WrongArch = CPU.compare_lower("gaudi2") != 0;
+         WrongArch = CPU.compare_insensitive("gaudi2") != 0;
          break;
        case 5:
-         WrongArch = CPU.compare_lower("gaudib") != 0;
+         WrongArch = CPU.compare_insensitive("gaudib") != 0;
          break;
        case 6:
-         WrongArch = CPU.compare_lower("doron1") != 0;
+         WrongArch = CPU.compare_insensitive("doron1") != 0;
          break;
        default:
          llvm_unreachable("Unknown arch");
@@ -3224,7 +3224,7 @@ bool TPCAsmParser::parseTPCMetadataArrayField(
 
     const StringRef &CurrentFieldName = Tok.getString();
     // Parse field name
-    if (CurrentFieldName.compare_lower(FieldInfo.fieldName) == 0)
+    if (CurrentFieldName.compare_insensitive(FieldInfo.fieldName) == 0)
       Lexer.Lex();
     else // Possible it is other TPC_METADATA field
       return true;
@@ -3308,7 +3308,7 @@ bool TPCAsmParser::parseTPCMetadataTypeDirective(unsigned ExpectedSize) {
   bool IsTypeCorrect = false;
   unsigned CurrentSize = 0;
   for (auto Type : TPCMetadataTypeDirectives) {
-    if (Tok.getString().compare_lower(Type.second) == 0) {
+    if (Tok.getString().compare_insensitive(Type.second) == 0) {
       CurrentSize = Type.first;
       IsTypeCorrect = true;
       break;

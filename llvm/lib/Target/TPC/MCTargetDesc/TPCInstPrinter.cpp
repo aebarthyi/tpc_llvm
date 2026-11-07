@@ -10,6 +10,7 @@
 #include "TPC.h"
 #include "MCTargetDesc/TPCMCInstrInfo.h"
 #include "MCTargetDesc/InstructionDB.h"
+#include "llvm/ADT/bit.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
@@ -398,8 +399,8 @@ void TPCInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
     OS << getRegisterName(Op.getReg());
   } else if (Op.isImm()) {
     OS << formatHex(Op.getImm());
-  } else if (Op.isFPImm()) {
-    float Val = (float)Op.getFPImm();
+  } else if (Op.isSFPImm()) {
+    float Val = bit_cast<float>(Op.getSFPImm());
     uint64_t ival = 0l;
     // Using this two-step static_cast via void * instead of cast
     // silences a -Wstrict-aliasing false positive from GCC6 and earlier.

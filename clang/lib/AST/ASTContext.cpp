@@ -11672,7 +11672,7 @@ void ASTContext::loadTpcTypes() const {
     IdentifierInfo *II = &Idents.get(PredefinedTypes[I].Name);
     DeclarationName Name(II);
     DeclContext::lookup_result DR = TUDecl->lookup(Name);
-    assert(DR.size() == 1);
+    assert(DR.isSingleResult());
     assert(I == TpcTypeDecls.size());
     auto TD = cast<TypeDecl>(DR.front());
 

@@ -1518,12 +1518,12 @@ DeclStmt *Sema::ProcessExtraArgs(ParmVarDecl *VD, VarDecl *Ptr) {
   QualType Ty = Ptr->getType();
   DeclRefExpr *Idx = DeclRefExpr::Create(getASTContext(), NestedNameSpecifierLoc(), SourceLocation(),
     Ptr, false, SourceLocation(), Ty, VK_LValue);
-  ExprResult Res = ImplicitCastExpr::Create(getASTContext(), Ty, CK_LValueToRValue, Idx, nullptr, VK_RValue, FPOptionsOverride());
+  ExprResult Res = ImplicitCastExpr::Create(getASTContext(), Ty, CK_LValueToRValue, Idx, nullptr, VK_PRValue, FPOptionsOverride());
   QualType Type = VD->getType();
   if (!(Type == Context.UnsignedIntTy ||
     Type == Context.IntTy)) {
     Type = Context.getAddrSpaceQualType(Type, LangAS::rc99_global);
-    Res = ImplicitCastExpr::Create(getASTContext(), Context.getPointerType(Type), CK_BitCast, Res.get(), nullptr, VK_RValue, FPOptionsOverride());
+    Res = ImplicitCastExpr::Create(getASTContext(), Context.getPointerType(Type), CK_BitCast, Res.get(), nullptr, VK_PRValue, FPOptionsOverride());
   }
   Res = CreateBuiltinUnaryOp(SourceLocation(), UO_Deref, Res.get());
   AddInitializerToDecl(NewVD, Res.get(), false);
@@ -1638,7 +1638,7 @@ Stmt *Sema::ShiftIndex(VarDecl *TensorOffset) {
 
   ExprResult SubL = new (Context) ExtVectorElementExpr(TyEl, VK_LValue, Idx, *Member, Loc);
   DeclRefExpr *IdxR = DeclRefExpr::Create(getASTContext(), NestedNameSpecifierLoc(), Loc,
-                                          TensorOffset, false, Loc, Ty, VK_RValue);
+                                          TensorOffset, false, Loc, Ty, VK_PRValue);
   ExprResult SubR = new (Context) ExtVectorElementExpr(TyEl, VK_LValue, IdxR, *Member, Loc);
   Expr *Init = ActOnIntegerConstant(Loc, 1).get();
   ExprResult RHS = BuildBinOp(CurScope, Loc, BO_Add, SubR.get(), Init);
@@ -1889,7 +1889,7 @@ Expr *Sema::buildDefaultArgument(const FunctionProtoType *FT,
         llvm::APInt Val(getIntWidthFromType(Context, EltTy), 0);
         Zero = IntegerLiteral::Create(Context, Val, EltTy, SourceLocation());
       }
-      return ImplicitCastExpr::Create(Context, ArgTy, CastKind::CK_VectorSplat, Zero, nullptr, VK_RValue, FPOptionsOverride());
+      return ImplicitCastExpr::Create(Context, ArgTy, CastKind::CK_VectorSplat, Zero, nullptr, VK_PRValue, FPOptionsOverride());
     } else if (ArgTy->isFloatingType()) {
       llvm::APFloat Val(getSemanticsFromType(Context, ArgTy));
       return FloatingLiteral::Create(Context, Val, true, ArgTy, SourceLocation());

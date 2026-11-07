@@ -142,7 +142,7 @@ std::string getTPCIntrinsicName(const Intrinsic::ID IDNum,
   ArrayRef<Intrinsic::IITDescriptor> TableRef = Table;
   SmallVector<Type *, 4> ArgTys;
   Intrinsic::matchIntrinsicSignature(FType, TableRef, ArgTys);
-  return Intrinsic::getName(IDNum, ArgTys);
+  return Intrinsic::getNameNoUnnamedTypes(IDNum, ArgTys);
 }
 
 // Lookup API for accessing switches based on \p SrcType and \p DstType.

@@ -1101,15 +1101,14 @@ void TPCMCCodeEmitter::fillInstrBits(const MCInst& MI,
     else {
       int64_t opImm = 0;
       unsigned opNum = TPCMCInstrInfo::getImmFieldOpNum(MCII, MI);
-      assert(MI.getOperand(opNum).isImm() || MI.getOperand(opNum).isFPImm());
+      assert(MI.getOperand(opNum).isImm() || MI.getOperand(opNum).isSFPImm());
 
       if (MI.getOperand(opNum).isImm()) {
          opImm = MI.getOperand(opNum).getImm();
       }
-      else if (MI.getOperand(opNum).isFPImm()) {
-         float fimm = MI.getOperand(opNum).getFPImm();
-         void *Storage = static_cast<void *>(&fimm);
-         opImm= *static_cast<uint64_t *>(Storage);
+      else if (MI.getOperand(opNum).isSFPImm()) {
+         // Bit pattern of the 32-bit float immediate.
+         opImm = MI.getOperand(opNum).getSFPImm();
       }
       const MCInstrDesc &Desc = MCII.get(MI.getOpcode());
       const MCOperandInfo &Info = Desc.OpInfo[opNum];
@@ -1553,13 +1552,9 @@ getMachineOpValue(const MCInst &MI, const MCOperand &MO,
   if (MO.isImm())
     return MO.getImm();
 
-  if (MO.isFPImm()) {
-    float fimm = MO.getFPImm();
-    // Using this two-step static_cast via void * instead of cast
-    // silences a -Wstrict-aliasing false positive from GCC6 and earlier.
-    // return *((unsigned*)&fimm);
-    void *Storage = static_cast<void *>(&fimm);
-    return *static_cast<unsigned *>(Storage);
+  if (MO.isSFPImm()) {
+    // Bit pattern of the 32-bit float immediate.
+    return MO.getSFPImm();
   }
 
   if (MO.isExpr()) {

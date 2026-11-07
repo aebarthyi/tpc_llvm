@@ -68,9 +68,9 @@ public:
 
   bool shouldExpandReduction(const IntrinsicInst *II) const { return false; }
 
-  int getInstructionLatency(const Instruction *I);
-  int getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
-                            TTI::TargetCostKind CostKind);
+  InstructionCost getInstructionLatency(const Instruction *I);
+  InstructionCost getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
+                                        TTI::TargetCostKind CostKind);
   int getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy,
                             ArrayRef<Value *> Args, FastMathFlags FMF,
                             unsigned VF = 1);
@@ -84,8 +84,9 @@ public:
     return -1;
   }
 
-  int getShuffleCost(TTI::ShuffleKind Kind, VectorType *Tp, int Index,
-                     VectorType *SubTp);
+  InstructionCost getShuffleCost(TTI::ShuffleKind Kind, VectorType *Tp,
+                                 ArrayRef<int> Mask, int Index,
+                                 VectorType *SubTp);
 
   static bool getTypeMatrix(const Instruction *I, Type::TypeID Ty[]) {
     Ty[0] = I->getType()->getTypeID();

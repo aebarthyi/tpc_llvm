@@ -397,7 +397,7 @@ void MCObjectFileInfo::initELFMCObjectFileInfo(const Triple &T, bool Large) {
     VectorLocalsSection = Ctx->getELFSection(".vldata", ELF::SHT_NOBITS,
                                              ELF::SHF_WRITE | ELF::SHF_ALLOC);
     CommentSection = Ctx->getELFSection(
-      ".comment", ELF::SHT_PROGBITS, ELF::SHF_MERGE | ELF::SHF_STRINGS, 1, "");
+      ".comment", ELF::SHT_PROGBITS, ELF::SHF_MERGE | ELF::SHF_STRINGS, 1);
   }
 #endif
 

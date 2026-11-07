@@ -1896,7 +1896,7 @@ static std::map<const SwitchInfo *, std::vector<DependencyRecord>> SwitchDepende
 static void collectDependencies(const SwitchInfo &E, std::vector<DependencyRecord> &V) {
   for (auto &Other : AllSwitches)
     for (auto &D : E.Dependencies)
-      if (Other.Name.equals_lower(D.Switch)) {
+      if (Other.Name.equals_insensitive(D.Switch)) {
         // check if the other switch ever applies to any common case with E
         // exact matching should happen for particular instruction at runtime
         if ((Other.OpType & E.OpType) != 0 && E.fitsOtherFeatures(Other)
@@ -2054,7 +2054,7 @@ std::string TPCII::incorporateSwitch(StringRef Switch, StringRef Value,
   if (const InstructionInfo *Info = getSwitchesForMnemonic(Mnemonic, Slot)) {
     for (auto SwPtr : Info->Switches) {
       bool IsGroup = SwPtr->isGroup();
-      if (SwPtr->Name.equals_lower(Switch)) {
+      if (SwPtr->Name.equals_insensitive(Switch)) {
 
         // Check if the found switch is supported.
         assert(SubTargetInfo);
@@ -2120,7 +2120,7 @@ std::string TPCII::incorporateSwitch(StringRef Switch, StringRef Value,
           std::string LCValue = Value.lower();
           bool Found = false;
           for (auto V : SwPtr->Values)
-            if (V.Name.equals_lower(LCValue)) {
+            if (V.Name.equals_insensitive(LCValue)) {
               ItemValue = V.Value;
               Found = true;
               break;
@@ -2156,7 +2156,7 @@ std::string TPCII::incorporateSwitch(StringRef Switch, StringRef Value,
       // Check if this is a value specified in some switch group.
       if (IsGroup) {
         for (auto SwVal : SwPtr->Values) {
-          if (SwVal.Name.equals_lower(Switch)) {
+          if (SwVal.Name.equals_insensitive(Switch)) {
             assert(SubTargetInfo);
             if (!SwPtr->fitsTargetFeatures(SubTargetInfo->getFeatureBits())) {
               UnsupportedCPU = SwPtr;
