@@ -411,6 +411,8 @@ static SDValue helperExtractSubRegSDValue(unsigned subReg, const SDLoc &DL,
   setOperationAction(ISD::STORE, MVT::v2i8, Custom);
   setOperationAction(ISD::STORE, MVT::v2i16, Custom);
   setOperationAction(ISD::STORE, MVT::v2i32, Custom);
+  setOperationAction(ISD::STORE, MVT::v512f8_143, Custom);
+  setOperationAction(ISD::STORE, MVT::v512f8_152, Custom);
 
   if (Subtarget->getCPU() == "gaudi2")
     for (auto VT : {MVT::f8_143, MVT::f8_152, MVT::bf16, MVT::f16, MVT::f32,
