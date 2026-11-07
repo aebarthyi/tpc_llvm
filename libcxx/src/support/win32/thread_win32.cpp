@@ -8,6 +8,8 @@
 //===----------------------------------------------------------------------===//
 
 #include <__threading_support>
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <process.h>
 #include <fibersapi.h>
@@ -241,10 +243,8 @@ void __libcpp_thread_yield()
 
 void __libcpp_thread_sleep_for(const chrono::nanoseconds& __ns)
 {
-  using namespace chrono;
-  // round-up to the nearest milisecond
-  milliseconds __ms =
-      duration_cast<milliseconds>(__ns + chrono::nanoseconds(999999));
+  // round-up to the nearest millisecond
+  chrono::milliseconds __ms = chrono::ceil<chrono::milliseconds>(__ns);
   // FIXME(compnerd) this should be an alertable sleep (WFSO or SleepEx)
   Sleep(__ms.count());
 }

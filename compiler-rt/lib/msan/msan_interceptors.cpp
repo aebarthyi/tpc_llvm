@@ -21,6 +21,7 @@
 #include "msan_report.h"
 #include "msan_thread.h"
 #include "msan_poisoning.h"
+#include "sanitizer_common/sanitizer_errno_codes.h"
 #include "sanitizer_common/sanitizer_platform_limits_posix.h"
 #include "sanitizer_common/sanitizer_platform_limits_netbsd.h"
 #include "sanitizer_common/sanitizer_allocator.h"
@@ -32,6 +33,7 @@
 #include "sanitizer_common/sanitizer_stackdepot.h"
 #include "sanitizer_common/sanitizer_libc.h"
 #include "sanitizer_common/sanitizer_linux.h"
+#include "sanitizer_common/sanitizer_glibc_version.h"
 #include "sanitizer_common/sanitizer_tls_get_addr.h"
 #include "sanitizer_common/sanitizer_vector.h"
 
@@ -655,7 +657,8 @@ INTERCEPTOR(int, putenv, char *string) {
   return res;
 }
 
-#if SANITIZER_FREEBSD || SANITIZER_NETBSD
+#define SANITIZER_STAT_LINUX (SANITIZER_LINUX && __GLIBC_PREREQ(2, 33))
+#if SANITIZER_FREEBSD || SANITIZER_NETBSD || SANITIZER_STAT_LINUX
 INTERCEPTOR(int, fstat, int fd, void *buf) {
   ENSURE_MSAN_INITED();
   int res = REAL(fstat)(fd, buf);
@@ -663,7 +666,7 @@ INTERCEPTOR(int, fstat, int fd, void *buf) {
     __msan_unpoison(buf, __sanitizer::struct_stat_sz);
   return res;
 }
-#define MSAN_MAYBE_INTERCEPT_FSTAT INTERCEPT_FUNCTION(fstat)
+#  define MSAN_MAYBE_INTERCEPT_FSTAT MSAN_INTERCEPT_FUNC(fstat)
 #else
 #define MSAN_MAYBE_INTERCEPT_FSTAT
 #endif
@@ -676,7 +679,7 @@ INTERCEPTOR(int, __fxstat, int magic, int fd, void *buf) {
     __msan_unpoison(buf, __sanitizer::struct_stat_sz);
   return res;
 }
-#define MSAN_MAYBE_INTERCEPT___FXSTAT INTERCEPT_FUNCTION(__fxstat)
+#  define MSAN_MAYBE_INTERCEPT___FXSTAT MSAN_INTERCEPT_FUNC(__fxstat)
 #else
 #define MSAN_MAYBE_INTERCEPT___FXSTAT
 #endif
@@ -689,20 +692,24 @@ INTERCEPTOR(int, __fxstat64, int magic, int fd, void *buf) {
     __msan_unpoison(buf, __sanitizer::struct_stat64_sz);
   return res;
 }
-#define MSAN_MAYBE_INTERCEPT___FXSTAT64 INTERCEPT_FUNCTION(__fxstat64)
+#  define MSAN_MAYBE_INTERCEPT___FXSTAT64 MSAN_INTERCEPT_FUNC(__fxstat64)
 #else
-#define MSAN_MAYBE_INTERCEPT___FXSTAT64
+#  define MSAN_MAYBE_INTERCEPT___FXSTAT64
 #endif
 
-#if SANITIZER_FREEBSD || SANITIZER_NETBSD
+#if SANITIZER_FREEBSD || SANITIZER_NETBSD || SANITIZER_STAT_LINUX
 INTERCEPTOR(int, fstatat, int fd, char *pathname, void *buf, int flags) {
   ENSURE_MSAN_INITED();
   int res = REAL(fstatat)(fd, pathname, buf, flags);
   if (!res) __msan_unpoison(buf, __sanitizer::struct_stat_sz);
   return res;
 }
-# define MSAN_INTERCEPT_FSTATAT INTERCEPT_FUNCTION(fstatat)
+#  define MSAN_MAYBE_INTERCEPT_FSTATAT MSAN_INTERCEPT_FUNC(fstatat)
 #else
+#  define MSAN_MAYBE_INTERCEPT_FSTATAT
+#endif
+
+#if !SANITIZER_FREEBSD && !SANITIZER_NETBSD
 INTERCEPTOR(int, __fxstatat, int magic, int fd, char *pathname, void *buf,
             int flags) {
   ENSURE_MSAN_INITED();
@@ -710,7 +717,9 @@ INTERCEPTOR(int, __fxstatat, int magic, int fd, char *pathname, void *buf,
   if (!res) __msan_unpoison(buf, __sanitizer::struct_stat_sz);
   return res;
 }
-# define MSAN_INTERCEPT_FSTATAT INTERCEPT_FUNCTION(__fxstatat)
+#  define MSAN_MAYBE_INTERCEPT___FXSTATAT MSAN_INTERCEPT_FUNC(__fxstatat)
+#else
+#  define MSAN_MAYBE_INTERCEPT___FXSTATAT
 #endif
 
 #if !SANITIZER_FREEBSD && !SANITIZER_NETBSD
@@ -721,9 +730,9 @@ INTERCEPTOR(int, __fxstatat64, int magic, int fd, char *pathname, void *buf,
   if (!res) __msan_unpoison(buf, __sanitizer::struct_stat64_sz);
   return res;
 }
-#define MSAN_MAYBE_INTERCEPT___FXSTATAT64 INTERCEPT_FUNCTION(__fxstatat64)
+#  define MSAN_MAYBE_INTERCEPT___FXSTATAT64 MSAN_INTERCEPT_FUNC(__fxstatat64)
 #else
-#define MSAN_MAYBE_INTERCEPT___FXSTATAT64
+#  define MSAN_MAYBE_INTERCEPT___FXSTATAT64
 #endif
 
 INTERCEPTOR(int, pipe, int pipefd[2]) {
@@ -1257,10 +1266,18 @@ int OnExit() {
       VReport(1, "MemorySanitizer: failed to intercept '%s@@%s'\n", #name, \
               #ver);                                                       \
   } while (0)
+#define MSAN_INTERCEPT_FUNC_VER_UNVERSIONED_FALLBACK(name, ver)             \
+  do {                                                                      \
+    if (!INTERCEPT_FUNCTION_VER(name, ver) && !INTERCEPT_FUNCTION(name))    \
+      VReport(1, "MemorySanitizer: failed to intercept '%s@@%s' or '%s'\n", \
+              #name, #ver, #name);                                          \
+  } while (0)
 
 #define COMMON_INTERCEPT_FUNCTION(name) MSAN_INTERCEPT_FUNC(name)
-#define COMMON_INTERCEPT_FUNCTION_VER(name, ver)                          \
+#define COMMON_INTERCEPT_FUNCTION_VER(name, ver) \
   MSAN_INTERCEPT_FUNC_VER(name, ver)
+#define COMMON_INTERCEPT_FUNCTION_VER_UNVERSIONED_FALLBACK(name, ver) \
+  MSAN_INTERCEPT_FUNC_VER_UNVERSIONED_FALLBACK(name, ver)
 #define COMMON_INTERCEPTOR_UNPOISON_PARAM(count)  \
   UnpoisonParam(count)
 #define COMMON_INTERCEPTOR_WRITE_RANGE(ctx, ptr, size) \
@@ -1365,11 +1382,14 @@ static int sigaction_impl(int signo, const __sanitizer_sigaction *act,
 static int sigaction_impl(int signo, const __sanitizer_sigaction *act,
                           __sanitizer_sigaction *oldact) {
   ENSURE_MSAN_INITED();
+  if (signo <= 0 || signo >= kMaxSignals) {
+    errno = errno_EINVAL;
+    return -1;
+  }
   if (act) read_sigaction(act);
   int res;
   if (flags()->wrap_signals) {
     SpinMutexLock lock(&sigactions_mu);
-    CHECK_LT(signo, kMaxSignals);
     uptr old_cb = atomic_load(&sigactions[signo], memory_order_relaxed);
     __sanitizer_sigaction new_act;
     __sanitizer_sigaction *pnew_act = act ? &new_act : nullptr;
@@ -1403,8 +1423,11 @@ static int sigaction_impl(int signo, const __sanitizer_sigaction *act,
 
 static uptr signal_impl(int signo, uptr cb) {
   ENSURE_MSAN_INITED();
+  if (signo <= 0 || signo >= kMaxSignals) {
+    errno = errno_EINVAL;
+    return -1;
+  }
   if (flags()->wrap_signals) {
-    CHECK_LT(signo, kMaxSignals);
     SpinMutexLock lock(&sigactions_mu);
     if (cb != __sanitizer::sig_ign && cb != __sanitizer::sig_dfl) {
       atomic_store(&sigactions[signo], cb, memory_order_relaxed);
@@ -1671,7 +1694,8 @@ void InitializeInterceptors() {
   MSAN_MAYBE_INTERCEPT_FCVT;
   MSAN_MAYBE_INTERCEPT_FSTAT;
   MSAN_MAYBE_INTERCEPT___FXSTAT;
-  MSAN_INTERCEPT_FSTATAT;
+  MSAN_MAYBE_INTERCEPT_FSTATAT;
+  MSAN_MAYBE_INTERCEPT___FXSTATAT;
   MSAN_MAYBE_INTERCEPT___FXSTAT64;
   MSAN_MAYBE_INTERCEPT___FXSTATAT64;
   INTERCEPT_FUNCTION(pipe);

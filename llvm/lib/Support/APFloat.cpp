@@ -66,6 +66,13 @@ namespace llvm {
 
     /* Number of bits actually used in the semantics. */
     unsigned int sizeInBits;
+
+    // Returns true if any number described by this semantics can be precisely
+    // represented by the specified semantics.
+    bool isRepresentableBy(const fltSemantics &S) const {
+      return maxExponent <= S.maxExponent && minExponent >= S.minExponent &&
+             precision <= S.precision;
+    }
   };
 
 #ifdef LLVM_TPC_COMPILER
@@ -3905,7 +3912,7 @@ namespace {
     exp += FirstSignificant;
     buffer.erase(&buffer[0], &buffer[FirstSignificant]);
   }
-}
+} // namespace
 
 void IEEEFloat::toString(SmallVectorImpl<char> &Str, unsigned FormatPrecision,
                          unsigned FormatMaxPadding, bool TruncateZero) const {
@@ -4918,7 +4925,8 @@ bool DoubleAPFloat::getExactInverse(APFloat *inv) const {
   return Ret;
 }
 
-DoubleAPFloat scalbn(DoubleAPFloat Arg, int Exp, APFloat::roundingMode RM) {
+DoubleAPFloat scalbn(const DoubleAPFloat &Arg, int Exp,
+                     APFloat::roundingMode RM) {
   assert(Arg.Semantics == &semPPCDoubleDouble && "Unexpected Semantics");
   return DoubleAPFloat(semPPCDoubleDouble, scalbn(Arg.Floats[0], Exp, RM),
                        scalbn(Arg.Floats[1], Exp, RM));
@@ -4934,7 +4942,7 @@ DoubleAPFloat frexp(const DoubleAPFloat &Arg, int &Exp,
   return DoubleAPFloat(semPPCDoubleDouble, std::move(First), std::move(Second));
 }
 
-} // End detail namespace
+} // namespace detail
 
 APFloat::Storage::Storage(IEEEFloat F, const fltSemantics &Semantics) {
   if (usesLayout<IEEEFloat>(Semantics)) {
@@ -5029,6 +5037,32 @@ APFloat::opStatus APFloat::convertToInteger(APSInt &result,
   // Keeps the original signed-ness.
   result = APInt(bitWidth, parts);
   return status;
+}
+
+double APFloat::convertToDouble() const {
+  if (&getSemantics() == (const llvm::fltSemantics *)&semIEEEdouble)
+    return getIEEE().convertToDouble();
+  assert(getSemantics().isRepresentableBy(semIEEEdouble) &&
+         "Float semantics is not representable by IEEEdouble");
+  APFloat Temp = *this;
+  bool LosesInfo;
+  opStatus St = Temp.convert(semIEEEdouble, rmNearestTiesToEven, &LosesInfo);
+  assert(!(St & opInexact) && !LosesInfo && "Unexpected imprecision");
+  (void)St;
+  return Temp.getIEEE().convertToDouble();
+}
+
+float APFloat::convertToFloat() const {
+  if (&getSemantics() == (const llvm::fltSemantics *)&semIEEEsingle)
+    return getIEEE().convertToFloat();
+  assert(getSemantics().isRepresentableBy(semIEEEsingle) &&
+         "Float semantics is not representable by IEEEsingle");
+  APFloat Temp = *this;
+  bool LosesInfo;
+  opStatus St = Temp.convert(semIEEEsingle, rmNearestTiesToEven, &LosesInfo);
+  assert(!(St & opInexact) && !LosesInfo && "Unexpected imprecision");
+  (void)St;
+  return Temp.getIEEE().convertToFloat();
 }
 
 } // namespace llvm
