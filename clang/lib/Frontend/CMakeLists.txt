@@ -6,6 +6,7 @@ set(LLVM_LINK_COMPONENTS
   Option
   ProfileData
   Support
+  TargetParser
   )
 
 # LLVM_TPC_COMPILER
@@ -85,6 +86,8 @@ add_clang_library(clangFrontend
   MultiplexConsumer.cpp
   PrecompiledPreamble.cpp
   PrintPreprocessedOutput.cpp
+  SARIFDiagnostic.cpp
+  SARIFDiagnosticPrinter.cpp
   SerializedDiagnosticPrinter.cpp
   SerializedDiagnosticReader.cpp
   TestModuleFileExtension.cpp

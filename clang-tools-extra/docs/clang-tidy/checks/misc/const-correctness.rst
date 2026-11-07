@@ -45,7 +45,7 @@ The check can analyze values, pointers and references but not (yet) pointees:
 
 The automatic code transformation is only applied to variables that are declared in single
 declarations. You may want to prepare your code base with
-`readability-isolate-declaration <readability-isolate-declaration.html>`_ first.
+`readability-isolate-declaration <../readability/isolate-declaration.html>`_ first.
 
 Note that there is the check
 `cppcoreguidelines-avoid-non-const-global-variables <../cppcoreguidelines/avoid-non-const-global-variables.html>`_

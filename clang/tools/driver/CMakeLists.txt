@@ -13,6 +13,7 @@ set( LLVM_LINK_COMPONENTS
   Option
   ScalarOpts
   Support
+  TargetParser
   TransformUtils
   Vectorize
   )
@@ -85,7 +86,11 @@ if(NOT CLANG_LINKS_TO_CREATE)
   endif()
 endif()
 
-foreach(link ${CLANG_LINKS_TO_CREATE})
+if (CLANG_ENABLE_HLSL)
+  set(HLSL_LINK clang-dxc)
+endif()
+
+foreach(link ${CLANG_LINKS_TO_CREATE} ${HLSL_LINK})
   add_clang_symlink(${link} clang)
 endforeach()
 

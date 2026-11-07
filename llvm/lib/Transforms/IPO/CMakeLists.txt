@@ -33,7 +33,6 @@ add_llvm_component_library(LLVMipo
   OpenMPOpt.cpp
   PartialInlining.cpp
   PassManagerBuilder.cpp
-  PruneEH.cpp
   SampleContextTracker.cpp
   SampleProfile.cpp
   SampleProfileProbe.cpp
@@ -72,10 +71,10 @@ add_llvm_component_library(LLVMipo
   ProfileData
   Scalar
   Support
+  TargetParser
   TransformUtils
   Vectorize
   Instrumentation
-  Scalar
   )
 
 set(gaudi_tpc_header_files

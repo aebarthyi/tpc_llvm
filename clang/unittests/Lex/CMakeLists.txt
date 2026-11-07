@@ -11,14 +11,17 @@ add_clang_unittest(LexTests
   HeaderMapTest.cpp
   HeaderSearchTest.cpp
   LexerTest.cpp
+  ModuleDeclStateTest.cpp
   PPCallbacksTest.cpp
   PPConditionalDirectiveRecordTest.cpp
+  PPDependencyDirectivesTest.cpp
   PPMemoryAllocationsTest.cpp
   )
 
 set(CLANG_LINK_LIBS
   clangAST
   clangBasic
+  clangFrontend
   clangLex
   clangParse
   clangSema
@@ -31,4 +34,9 @@ endif()
 clang_target_link_libraries(LexTests
   PRIVATE
   ${CLANG_LINK_LIBS}
+  )
+
+target_link_libraries(LexTests
+  PRIVATE
+  LLVMTestingSupport
   )

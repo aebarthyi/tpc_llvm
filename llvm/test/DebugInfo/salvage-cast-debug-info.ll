@@ -1,4 +1,4 @@
-; RUN: opt %s -debugify -early-cse -earlycse-debug-hash -S | FileCheck %s
+; RUN: opt %s -passes=debugify,early-cse -earlycse-debug-hash -S | FileCheck %s
 ; XFAIL:*
 define i32 @foo(i64 %nose, i32 %more) {
 ; CHECK-LABEL: @foo(

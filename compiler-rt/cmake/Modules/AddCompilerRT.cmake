@@ -2,6 +2,12 @@ include(ExternalProject)
 include(CompilerRTUtils)
 include(HandleCompilerRT)
 
+# CMP0114: ExternalProject step targets fully adopt their steps.
+# New in CMake 3.19: https://cmake.org/cmake/help/latest/policy/CMP0114.html
+if(POLICY CMP0114)
+  cmake_policy(SET CMP0114 OLD)
+endif()
+
 function(set_target_output_directories target output_dir)
   # For RUNTIME_OUTPUT_DIRECTORY variable, Multi-configuration generators
   # append a per-configuration subdirectory to the specified directory.
@@ -386,8 +392,8 @@ function(add_compiler_rt_runtime name type)
       target_link_libraries(${libname} PRIVATE ${builtins_${libname}})
     endif()
     if(${type} STREQUAL "SHARED")
-      if(COMMAND llvm_setup_rpath)
-        llvm_setup_rpath(${libname})
+      if(APPLE OR WIN32)
+        set_property(TARGET ${libname} PROPERTY BUILD_WITH_INSTALL_RPATH ON)
       endif()
       if(WIN32 AND NOT CYGWIN AND NOT MINGW)
         set_target_properties(${libname} PROPERTIES IMPORT_PREFIX "")

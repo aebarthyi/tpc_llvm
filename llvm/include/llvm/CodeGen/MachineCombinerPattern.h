@@ -172,6 +172,12 @@ enum class MachineCombinerPattern {
 
   // Patterns from TPC
   TPCMACx2f32vvp,
+
+  // RISCV FMADD, FMSUB, FNMSUB patterns
+  FMADD_AX,
+  FMADD_XA,
+  FMSUB,
+  FNMSUB,
 };
 
 } // end namespace llvm

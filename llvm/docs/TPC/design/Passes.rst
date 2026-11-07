@@ -13,17 +13,12 @@ Where passes live
 * ``llvm/lib/Target/TPC/`` - target passes. Declared in ``TPCTargetMachine.h``
   and scheduled by ``TPCTargetMachine`` (see below).
 * ``llvm/lib/Transforms/Scalar/`` and ``llvm/lib/Transforms/IPO/`` - TPC passes
-  that live in the generic tree. Scheduled directly by the pipeline builders
-  (``PassBuilderPipelines.cpp`` for the new pass manager,
-  ``PassManagerBuilder.cpp`` for the legacy one) when the target triple is
-  ``tpc``.
+  that live in the generic tree. Scheduled directly by
+  ``PassBuilderPipelines.cpp`` when the target triple is ``tpc``.
 
-Every pass has a legacy pass manager entry point (``create...()``) and a new
-pass manager entry point (``...Pass``), and both call the same implementation.
-The surrounding pipelines are not identical: upstream built them differently,
-and the new pass manager's ``-O1`` has its own function simplification pipeline.
-So the two pass managers can generate different code for the same source, and
-``tpc/difftest/run.py`` checks that kernels still compute the same results.
+Every pass has a new pass manager entry point (``...Pass``). Its older legacy
+entry point (``create...()``) calls the same implementation but is unused, except
+for ``TPCAA``'s wrapper, which code generation adds.
 
 ********************
 Pipeline integration
@@ -73,8 +68,7 @@ local-memory addresses and leaves behind external declarations that debug info
 refers to, which ``GlobalDCE`` would otherwise delete.
 
 For the ``tpc`` triple, ``PassBuilderPipelines.cpp`` also changes the default
-pipeline the same way the legacy ``PassManagerBuilder`` does (look for
-``isTPCTarget`` in that file):
+pipeline (look for ``isTPCTarget`` in that file):
 
 * Only ``always_inline`` functions are inlined: the module simplification
   pipeline runs ``AlwaysInlinerPass``, ``PostOrderFunctionAttrsPass``,
@@ -98,26 +92,11 @@ pipeline the same way the legacy ``PassManagerBuilder`` does (look for
 Legacy pass manager
 ===================
 
-clang only uses the new pass manager since LLVM 15. The legacy pipeline is still
-built through ``TPCTargetMachine::adjustPassManager`` and ``PassManagerBuilder``,
-but only ``opt -enable-new-pm=0`` reaches it. It goes away when upstream removes
-``PassManagerBuilder`` (LLVM 17).
-
-.. list-table::
-   :header-rows: 1
-
-   * - Legacy extension point
-     - New pass manager equivalent
-   * - ``EP_EarlyAsPossible``
-     - ``PipelineStartEP``
-   * - ``EP_EnabledOnOptLevel0``
-     - ``OptimizerLastEP`` at ``O0``
-   * - ``EP_CGSCCOptimizerLate`` (module passes)
-     - ``OptimizerEarlyEP``
-   * - ``EP_ModuleOptimizerEarly``
-     - ``OptimizerEarlyEP``
-   * - ``EP_OptimizerLast``
-     - ``OptimizerLastEP``
+The legacy pipeline is gone: clang stopped using it in LLVM 15, and LLVM 16
+removed ``TargetMachine::adjustPassManager``, through which TPC scheduled its
+passes. Where a section below mentions a legacy placement or
+``PassManagerBuilder.cpp``, it records where the pass ran in that pipeline, which
+explains why the new pipeline is shaped this way.
 
 Testing a pass
 ==============

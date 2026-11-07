@@ -161,6 +161,22 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &OS, const Location &L) {
   return OS << L.range << '@' << L.uri;
 }
 
+llvm::json::Value toJSON(const ReferenceLocation &P) {
+  llvm::json::Object Result{
+      {"uri", P.uri},
+      {"range", P.range},
+  };
+  if (P.containerName)
+    Result.insert({"containerName", P.containerName});
+  return Result;
+}
+
+llvm::raw_ostream &operator<<(llvm::raw_ostream &OS,
+                              const ReferenceLocation &L) {
+  return OS << L.range << '@' << L.uri << " (container: " << L.containerName
+            << ")";
+}
+
 bool fromJSON(const llvm::json::Value &Params, TextDocumentItem &R,
               llvm::json::Path P) {
   llvm::json::ObjectMapper O(Params, P);
@@ -332,6 +348,9 @@ bool fromJSON(const llvm::json::Value &Params, ClientCapabilities &R,
       if (auto RelatedInfo = Diagnostics->getBoolean("relatedInformation"))
         R.DiagnosticRelatedInformation = *RelatedInfo;
     }
+    if (auto *References = TextDocument->getObject("references"))
+      if (auto ContainerSupport = References->getBoolean("container"))
+        R.ReferenceContainer = *ContainerSupport;
     if (auto *Completion = TextDocument->getObject("completion")) {
       if (auto *Item = Completion->getObject("completionItem")) {
         if (auto SnippetSupport = Item->getBoolean("snippetSupport"))
@@ -390,6 +409,10 @@ bool fromJSON(const llvm::json::Value &Params, ClientCapabilities &R,
           }
         }
       }
+    }
+    if (auto *Folding = TextDocument->getObject("foldingRange")) {
+      if (auto LineFolding = Folding->getBoolean("lineFoldingOnly"))
+        R.LineFoldingOnly = *LineFolding;
     }
     if (auto *Rename = TextDocument->getObject("rename")) {
       if (auto RenameSupport = Rename->getBoolean("prepareSupport"))
@@ -734,7 +757,9 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &O,
 
 bool operator==(const SymbolDetails &LHS, const SymbolDetails &RHS) {
   return LHS.name == RHS.name && LHS.containerName == RHS.containerName &&
-         LHS.USR == RHS.USR && LHS.ID == RHS.ID;
+         LHS.USR == RHS.USR && LHS.ID == RHS.ID &&
+         LHS.declarationRange == RHS.declarationRange &&
+         LHS.definitionRange == RHS.definitionRange;
 }
 
 llvm::json::Value toJSON(const SymbolDetails &P) {
@@ -754,6 +779,12 @@ llvm::json::Value toJSON(const SymbolDetails &P) {
 
   if (P.ID)
     Result["id"] = P.ID.str();
+
+  if (P.declarationRange)
+    Result["declarationRange"] = *P.declarationRange;
+
+  if (P.definitionRange)
+    Result["definitionRange"] = *P.definitionRange;
 
   // FIXME: workaround for older gcc/clang
   return std::move(Result);
@@ -1441,6 +1472,10 @@ bool fromJSON(const llvm::json::Value &Params, FoldingRangeParams &R,
   llvm::json::ObjectMapper O(Params, P);
   return O && O.map("textDocument", R.textDocument);
 }
+
+const llvm::StringLiteral FoldingRange::REGION_KIND = "region";
+const llvm::StringLiteral FoldingRange::COMMENT_KIND = "comment";
+const llvm::StringLiteral FoldingRange::IMPORT_KIND = "import";
 
 llvm::json::Value toJSON(const FoldingRange &Range) {
   llvm::json::Object Result{
