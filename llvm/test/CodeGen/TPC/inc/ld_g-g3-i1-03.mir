@@ -66,15 +66,15 @@ body:             |
     ; CHECK: [[DEF2:%[0-9]+]]:adrf = IMPLICIT_DEF
     ; CHECK: [[GEN_ADDR_st:%[0-9]+]]:adrf = GEN_ADDR_st 0, [[SET_INDX_ld_ip]], 20, [[DEF2]], $sprf_true, 0
     ; CHECK: [[DEF3:%[0-9]+]]:srf = IMPLICIT_DEF
-    ; CHECK: [[LD_Gsap:%[0-9]+]]:srf = LD_Gsap killed [[GEN_ADDR_st]](tied-def 6), 5, [[DEF3]](tied-def 0), $sprf_true, 0, implicit-def %23 :: (load 1 from %ir.addr.0, addrspace 3)
+    ; CHECK: [[LD_Gsap:%[0-9]+]]:srf = LD_Gsap killed [[GEN_ADDR_st]](tied-def 6), 5, [[DEF3]](tied-def 0), $sprf_true, 0, implicit-def %23 :: (load (s8) from %ir.addr.0, addrspace 3)
     ; CHECK: [[DEF4:%[0-9]+]]:srf = IMPLICIT_DEF
     ; CHECK: [[DEF5:%[0-9]+]]:adrf = IMPLICIT_DEF
     ; CHECK: [[DEF6:%[0-9]+]]:srf = IMPLICIT_DEF
-    ; CHECK: [[LD_Gsap1:%[0-9]+]]:srf = LD_Gsap killed %23(tied-def 6), 1, [[DEF6]](tied-def 0), $sprf_true, 0, implicit-def %22 :: (load 1 from %ir.addr.1, addrspace 3)
+    ; CHECK: [[LD_Gsap1:%[0-9]+]]:srf = LD_Gsap killed %23(tied-def 6), 1, [[DEF6]](tied-def 0), $sprf_true, 0, implicit-def %22 :: (load (s8) from %ir.addr.1, addrspace 3)
     ; CHECK: [[DEF7:%[0-9]+]]:srf = IMPLICIT_DEF
     ; CHECK: [[DEF8:%[0-9]+]]:adrf = IMPLICIT_DEF
     ; CHECK: [[DEF9:%[0-9]+]]:srf = IMPLICIT_DEF
-    ; CHECK: [[LD_Gsap2:%[0-9]+]]:srf = LD_Gsap killed %22, 0, [[DEF9]], $sprf_true, 0 :: (load 1 from %ir.addr.2, addrspace 3)
+    ; CHECK: [[LD_Gsap2:%[0-9]+]]:srf = LD_Gsap killed %22, 0, [[DEF9]], $sprf_true, 0 :: (load (s8) from %ir.addr.2, addrspace 3)
     ; CHECK: HALTs
     %1:srf = COPY $s1
     %0:srf = COPY $s0

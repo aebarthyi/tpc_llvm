@@ -1,5 +1,5 @@
 // RUN: %clang -cc1as -triple tpc-none-none -filetype obj -target-cpu goya2 %s -o %t.o
-// RUN: %disasm --mcpu goya2 %t.o | FileCheck %s
+// RUN: %disasm --mcpu=goya2 %t.o | FileCheck %s
 
 
 NOP; CONVERT_UINT8 S6, S12, S8, RNE;       NOP; NOP

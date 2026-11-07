@@ -1,7 +1,7 @@
 // RUN: %clang -cc1as -triple tpc-none-none -target-cpu goya2 -filetype obj %s -o %t.gen3.o
 // RUN: %disasm --mcpu=goya2 %t.gen3.o | FileCheck %s
 // RUN: %clang -cc1as -triple tpc-none-none -filetype obj -target-cpu gaudi2 %s -o %t.gen4.o
-// RUN: %disasm --mcpu gaudi2 %t.gen4.o | FileCheck %s
+// RUN: %disasm --mcpu=gaudi2 %t.gen4.o | FileCheck %s
 
 LOOKUP_2C D2, V2, BV32, 1; NOP; NOP; NOP
 LOOKUP_2C D2, V2, BV32, 2, SP1; NOP; NOP; NOP

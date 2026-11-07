@@ -1,5 +1,5 @@
 // RUN: %clang -cc1as -triple tpc-none-none -filetype obj -target-cpu doron1 %s -o %t.o
-// RUN: %disasm --mcpu doron1 %t.o | FileCheck %s
+// RUN: %disasm --mcpu=doron1 %t.o | FileCheck %s
 
 NOP; NOP; NOP; LD_TNSR_CNVRT V4, 0, I3
 NOP; NOP; NOP; LD_TNSR_CNVRT V4, 0, I3, SP1

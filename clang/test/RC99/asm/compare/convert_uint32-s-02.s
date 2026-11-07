@@ -1,5 +1,5 @@
 // RUN: %clang -cc1as -triple tpc-none-none -filetype obj -target-cpu gaudi %s -o %t.o
-// RUN: %disasm --mcpu gaudi %t.o | FileCheck %s
+// RUN: %disasm --mcpu=gaudi %t.o | FileCheck %s
 
 
 NOP; CONVERT_UINT32 S6, S12, S8, RNE;       NOP; NOP

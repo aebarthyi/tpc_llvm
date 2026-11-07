@@ -1,5 +1,5 @@
 // RUN: %clang -cc1as -triple tpc-none-none -filetype obj -target-cpu gaudi %s -o %t.o
-// RUN: %disasm --mcpu gaudi %t.o | FileCheck %s
+// RUN: %disasm --mcpu=gaudi %t.o | FileCheck %s
 
 
 NOP; MOV.FROM_HW_REG S4, 0

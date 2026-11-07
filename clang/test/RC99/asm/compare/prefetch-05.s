@@ -1,5 +1,5 @@
 // RUN: %clang -cc1as -triple tpc-none-none -target-cpu doron1 -filetype obj %s -o %t.o
-// RUN: %disasm --mcpu doron1 %t.o | FileCheck %s
+// RUN: %disasm --mcpu=doron1 %t.o | FileCheck %s
 
 PREFETCH.L2 AD2; NOP; NOP; NOP 
 PREFETCH.L2 AD2, SP1; NOP; NOP; NOP 

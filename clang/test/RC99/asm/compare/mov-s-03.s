@@ -1,5 +1,5 @@
 // RUN: %clang -cc1as -triple tpc-none-none -filetype obj -target-cpu goya2 %s -o %t.o
-// RUN: %disasm --mcpu goya2 %t.o | FileCheck %s
+// RUN: %disasm --mcpu=goya2 %t.o | FileCheck %s
 
 NOP; MOV M1 I5, S3
 NOP; MOV M1 I5, S3, SP1

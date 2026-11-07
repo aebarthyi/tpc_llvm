@@ -1,5 +1,5 @@
 // RUN: %clang -cc1as -triple tpc-none-none -target-cpu doron1 -filetype obj %s -o %t.o
-// RUN: %disasm --mcpu doron1 %t.o | FileCheck %s
+// RUN: %disasm --mcpu=doron1 %t.o | FileCheck %s
 
 FCLASS.F32 V6, V7; NOP; NOP; NOP;
 FCLASS.F32 V6, S7; NOP; NOP; NOP;

@@ -32,19 +32,19 @@ body:             |
     ; CHECK: [[COPY:%[0-9]+]]:srf = COPY $s1
     ; CHECK: [[COPY1:%[0-9]+]]:srf = COPY $s0
     ; CHECK: [[DEF:%[0-9]+]]:vrf = IMPLICIT_DEF
-    ; CHECK: [[LD_L_Vvsp:%[0-9]+]]:vrf = LD_L_Vvsp [[COPY1]], 0, [[DEF]], $sprf_true, 0 :: (load 256 from %ir.src_val.sroa.0.0..sroa_cast1, addrspace 2)
+    ; CHECK: [[LD_L_Vvsp:%[0-9]+]]:vrf = LD_L_Vvsp [[COPY1]], 0, [[DEF]], $sprf_true, 0 :: (load (s2048) from %ir.src_val.sroa.0.0..sroa_cast1, addrspace 2)
     ; CHECK: [[DEF1:%[0-9]+]]:srf = IMPLICIT_DEF
     ; CHECK: [[ADDsip:%[0-9]+]]:srf = ADDsip [[COPY1]], 768, 2, 0, [[DEF1]], $sprf_true, 0
     ; CHECK: [[DEF2:%[0-9]+]]:vrf = IMPLICIT_DEF
-    ; CHECK: [[LD_L_Vvsp1:%[0-9]+]]:vrf = LD_L_Vvsp killed [[ADDsip]], 0, [[DEF2]], $sprf_true, 0 :: (load 256 from %ir.src_val.sroa.0.0..sroa_cast1 + 768, addrspace 2)
+    ; CHECK: [[LD_L_Vvsp1:%[0-9]+]]:vrf = LD_L_Vvsp killed [[ADDsip]], 0, [[DEF2]], $sprf_true, 0 :: (load (s2048) from %ir.src_val.sroa.0.0..sroa_cast1 + 768, addrspace 2)
     ; CHECK: [[DEF3:%[0-9]+]]:srf = IMPLICIT_DEF
     ; CHECK: [[ADDsip1:%[0-9]+]]:srf = ADDsip [[COPY1]], 512, 2, 0, [[DEF3]], $sprf_true, 0
     ; CHECK: [[DEF4:%[0-9]+]]:vrf = IMPLICIT_DEF
-    ; CHECK: [[LD_L_Vvsp2:%[0-9]+]]:vrf = LD_L_Vvsp killed [[ADDsip1]], 0, [[DEF4]], $sprf_true, 0 :: (load 256 from %ir.src_val.sroa.0.0..sroa_cast1 + 512, addrspace 2)
+    ; CHECK: [[LD_L_Vvsp2:%[0-9]+]]:vrf = LD_L_Vvsp killed [[ADDsip1]], 0, [[DEF4]], $sprf_true, 0 :: (load (s2048) from %ir.src_val.sroa.0.0..sroa_cast1 + 512, addrspace 2)
     ; CHECK: [[DEF5:%[0-9]+]]:srf = IMPLICIT_DEF
     ; CHECK: [[ADDsip2:%[0-9]+]]:srf = ADDsip [[COPY1]], 256, 2, 0, [[DEF5]], $sprf_true, 0
     ; CHECK: [[DEF6:%[0-9]+]]:vrf = IMPLICIT_DEF
-    ; CHECK: [[LD_L_Vvsp3:%[0-9]+]]:vrf = LD_L_Vvsp killed [[ADDsip2]], 0, [[DEF6]], $sprf_true, 0 :: (load 256 from %ir.src_val.sroa.0.0..sroa_cast1 + 256, addrspace 2)
+    ; CHECK: [[LD_L_Vvsp3:%[0-9]+]]:vrf = LD_L_Vvsp killed [[ADDsip2]], 0, [[DEF6]], $sprf_true, 0 :: (load (s2048) from %ir.src_val.sroa.0.0..sroa_cast1 + 256, addrspace 2)
     ; CHECK: [[REG_SEQUENCE:%[0-9]+]]:arf = REG_SEQUENCE killed [[LD_L_Vvsp]], %subreg.sub_0, killed [[LD_L_Vvsp3]], %subreg.sub_1, killed [[LD_L_Vvsp2]], %subreg.sub_2, killed [[LD_L_Vvsp1]], %subreg.sub_3
     ; CHECK: [[COPY2:%[0-9]+]]:vrf = COPY [[REG_SEQUENCE]].sub_0
     ; CHECK: [[DEF7:%[0-9]+]]:vrf = IMPLICIT_DEF
@@ -57,7 +57,7 @@ body:             |
     ; CHECK: [[CONVERT_INT32g2vip2:%[0-9]+]]:vrf = CONVERT_INT32g2vip killed [[COPY5]], 0, 1030, [[CONVERT_INT32g2vip1]], $sprf_true, 0
     ; CHECK: [[COPY6:%[0-9]+]]:vrf = COPY [[REG_SEQUENCE]].sub_3
     ; CHECK: [[CONVERT_INT32g2vip3:%[0-9]+]]:vrf = CONVERT_INT32g2vip killed [[COPY6]], 0, 1031, [[CONVERT_INT32g2vip2]], $sprf_true, 0
-    ; CHECK: ST_L_Vsvp [[COPY]], killed [[CONVERT_INT32g2vip3]], 0, $sprf_true, 0 :: (store 256 into %ir.0, addrspace 2)
+    ; CHECK: ST_L_Vsvp [[COPY]], killed [[CONVERT_INT32g2vip3]], 0, $sprf_true, 0 :: (store (s2048) into %ir.0, addrspace 2)
     ; CHECK: HALTs
     CACHE_INVALIDATE 0, $sprf_true, 0
     %1:srf = COPY $s1

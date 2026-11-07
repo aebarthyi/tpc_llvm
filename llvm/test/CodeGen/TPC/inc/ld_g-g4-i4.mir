@@ -52,10 +52,10 @@ body:             |
     ; CHECK: [[DEF1:%[0-9]+]]:adrf = IMPLICIT_DEF
     ; CHECK: [[GEN_ADDR_st:%[0-9]+]]:adrf = GEN_ADDR_st 0, [[SET_INDX_ld_ip]], 18, [[DEF1]], $sprf_true, 0
     ; CHECK: [[DEF2:%[0-9]+]]:srf = IMPLICIT_DEF
-    ; CHECK: [[LD_Gsap:%[0-9]+]]:srf = LD_Gsap killed [[GEN_ADDR_st]](tied-def 6), 3, [[DEF2]](tied-def 0), $sprf_true, 0, implicit-def %11 :: (load 4 from %ir.addr.0, addrspace 3)
+    ; CHECK: [[LD_Gsap:%[0-9]+]]:srf = LD_Gsap killed [[GEN_ADDR_st]](tied-def 6), 3, [[DEF2]](tied-def 0), $sprf_true, 0, implicit-def %11 :: (load (s32) from %ir.addr.0, addrspace 3)
     ; CHECK: [[DEF3:%[0-9]+]]:adrf = IMPLICIT_DEF
     ; CHECK: [[DEF4:%[0-9]+]]:srf = IMPLICIT_DEF
-    ; CHECK: [[LD_Gsap1:%[0-9]+]]:srf = LD_Gsap killed %11, 0, [[DEF4]], $sprf_true, 0 :: (load 4 from %ir.addr.1, addrspace 3)
+    ; CHECK: [[LD_Gsap1:%[0-9]+]]:srf = LD_Gsap killed %11, 0, [[DEF4]], $sprf_true, 0 :: (load (s32) from %ir.addr.1, addrspace 3)
     ; CHECK: HALTs
     %2:irf = IMPLICIT_DEF
     %1:irf = SET_INDX_ld_ip %2, 0, 31, 0, $sprf_true, 0

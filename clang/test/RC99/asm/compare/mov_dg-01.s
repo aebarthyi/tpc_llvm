@@ -1,15 +1,15 @@
 // RUN: %clang -cc1as -triple tpc-none-none -filetype obj %s -o %t.o
 // RUN: %disasm %t.o | FileCheck %s
 // RUN: %clang -cc1as -triple tpc-none-none -target-cpu gaudi -filetype obj %s -o %t.o
-// RUN: %disasm --mcpu gaudi %t.o | FileCheck %s
+// RUN: %disasm --mcpu=gaudi %t.o | FileCheck %s
 // RUN: %clang -cc1as -triple tpc-none-none -target-cpu gaudib -filetype obj %s -o %t.o
-// RUN: %disasm --mcpu gaudib %t.o | FileCheck %s
+// RUN: %disasm --mcpu=gaudib %t.o | FileCheck %s
 // RUN: %clang -cc1as -triple tpc-none-none -target-cpu goya2 -filetype obj %s -o %t.o
-// RUN: %disasm --mcpu goya2 %t.o | FileCheck %s
+// RUN: %disasm --mcpu=goya2 %t.o | FileCheck %s
 // RUN: %clang -cc1as -triple tpc-none-none -target-cpu gaudi2 -filetype obj %s -o %t.o
-// RUN: %disasm --mcpu gaudi2 %t.o | FileCheck %s
+// RUN: %disasm --mcpu=gaudi2 %t.o | FileCheck %s
 // RUN: %clang -cc1as -triple tpc-none-none -target-cpu doron1 -filetype obj %s -o %t.o
-// RUN: %disasm --mcpu doron1 %t.o | FileCheck %s
+// RUN: %disasm --mcpu=doron1 %t.o | FileCheck %s
 
 nop; nop; mov_dg V1, V2, src=0, dst=0, wr_lg=0, wr_ug=0, 123; nop
 nop; nop; mov_dg V1, V2, src=1, dst=0, wr_lg=0, wr_ug=0, 123; nop

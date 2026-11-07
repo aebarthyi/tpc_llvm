@@ -1,9 +1,9 @@
 // RUN: %clang -cc1as -triple tpc-none-none -target-cpu gaudib -filetype obj %s -o %t.o
-// RUN: %disasm --mcpu gaudib %t.o | FileCheck %s
+// RUN: %disasm --mcpu=gaudib %t.o | FileCheck %s
 // RUN: %clang -cc1as -triple tpc-none-none -target-cpu gaudi2 -filetype obj %s -o %t.o
-// RUN: %disasm --mcpu gaudi2 %t.o | FileCheck %s
+// RUN: %disasm --mcpu=gaudi2 %t.o | FileCheck %s
 // RUN: %clang -cc1as -triple tpc-none-none -target-cpu doron1 -filetype obj %s -o %t.o
-// RUN: %disasm --mcpu doron1 %t.o | FileCheck %s
+// RUN: %disasm --mcpu=doron1 %t.o | FileCheck %s
 
 nop; 	nop; 	mov_dg.unpack unpack_type=0, sdg0=0, sdg1=1, sdg2=2, sdg3=3, weg0=3, weg1=2, weg2=1, weg3=0, V1, V2, 123; 	nop
 nop; 	nop; 	mov_dg.unpack unpack_type=0, sdg0=1, sdg1=2, sdg2=3, sdg3=0, weg0=2, weg1=1, weg2=0, weg3=3, V1, V2, 123; 	nop

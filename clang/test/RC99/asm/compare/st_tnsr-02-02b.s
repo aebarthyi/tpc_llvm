@@ -1,7 +1,7 @@
 // RUN: %clang -cc1as -triple tpc-none-none -filetype obj -target-cpu gaudi %s -o %t.o
-// RUN: %disasm --mcpu gaudi %t.o | FileCheck %s
+// RUN: %disasm --mcpu=gaudi %t.o | FileCheck %s
 // RUN: %clang -cc1as -triple tpc-none-none -filetype obj -target-cpu gaudib %s -o %t.o
-// RUN: %disasm --mcpu gaudib %t.o | FileCheck %s
+// RUN: %disasm --mcpu=gaudib %t.o | FileCheck %s
 
 // TNSR_ID_REG=0, RMW_SEL=0, PARTIAL=0
 

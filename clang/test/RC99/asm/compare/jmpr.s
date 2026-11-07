@@ -7,7 +7,7 @@
 // RUN1: %clang -cc1as -triple tpc-none-none -filetype obj -target-cpu gaudi2 %s -o %t.o
 // RUN1: %disasm --mcpu gaudi2 %t.o | FileCheck %s
 // RUN: %clang -cc1as -triple tpc-none-none -filetype obj -target-cpu doron1 %s -o %t.o
-// RUN: %disasm --mcpu doron1 %t.o | FileCheck %s
+// RUN: %disasm --mcpu=doron1 %t.o | FileCheck %s
 
 L00:
 nop;jmpr L0, SP1; nop; nop

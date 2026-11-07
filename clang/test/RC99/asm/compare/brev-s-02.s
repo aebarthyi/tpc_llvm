@@ -1,5 +1,5 @@
 // RUN: %clang -cc1as -triple tpc-none-none -target-cpu gaudi -filetype obj %s -o %t.o
-// RUN: %disasm --mcpu gaudi %t.o | FileCheck %s
+// RUN: %disasm --mcpu=gaudi %t.o | FileCheck %s
 
 NOP; BREV.F32  S1, S2; NOP; NOP
 NOP; BREV.F32  S1, S2, SP3; NOP; NOP

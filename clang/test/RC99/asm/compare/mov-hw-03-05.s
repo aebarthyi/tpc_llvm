@@ -1,9 +1,9 @@
 // RUN: %clang -cc1as -triple tpc-none-none -filetype obj -target-cpu goya2 %s -o %t.o
-// RUN: %disasm --mcpu goya2 %t.o | FileCheck %s
+// RUN: %disasm --mcpu=goya2 %t.o | FileCheck %s
 // RUN: %clang -cc1as -triple tpc-none-none -filetype obj -target-cpu gaudi2 %s -o %t.o
-// RUN: %disasm --mcpu gaudi2 %t.o | FileCheck %s
+// RUN: %disasm --mcpu=gaudi2 %t.o | FileCheck %s
 // RUN: %clang -cc1as -triple tpc-none-none -filetype obj -target-cpu doron1 %s -o %t.o
-// RUN: %disasm --mcpu doron1 %t.o | FileCheck %s
+// RUN: %disasm --mcpu=doron1 %t.o | FileCheck %s
 
 // LOAD
 MOV.TO_HW_REG 2, SP1, SP1

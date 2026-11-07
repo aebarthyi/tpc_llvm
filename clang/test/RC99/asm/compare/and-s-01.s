@@ -1,9 +1,9 @@
 // RUN: %clang -cc1as -triple tpc-none-none -filetype obj %s -o %t.o
 // RUN: %disasm %t.o | FileCheck %s
 // RUN: %clang -cc1as -triple tpc-none-none -filetype obj -target-cpu gaudi %s -o %t.o
-// RUN: %disasm --mcpu gaudi %t.o | FileCheck %s
+// RUN: %disasm --mcpu=gaudi %t.o | FileCheck %s
 // RUN: %clang -cc1as -triple tpc-none-none -filetype obj -target-cpu goya2 %s -o %t.gen4.o
-// RUN: %disasm --mcpu goya2 %t.gen4.o | FileCheck %s
+// RUN: %disasm --mcpu=goya2 %t.gen4.o | FileCheck %s
 
 NOP; AND.F32 S5, S1, S2
 NOP; AND.F32 S5, S1, S2, SP3

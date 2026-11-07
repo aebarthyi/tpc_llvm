@@ -1,11 +1,11 @@
 // RUN: %clang -cc1as -triple tpc-none-none -filetype obj -target-cpu gaudi %s -o %t.o
 // RUN: %disasm --mcpu=gaudi %t.o | FileCheck %s
 // RUN: %clang -cc1as -triple tpc-none-none -target-cpu goya2 -filetype obj %s -o %t.o
-// RUN: %disasm --mcpu goya2 %t.o | FileCheck %s
+// RUN: %disasm --mcpu=goya2 %t.o | FileCheck %s
 // RUN: %clang -cc1as -triple tpc-none-none -target-cpu gaudi2 -filetype obj %s -o %t.o
-// RUN: %disasm --mcpu gaudi2 %t.o | FileCheck %s
+// RUN: %disasm --mcpu=gaudi2 %t.o | FileCheck %s
 // RUN: %clang -cc1as -triple tpc-none-none -target-cpu doron1 -filetype obj %s -o %t.o
-// RUN: %disasm --mcpu doron1 %t.o | FileCheck %s
+// RUN: %disasm --mcpu=doron1 %t.o | FileCheck %s
 
 NOP; NOP; NOP; ST_L_V S0, V16
 NOP; NOP; NOP; ST_L_V S1, V17

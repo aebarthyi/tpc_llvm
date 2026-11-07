@@ -1,5 +1,5 @@
 // RUN: %clang -cc1as -triple tpc-none-none -target-cpu gaudi -filetype obj %s -o %t.o
-// RUN: %disasm --mcpu gaudi %t.o | FileCheck %s
+// RUN: %disasm --mcpu=gaudi %t.o | FileCheck %s
 
 
 NOP; CMP_EQ.I32 SP1, S1, i32_122       ; NOP; NOP

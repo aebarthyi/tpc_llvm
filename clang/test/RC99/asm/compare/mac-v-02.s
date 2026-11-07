@@ -1,5 +1,5 @@
 // RUN: %clang -cc1as -triple tpc-none-none -target-cpu gaudi -filetype obj %s -o %t.o
-// RUN: %disasm --mcpu gaudi %t.o | FileCheck %s
+// RUN: %disasm --mcpu=gaudi %t.o | FileCheck %s
 
 NOP; NOP; MAC.BF16 V5, V1, V2
 NOP; NOP; MAC.BF16 V5, V1, V2, SP3
