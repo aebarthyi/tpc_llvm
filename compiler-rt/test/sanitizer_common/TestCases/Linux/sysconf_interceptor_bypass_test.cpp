@@ -11,7 +11,7 @@
 // Does not work with 2.31 and above at it calls sysconf for SIGSTKSZ.
 #if __GLIBC_PREREQ(2, 16) && !__GLIBC_PREREQ(2, 31)
 extern "C" long sysconf(int name) {
-  fprintf(stderr, "sysconf wrapper called\n");
+  fprintf(stderr, "sysconf wrapper called: %d\n", name);
   return 0;
 }
 #endif

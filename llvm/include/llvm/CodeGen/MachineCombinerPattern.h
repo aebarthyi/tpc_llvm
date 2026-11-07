@@ -155,8 +155,19 @@ enum class MachineCombinerPattern {
   FMLSv4i32_indexed_OP1,
   FMLSv4i32_indexed_OP2,
 
+  FMULv2i32_indexed_OP1,
+  FMULv2i32_indexed_OP2,
+  FMULv2i64_indexed_OP1,
+  FMULv2i64_indexed_OP2,
+  FMULv4i16_indexed_OP1,
+  FMULv4i16_indexed_OP2,
+  FMULv4i32_indexed_OP1,
+  FMULv4i32_indexed_OP2,
+  FMULv8i16_indexed_OP1,
+  FMULv8i16_indexed_OP2,
+
   // Patterns from TPC
-  TPCMACx2f32vvp
+  TPCMACx2f32vvp,
 };
 
 } // end namespace llvm

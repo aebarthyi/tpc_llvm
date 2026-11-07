@@ -1,5 +1,6 @@
 set(LLVM_LINK_COMPONENTS
   BinaryFormat
+  MC
   Option
   ProfileData
   Support
@@ -53,7 +54,9 @@ add_clang_library(clangDriver
   ToolChains/Fuchsia.cpp
   ToolChains/Gnu.cpp
   ToolChains/Haiku.cpp
-  ToolChains/HIP.cpp
+  ToolChains/HIPUtility.cpp
+  ToolChains/HIPAMD.cpp
+  ToolChains/HIPSPV.cpp
   ToolChains/Hexagon.cpp
   ToolChains/Hurd.cpp
   ToolChains/Linux.cpp
@@ -69,12 +72,14 @@ add_clang_library(clangDriver
   ToolChains/PS4CPU.cpp
   ToolChains/RISCVToolchain.cpp
   ToolChains/Solaris.cpp
+  ToolChains/SPIRV.cpp
   ToolChains/TCE.cpp
   ToolChains/TPC.cpp
   ToolChains/VEToolchain.cpp
   ToolChains/WebAssembly.cpp
   ToolChains/XCore.cpp
   ToolChains/PPCLinux.cpp
+  ToolChains/PPCFreeBSD.cpp
   ToolChains/InterfaceStubs.cpp
   ToolChains/ZOS.cpp
   Types.cpp

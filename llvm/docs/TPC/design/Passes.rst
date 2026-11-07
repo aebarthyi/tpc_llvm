@@ -14,8 +14,9 @@ Where passes live
   and scheduled by ``TPCTargetMachine`` (see below).
 * ``llvm/lib/Transforms/Scalar/`` and ``llvm/lib/Transforms/IPO/`` - TPC passes
   that live in the generic tree. Scheduled directly by the pipeline builders
-  (``PassBuilder.cpp`` for the new pass manager, ``PassManagerBuilder.cpp`` for
-  the legacy one) when the target triple is ``tpc``.
+  (``PassBuilderPipelines.cpp`` for the new pass manager,
+  ``PassManagerBuilder.cpp`` for the legacy one) when the target triple is
+  ``tpc``.
 
 Every pass has a legacy pass manager entry point (``create...()``) and a new
 pass manager entry point (``...Pass``), and both call the same implementation.
@@ -74,9 +75,9 @@ refers to, which ``GlobalDCE`` would otherwise delete.
 ``OptimizerEarlyEP`` was added upstream in LLVM 15; this fork carries a
 backport of it from the LLVM 13 port onward.
 
-For the ``tpc`` triple, ``PassBuilder`` also changes the default pipeline the
-same way the legacy ``PassManagerBuilder`` does (look for
-``LLVM_TPC_COMPILER`` in ``PassBuilder.cpp``):
+For the ``tpc`` triple, ``PassBuilderPipelines.cpp`` also changes the default
+pipeline the same way the legacy ``PassManagerBuilder`` does (look for
+``isTPCTarget`` in that file):
 
 * Only ``always_inline`` functions are inlined: the module simplification
   pipeline runs ``AlwaysInlinerPass``, ``PostOrderFunctionAttrsPass``,

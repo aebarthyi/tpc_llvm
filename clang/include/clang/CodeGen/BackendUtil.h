@@ -48,6 +48,9 @@ namespace clang {
   void EmbedText   (llvm::Module *M, const CodeGenOptions &CGOpts,
                     StringRef Str, StringRef SectionName, StringRef ItemName);
 #endif
+
+  void EmbedObject(llvm::Module *M, const CodeGenOptions &CGOpts,
+                   DiagnosticsEngine &Diags);
 }
 
 #endif

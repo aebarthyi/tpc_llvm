@@ -144,7 +144,8 @@ namespace Intrinsic {
       Subdivide2Argument,
       Subdivide4Argument,
       VecOfBitcastsToInt,
-      AMX
+      AMX,
+      PPCQuad,
     } Kind;
 
     union {
