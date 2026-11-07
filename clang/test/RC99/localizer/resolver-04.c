@@ -8,7 +8,7 @@ void main(int x) {
 
 
 // CHECK: define dso_local void @main(i32 noundef %x) {{.*}} {
-// CHECK:   store i32 123, i32 addrspace(1)* null
+// CHECK:   store i32 123, ptr addrspace(1) null
 
 
 // CHECK: !llvm.tpc.scalar_data = !{![[SSZ:[0-9]+]]}

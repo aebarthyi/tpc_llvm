@@ -34,7 +34,6 @@ build_tpc_llvm ()
         -DCLANG_BUILD_EXAMPLES=OFF \
         -DCMAKE_BUILD_TYPE="Release" \
         -DLLVM_ENABLE_PROJECTS=clang \
-        -DCLANG_ENABLE_OPAQUE_POINTERS=OFF \
         $SCRIPT_DIR"/llvm")
 
         make -j ${__jobs} clang llvm-objdump

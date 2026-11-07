@@ -22,5 +22,5 @@ void main(
 // float34 - is extra argument
 // tensor 2 reserved for printf and assigned to "t2"
 // tensor 3 used for extra arg
-// CHECK: %{{[0-9]+}} = {{.*}}call i8 addrspace(3)* @llvm.tpc.gen.addr(<5 x i32> zeroinitializer, i8 3, i32 0, i8 addrspace(3)* undef, i1 true, i1 false)
-// CHECK: %{{[0-9]+}} = {{.*}}call i8 addrspace(3)* @llvm.tpc.gen.addr(<5 x i32> <i32 0, i32 1, i32 2, i32 3, i32 3>, i8 2, i32 0, i8 addrspace(3)* undef, i1 true, i1 false)
+// CHECK: %{{[0-9]+}} = {{.*}}call ptr addrspace(3) @llvm.tpc.gen.addr(<5 x i32> zeroinitializer, i8 3, i32 0, ptr addrspace(3) undef, i1 true, i1 false)
+// CHECK: %{{[0-9]+}} = {{.*}}call ptr addrspace(3) @llvm.tpc.gen.addr(<5 x i32> <i32 0, i32 1, i32 2, i32 3, i32 3>, i8 2, i32 0, ptr addrspace(3) undef, i1 true, i1 false)

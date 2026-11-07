@@ -3,9 +3,9 @@
 
 define void @main(i32 %dest, i32 %src) {
 entry:
-  %0 = inttoptr i32 %dest to i32 addrspace(1)*
+  %0 = inttoptr i32 %dest to ptr addrspace(1)
   %call = tail call i32 @qqq(i32 %src)
-  store i32 %call, i32 addrspace(1)* %0, align 4
+  store i32 %call, ptr addrspace(1) %0, align 4
   ret void
 }
 
@@ -13,9 +13,9 @@ declare i32 @qqq(i32)
 
 ; CHECK: define void @main(i32 %dest, i32 %src) {{.*}}#0 {
 ; CHECK: entry:
-; CHECK:   %0 = inttoptr i32 %dest to i32 addrspace(1)*
+; CHECK:   %0 = inttoptr i32 %dest to ptr addrspace(1)
 ; CHECK:   %add.i = add nsw i32 %src, 22
-; CHECK:   store i32 %add.i, i32 addrspace(1)* %0, align 4
+; CHECK:   store i32 %add.i, ptr addrspace(1) %0, align 4
 ; CHECK:   ret void
 ; CHECK: }
 ; CHECK: attributes #0 = {{{.*}} "tpc-kernel" {{.*}}}

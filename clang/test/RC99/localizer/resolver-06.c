@@ -9,7 +9,7 @@ void main(int x) {
 
 
 // CHECK: define dso_local void @main(i32 noundef %x) {{.*}} {
-// CHECK:   store <64 x i32> zeroinitializer, <64 x i32> addrspace(2)* null
+// CHECK:   store <64 x i32> zeroinitializer, ptr addrspace(2) null
 
 
 // CHECK: !llvm.tpc.scalar_data = !{![[SSZ:[0-9]+]]}

@@ -18,22 +18,22 @@ void main(
   *ptr1 = float34;
 }
 
-// CHECK: %{{[0-9]+}} = tail call i8 addrspace(3)* @llvm.tpc.gen.addr(<5 x i32> zeroinitializer, i8 7)
-// CHECK: %{{[0-9]+}} = bitcast i8 addrspace(3)* %{{[0-9]+}} to i32 addrspace(3)*
-// CHECK: %{{[0-9]+}} = load i32, i32 addrspace(3)* %{{[0-9]+}}, align 4
+// CHECK: %{{[0-9]+}} = tail call ptr addrspace(3) @llvm.tpc.gen.addr(<5 x i32> zeroinitializer, i8 7)
+// CHECK: %{{[0-9]+}} = bitcast ptr addrspace(3) %{{[0-9]+}} to ptr addrspace(3)
+// CHECK: %{{[0-9]+}} = load i32, ptr addrspace(3) %{{[0-9]+}}, align 4
 // CHECK: %{{[0-9]+}} = tail call <5 x i32> @llvm.tpc.i.i32.add.s.i(i32 1, <5 x i32> zeroinitializer, <5 x i32> undef, i8 1)
-// CHECK: %{{[0-9]+}} = tail call i8 addrspace(3)* @llvm.tpc.gen.addr(<5 x i32> %{{[0-9]+}}, i8 7)
-// CHECK: %{{[0-9]+}} = bitcast i8 addrspace(3)* %{{[0-9]+}} to i32 addrspace(3)*
-// CHECK: %{{[0-9]+}} = load i32, i32 addrspace(3)* %{{[0-9]+}}, align 4
+// CHECK: %{{[0-9]+}} = tail call ptr addrspace(3) @llvm.tpc.gen.addr(<5 x i32> %{{[0-9]+}}, i8 7)
+// CHECK: %{{[0-9]+}} = bitcast ptr addrspace(3) %{{[0-9]+}} to ptr addrspace(3)
+// CHECK: %{{[0-9]+}} = load i32, ptr addrspace(3) %{{[0-9]+}}, align 4
 // CHECK: %{{[0-9]+}} = tail call <5 x i32> @llvm.tpc.i.i32.add.s.i(i32 1, <5 x i32> %{{[0-9]+}}, <5 x i32> undef, i8 1)
-// CHECK: %{{[0-9]+}} = tail call i8 addrspace(3)* @llvm.tpc.gen.addr(<5 x i32> %{{[0-9]+}}, i8 7)
-// CHECK: %{{[0-9]+}} = bitcast i8 addrspace(3)* %{{[0-9]+}} to float addrspace(3)*
-// CHECK: %{{[0-9]+}} = load float, float addrspace(3)* %{{[0-9]+}}, align 4
-// CHECK: %{{[0-9]+}} = inttoptr i32 %arg0 to i32 addrspace(1)*
-// CHECK: %{{[0-9]+}} = inttoptr i32 %arg1 to i32 addrspace(1)*
-// CHECK: store i32 %{{[0-9]+}}, i32 addrspace(1)* %{{[0-9]+}}, align 4
-// CHECK: store i32 %{{[0-9]+}}, i32 addrspace(1)* %{{[0-9]+}}, align 4
-// CHECK: %{{[0-9]+}} = inttoptr i32 %arg2 to i32 addrspace(1)*
+// CHECK: %{{[0-9]+}} = tail call ptr addrspace(3) @llvm.tpc.gen.addr(<5 x i32> %{{[0-9]+}}, i8 7)
+// CHECK: %{{[0-9]+}} = bitcast ptr addrspace(3) %{{[0-9]+}} to ptr addrspace(3)
+// CHECK: %{{[0-9]+}} = load float, ptr addrspace(3) %{{[0-9]+}}, align 4
+// CHECK: %{{[0-9]+}} = inttoptr i32 %arg0 to ptr addrspace(1)
+// CHECK: %{{[0-9]+}} = inttoptr i32 %arg1 to ptr addrspace(1)
+// CHECK: store i32 %{{[0-9]+}}, ptr addrspace(1) %{{[0-9]+}}, align 4
+// CHECK: store i32 %{{[0-9]+}}, ptr addrspace(1) %{{[0-9]+}}, align 4
+// CHECK: %{{[0-9]+}} = inttoptr i32 %arg2 to ptr addrspace(1)
 // CHECK: %conv = fptosi float %{{[0-9]+}} to i32
-// CHECK: store i32 %conv, i32 addrspace(1)* %{{[0-9]+}}, align 4
+// CHECK: store i32 %conv, ptr addrspace(1) %{{[0-9]+}}, align 4
 // CHECK: ret void

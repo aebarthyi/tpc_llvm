@@ -11,8 +11,8 @@ void main(int x) {
 }
 
 
-// CHECK: store i32 11, i32 addrspace(1)* getelementptr inbounds ([12 x i32], [12 x i32] addrspace(1)* null, i32 0, i32 1)
-// CHECK: store i32 777, i32 addrspace(1)* getelementptr inbounds ([2 x i32], [2 x i32] addrspace(1)* inttoptr (i32 48 to [2 x i32] addrspace(1)*), i32 0, i32 0)
+// CHECK: store i32 11, ptr addrspace(1) getelementptr inbounds ([12 x i32], ptr addrspace(1) null, i32 0, i32 1)
+// CHECK: store i32 777, ptr addrspace(1) inttoptr (i32 48 to ptr addrspace(1))
 
 
 // CHECK: !llvm.tpc.scalar_data = !{![[SSZ:[0-9]+]]}

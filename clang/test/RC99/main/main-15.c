@@ -7,6 +7,6 @@ void main_entry(int dest, tensor t0, float arg2, tensor t1, tensor t2) {
 }
 
 // CHECK: define dso_local void @main_entry(i32 noundef %dest, float noundef %arg2) local_unnamed_addr #0 {
-// CHECK: store volatile i32 0, i32 addrspace(1)* %{{[0-9+]}}
-// CHECK: store volatile i32 1, i32 addrspace(1)* %{{[0-9+]}}
-// CHECK: store volatile i32 2, i32 addrspace(1)* %{{[0-9+]}}
+// CHECK: store volatile i32 0, ptr addrspace(1) %{{[0-9+]}}
+// CHECK: store volatile i32 1, ptr addrspace(1) %{{[0-9+]}}
+// CHECK: store volatile i32 2, ptr addrspace(1) %{{[0-9+]}}

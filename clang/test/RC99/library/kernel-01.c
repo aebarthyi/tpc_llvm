@@ -18,9 +18,9 @@ void main(int dest, int src) {
 
 // CHECK: define dso_local void @main(i32 noundef %dest, i32 noundef %src) {{.*}}#0 {
 // CHECK: entry:
-// CHECK:   %0 = inttoptr i32 %dest to i32 addrspace(1)*
+// CHECK:   %0 = inttoptr i32 %dest to ptr addrspace(1)
 // CHECK:   %add.i = add nsw i32 %src, 22
-// CHECK:   store i32 %add.i, i32 addrspace(1)* %0, align 4
+// CHECK:   store i32 %add.i, ptr addrspace(1) %0, align 4
 // CHECK:   ret void
 // CHECK: }
 // CHECK: attributes #0 = { {{.*}} "tpc-kernel"="true" {{.*}} }
