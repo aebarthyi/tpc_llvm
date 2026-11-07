@@ -1,4 +1,5 @@
 #include "SCEVParser.h"
+#include "llvm/Analysis/LoopInfo.h"
 
 void SCEVParser::searchForValue(const SCEV *s, vector<Instruction *> &InsVecUpdate) {
     if (auto ptr = dyn_cast<SCEVNAryExpr>(s)) {

@@ -17,6 +17,7 @@
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Target/TPCMetadataSection.h"
+#include <bitset>
 #include <cassert>
 #include <iostream>
 #include <sstream>

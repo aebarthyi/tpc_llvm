@@ -138,8 +138,7 @@ public:
 
   bool isProfitableToHoist(MachineInstr &MI) const override;
 
-  bool isReallyTriviallyReMaterializable(const MachineInstr &MI,
-                                         AAResults *AA) const override;
+  bool isReallyTriviallyReMaterializable(const MachineInstr &MI) const override;
 
   void reMaterialize(MachineBasicBlock &MBB,
                      MachineBasicBlock::iterator MI, Register DestReg,

@@ -6,6 +6,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/TargetLibraryInfo.h"
+#include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/IntrinsicsTPC.h"
@@ -542,7 +543,7 @@ bool TPCSelectorPreshaperLegacyPass::runOnFunction(Function &Func) {
         auto type = Store->getValueOperand()->getType();
         if (FixedVectorType *vt = dyn_cast<FixedVectorType>(type)) {
           unsigned bsz = vt->getPrimitiveSizeInBits() / 8;
-          unsigned alStore = Store->getAlignment();
+          unsigned alStore = Store->getAlign().value();
           if (alStore < bsz && bsz >= 256) {
             Store->setAlignment(Align(256));
           }
@@ -628,7 +629,7 @@ bool TPCSelectorPreshaperLegacyPass::runOnFunction(Function &Func) {
         auto type = Load->getType();
         if (FixedVectorType *vt = dyn_cast<FixedVectorType>(type)) {
           unsigned bsz = vt->getPrimitiveSizeInBits()/8;
-          unsigned alLo = Load->getAlignment();
+          unsigned alLo = Load->getAlign().value();
           if (alLo < bsz && bsz >= 256) {
             Load->setAlignment(Align(256));
           }

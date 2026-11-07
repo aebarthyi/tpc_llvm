@@ -696,8 +696,8 @@ bool removePhiInputFromMBB(MachineInstr &Phi, const MachineBasicBlock &MBB) {
   if (!MBBIx.hasValue())
     return false;
 
-  Phi.RemoveOperand(MBBIx.getValue()); // MBB (remove first: MBBIx > ValIx)
-  Phi.RemoveOperand(ValIx.getValue()); // Value
+  Phi.removeOperand(MBBIx.getValue()); // MBB (remove first: MBBIx > ValIx)
+  Phi.removeOperand(ValIx.getValue()); // Value
   return true;
 }
 

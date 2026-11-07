@@ -2085,7 +2085,7 @@ bool CompilerInvocation::ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args,
   Opts.AllLoopsTaken = Args.hasArg(OPT_all_loops_taken);
   Opts.RegMemCount = Args.hasArg(OPT_reg_mem_count);
   Opts.LutWarn = !Args.hasArg(OPT_disable_lut_warn);
-  Opts.CompressInstructions = Args.hasFlag(OPT_instr_compress, OPT_no_instr_compress);
+  Opts.CompressInstructions = Args.hasFlag(OPT_instr_compress, OPT_no_instr_compress, true);
   Opts.LongIRF = Args.hasFlag(OPT_long_irf, OPT_no_long_irf, false);
   Opts.TpcDnorm = Args.hasFlag(OPT_tpc_dnorm, OPT_no_tpc_dnorm, false);
   Opts.MaxTensor = getLastArgIntValue(Args, OPT_max_tensors, 16, Diags);

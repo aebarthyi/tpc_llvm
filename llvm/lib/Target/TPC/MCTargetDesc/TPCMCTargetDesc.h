@@ -49,9 +49,7 @@ enum OperandType {
 };
 } // end namespace TPC
 
-MCCodeEmitter *createTPCMCCodeEmitter(const MCInstrInfo &MCII,
-                                        const MCRegisterInfo &MRI,
-                                        MCContext &Ctx);
+MCCodeEmitter *createTPCMCCodeEmitter(const MCInstrInfo &MCII, MCContext &Ctx);
 MCAsmBackend *createTPCAsmBackend(const Target &T,
                                   const MCRegisterInfo &MRI,
                                   const Triple &TheTriple, StringRef CPU,

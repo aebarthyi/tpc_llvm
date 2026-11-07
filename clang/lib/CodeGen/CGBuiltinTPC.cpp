@@ -2418,8 +2418,9 @@ static Value *emit_LD_G_P_INC(CodeGenFunction *CGF, unsigned BuiltinID,
   SmallVector<llvm::Value *, 6> Args;
 
   Address Addr0 = CGF->EmitLoadOfPointer(
-    Address(AddrPtr, CharUnits::fromQuantity(AlignValue)),
-    cast<clang::PointerType>(E->getArg(0)->getType()));
+    Address(AddrPtr, CGF->ConvertTypeForMem(PtrTy->getPointeeType()),
+            CharUnits::fromQuantity(AlignValue)),
+    cast<clang::PointerType>(PtrTy->getPointeeType()));
   Args.push_back(Addr0.getPointer());
 
   // Read value.
@@ -2497,7 +2498,8 @@ static Value *emit_LD_G_P_INC(CodeGenFunction *CGF, unsigned BuiltinID,
                                        Pred->getType() });
   Value *Result = CGF->Builder.CreateCall(Callee, Args);
 
-  Address VarPtr(AddrPtr, CharUnits::fromQuantity(cast<AllocaInst>(AddrPtr)->getAlignment()));
+  Address VarPtr(AddrPtr, CGF->ConvertTypeForMem(PtrTy->getPointeeType()),
+                 CharUnits::fromQuantity(cast<AllocaInst>(AddrPtr)->getAlign().value()));
   Value *PtrUpd = CGF->Builder.CreateExtractValue(Result, { 1 });
   CGF->EmitStoreOfScalar(PtrUpd, CGF->MakeAddrLValue(VarPtr, QualType(PtrTy, 0)));
 
@@ -2528,8 +2530,9 @@ static Value *emit_LD_G_INC(CodeGenFunction *CGF, unsigned BuiltinID,
     AlignValue = A.value();
   }
   Address Addr0 = CGF->EmitLoadOfPointer(
-    Address(AddrPtr, CharUnits::fromQuantity(AlignValue)),
-    cast<clang::PointerType>(E->getArg(AddrOpNum)->getType()));
+    Address(AddrPtr, CGF->ConvertTypeForMem(PtrTy->getPointeeType()),
+            CharUnits::fromQuantity(AlignValue)),
+    cast<clang::PointerType>(PtrTy->getPointeeType()));
   Value *DimMask = nullptr;
   if (BuiltinID == TPC::BIi_i32_ld_g_inc)
     DimMask = CGF->EmitScalarExpr(E->getArg(DimMaskOpNum));
@@ -2605,10 +2608,10 @@ static Value *emit_LD_G_INC(CodeGenFunction *CGF, unsigned BuiltinID,
 
   CharUnits Alignment;
   if (isa<AllocaInst>(AddrPtr))
-    Alignment = CharUnits::fromQuantity(cast<AllocaInst>(AddrPtr)->getAlignment());
+    Alignment = CharUnits::fromQuantity(cast<AllocaInst>(AddrPtr)->getAlign().value());
   else
     Alignment = CharUnits::fromQuantity(4);
-  Address VarPtr(AddrPtr, Alignment);
+  Address VarPtr(AddrPtr, CGF->ConvertTypeForMem(PtrTy->getPointeeType()), Alignment);
   Value *PtrUpd = CGF->Builder.CreateExtractValue(Result, { 1 });
   CGF->EmitStoreOfScalar(PtrUpd, CGF->MakeAddrLValue(VarPtr, QualType(PtrTy, 0)));
 
@@ -3553,8 +3556,9 @@ static Value *emit_ST_G_INC(CodeGenFunction *CGF, unsigned BuiltinID,
     AlignValue = A.value();
   }
   Address Addr0 = CGF->EmitLoadOfPointer(
-    Address(AddrPtr, CharUnits::fromQuantity(AlignValue)),
-     cast<clang::PointerType>(E->getArg(0)->getType()));
+    Address(AddrPtr, CGF->ConvertTypeForMem(PtrTy->getPointeeType()),
+            CharUnits::fromQuantity(AlignValue)),
+     cast<clang::PointerType>(PtrTy->getPointeeType()));
 
   // Stored value.
   Value *Val;
@@ -3620,7 +3624,8 @@ static Value *emit_ST_G_INC(CodeGenFunction *CGF, unsigned BuiltinID,
       { CGF->ConvertType(QualType(PointeeTy, 0)), Val->getType() });
   Value *Result = CGF->Builder.CreateCall(Callee, { Addr0.getPointer(), Val, IncValue, Switches, Pred, Polarity });
 
-  Address VarPtr(AddrPtr, CharUnits::fromQuantity(cast<AllocaInst>(AddrPtr)->getAlignment()));
+  Address VarPtr(AddrPtr, CGF->ConvertTypeForMem(PtrTy->getPointeeType()),
+                 CharUnits::fromQuantity(cast<AllocaInst>(AddrPtr)->getAlign().value()));
   CGF->EmitStoreOfScalar(Result, CGF->MakeAddrLValue(VarPtr, QualType(PtrTy, 0)));
 
   return UndefValue::get(CGF->VoidTy);
@@ -5212,8 +5217,9 @@ static Value *emit_UPDATE_ADDR(CodeGenFunction *CGF, unsigned BuiltinID,
   }
 
   Address Ptr0 = CGF->EmitLoadOfPointer(
-    Address(Ptr, CharUnits::fromQuantity(AlignValue)),
-    cast<clang::PointerType>(E->getArg(PtrOpNum)->getType()));
+    Address(Ptr, CGF->ConvertTypeForMem(PtrTy->getPointeeType()),
+            CharUnits::fromQuantity(AlignValue)),
+    cast<clang::PointerType>(PtrTy->getPointeeType()));
 
   Value *Addr = emitOperand(CGF, E->getArg(AddrOpNum));
   Value *Switches = CGF->EmitScalarExpr(E->getArg(SwOpNum));
@@ -5227,10 +5233,10 @@ static Value *emit_UPDATE_ADDR(CodeGenFunction *CGF, unsigned BuiltinID,
 
   CharUnits Alignment;
   if (auto *AI = dyn_cast<AllocaInst>(Ptr))
-    Alignment = CharUnits::fromQuantity(AI->getAlignment());
+    Alignment = CharUnits::fromQuantity(AI->getAlign().value());
   else
     Alignment = CharUnits::fromQuantity(4);
-  Address VarPtr(Ptr, Alignment);
+  Address VarPtr(Ptr, CGF->ConvertTypeForMem(PtrTy->getPointeeType()), Alignment);
   Value *PtrUpd = Result;
   CGF->EmitStoreOfScalar(PtrUpd, CGF->MakeAddrLValue(VarPtr, QualType(PtrTy, 0)));
 

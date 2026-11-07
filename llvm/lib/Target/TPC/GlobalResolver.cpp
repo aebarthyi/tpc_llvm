@@ -8,6 +8,7 @@
 #include <iostream>
 #include "TPCTargetMachine.h"
 #include "TPCTools.h"
+#include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
@@ -78,8 +79,8 @@ struct GlobalResolver : public ModulePass {
       if (mustBeResolved(GV)) {
         if (!GV.use_empty()) {
           PointerType *Ty = GV.getType();
-          bool IsVectorAddrSpace = isTpcVectorType(Ty->getElementType());
-          uint64_t Sz = DL.getTypeAllocSize(Ty->getElementType());
+          bool IsVectorAddrSpace = isTpcVectorType(Ty->getNonOpaquePointerElementType());
+          uint64_t Sz = DL.getTypeAllocSize(Ty->getNonOpaquePointerElementType());
           uint64_t Addr;
           if (!IsVectorAddrSpace) {
             Addr = ScalarAddress;
@@ -87,11 +88,11 @@ struct GlobalResolver : public ModulePass {
               Sz = 4;
             } 
             ScalarAddress += Sz;
-            Ty = PointerType::get(Ty->getElementType(), ScalarAddrSpace);
+            Ty = PointerType::get(Ty->getNonOpaquePointerElementType(), ScalarAddrSpace);
           } else {
             Addr = VectorAddress;
             VectorAddress += Sz;
-            Ty = PointerType::get(Ty->getElementType(), VectorAddrSpace);
+            Ty = PointerType::get(Ty->getNonOpaquePointerElementType(), VectorAddrSpace);
           }
           ConstantInt *AddrVal = ConstantInt::get(Type::getInt32Ty(C), Addr);
           auto PtrRef = ConstantExpr::getIntToPtr(AddrVal, Ty);

@@ -3467,8 +3467,7 @@ bool TPCInstrInfo::isProfitableToHoist(MachineInstr &MI) const {
   return true;
 }
 
-bool TPCInstrInfo::isReallyTriviallyReMaterializable(const MachineInstr &MI,
-                                                     AAResults *AA) const {
+bool TPCInstrInfo::isReallyTriviallyReMaterializable(const MachineInstr &MI) const {
   unsigned NumOperands = MI.getDesc().getNumOperands();
   if (NumOperands < 3)
     return false;

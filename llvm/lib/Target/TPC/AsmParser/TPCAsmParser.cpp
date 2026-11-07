@@ -14,6 +14,8 @@
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/APSInt.h"
+#include "llvm/MC/MCParser/MCAsmLexer.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/ADT/SmallBitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -1507,15 +1509,13 @@ OperandMatchResultTy TPCAsmParser::parseNumber(OperandVector &Operands) {
       return MatchOperand_ParseFail;
     } else {
       // Parse the suffix for integer type.
-      // 'u' and 'U' supported
-      const AsmToken &Suffix = Lexer.getTok();
-      if (Suffix.is(AsmToken::Identifier) &&
-          Suffix.getString().compare_insensitive("u") == 0 &&
-          (Suffix.getLoc().getPointer() - EndLoc.getPointer()) == 0) {
-        consumeToken();
-        EndLoc = Suffix.getEndLoc();
+      // 'u' and 'U' supported. The lexer skips them without making a token, so
+      // look at the text right after the digits.
+      const char *AfterDigits = EndLoc.getPointer();
+      if (*AfterDigits == 'u' || *AfterDigits == 'U') {
+        EndLoc = SMLoc::getFromPointer(AfterDigits + 1);
         if(Negative){
-          Error(Suffix.getLoc(), "the invalid suffix for a negative integer",
+          Error(Lexer.getTok().getLoc(), "the invalid suffix for a negative integer",
                 SMRange(StartLoc, EndLoc));
           Operands.push_back(std::unique_ptr<TPCOperand>());
           return MatchOperand_ParseFail;
@@ -3380,7 +3380,7 @@ void TPCAsmParser::flushPendingInstructions(MCStreamer &Out) {
   AC.flushPendingInstructions(Out, getSTI());
 
   if (TPCHeader) {
-    Out.PushSection();
+    Out.pushSection();
     MCSectionELF *MetadataSection = getContext().getELFSection(
           BinaryTPCMetadataSectionName,
           ELF::SHT_PROGBITS, ELF::SHF_WRITE | ELF::SHF_ALLOC);
@@ -3391,14 +3391,14 @@ void TPCAsmParser::flushPendingInstructions(MCStreamer &Out) {
     std::vector<uint8_t> BinaryValue = binarySerializeTPCProgramHeader(Header);
     Fragment->getContents().append(BinaryValue.begin(), BinaryValue.end());
     Fragment->setAlignToBundleEnd(true);
-    Out.SwitchSection(MetadataSection);
-    Out.PopSection();
+    Out.switchSection(MetadataSection);
+    Out.popSection();
   }
 
   std::string RootFileName = getContext().getMainFileName();
 
   if (!RootFileName.empty()) {
-    Out.PushSection();
+    Out.pushSection();
     MCSectionELF *KernelInfoSection = getContext().getELFSection(
           KernelInfoSectionName,
           ELF::SHT_PROGBITS, ELF::SHF_WRITE | ELF::SHF_ALLOC);
@@ -3409,12 +3409,12 @@ void TPCAsmParser::flushPendingInstructions(MCStreamer &Out) {
     std::string KernelInfo = GenerateKernelInfo(BareFileName);
     Fragment->getContents().append(KernelInfo.begin(), KernelInfo.end());
     Fragment->setAlignToBundleEnd(true);
-    Out.SwitchSection(KernelInfoSection);
-    Out.PopSection();
+    Out.switchSection(KernelInfoSection);
+    Out.popSection();
   }
 
   if (IndexMap) {
-    Out.PushSection();
+    Out.pushSection();
     MCSectionELF *IndexMapSection = getContext().getELFSection(
           IndexMapSectionName,
           ELF::SHT_PROGBITS, ELF::SHF_WRITE | ELF::SHF_ALLOC);
@@ -3423,8 +3423,8 @@ void TPCAsmParser::flushPendingInstructions(MCStreamer &Out) {
 
     Fragment->getContents().append(IndexMap->begin(), IndexMap->end());
     Fragment->setAlignToBundleEnd(true);
-    Out.SwitchSection(IndexMapSection);
-    Out.PopSection();
+    Out.switchSection(IndexMapSection);
+    Out.popSection();
   }
 }
 

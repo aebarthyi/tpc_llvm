@@ -24,7 +24,7 @@
 #include "llvm/MC/MCDisassembler/MCRelocationInfo.h"
 #include "llvm/MC/MCDisassembler/MCSymbolizer.h"
 #include "llvm/MC/MCExpr.h"
-#include "llvm/MC/MCFixedLenDisassembler.h"
+#include "llvm/MC/MCDecoderOps.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstPrinter.h"
 #include "llvm/MC/MCInstrDesc.h"
@@ -143,6 +143,7 @@ public:
   bool tryAddingSymbolicOperand(MCInst &Inst, raw_ostream &cStream,
                                        int64_t Value, uint64_t Address,
                                        bool IsBranch, uint64_t Offset,
+                                       uint64_t OpSize,
                                        uint64_t InstSize) override;
   void tryAddingPcLoadReferenceComment(raw_ostream &cStream,
                                        int64_t Value,
@@ -425,7 +426,7 @@ static bool tryAddingSymbolicOperand(uint64_t Address, int32_t Value,
                                      MCInst &MI, const void *Decoder) {
   const MCDisassembler *Dis = static_cast<const MCDisassembler*>(Decoder);
   // FIXME: Does it make sense for value to be negative?
-  bool result = Dis->tryAddingSymbolicOperand(MI, (uint32_t)Value, Address, isBranch, /* Offset */ 0, InstSize);
+  bool result = Dis->tryAddingSymbolicOperand(MI, (uint32_t)Value, Address, isBranch, /* Offset */ 0, /* OpSize */ 0, InstSize);
   return result;
 }
 
@@ -4363,7 +4364,8 @@ TPCDisassembler::getInstruction(MCInst &Instr, uint64_t &Size,
 bool TPCSymbolizer::tryAddingSymbolicOperand(MCInst &Inst,
                                 raw_ostream &/*cStream*/, int64_t Value,
                                 uint64_t Address, bool IsBranch,
-                                uint64_t Offset, uint64_t /*InstSize*/) {
+                                uint64_t Offset, uint64_t /*OpSize*/,
+                                uint64_t /*InstSize*/) {
   uint64_t SearchValue = Address + Value;
 
   if (!IsBranch) {

@@ -14,6 +14,7 @@
 #include "llvm/Support/Debug.h"
 
 #include <algorithm>
+#include <bitset>
 #include <cctype>
 #include <cstdlib>
 #include <map>

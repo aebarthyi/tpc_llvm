@@ -4780,7 +4780,16 @@ void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D,
                           InitDecl->getFlexibleArrayInitChars(getContext());
       CharUnits CstSize = CharUnits::fromQuantity(
           getDataLayout().getTypeAllocSize(Init->getType()));
+#ifdef LLVM_TPC_COMPILER
+      // TPC's data layout aligns vectors to 256 bytes, so a 32-byte bool256
+      // allocates 256 bytes in IR.
+      bool IsTPCVector = getTriple().getArch() == llvm::Triple::tpc &&
+                         Init->getType()->isVectorTy();
+      assert((VarSize == CstSize || IsTPCVector) &&
+             "Emitted constant has unexpected size");
+#else
       assert(VarSize == CstSize && "Emitted constant has unexpected size");
+#endif
 #endif
     }
   }

@@ -563,7 +563,7 @@ static bool ExecuteAssemblerImpl(AssemblerInvocation &Opts,
     MCOptions.MCCompressInst = Opts.CompressInstructions;
 
     if (StringRef(Opts.Triple).startswith("tpc")) {
-      Str->PushSection();
+      Str->pushSection();
       MCSectionELF *TpcCompilerSection = Ctx.getELFSection(
             ".tpc_compiler", ELF::SHT_PROGBITS, ELF::SHF_WRITE | ELF::SHF_ALLOC);
       MCDataFragment *Fragment = new MCDataFragment(TpcCompilerSection);
@@ -571,12 +571,12 @@ static bool ExecuteAssemblerImpl(AssemblerInvocation &Opts,
             llvm::TPCCompilerArguments.begin(),
             llvm::TPCCompilerArguments.end());
       Fragment->setAlignToBundleEnd(true);
-      Str->SwitchSection(TpcCompilerSection);
+      Str->switchSection(TpcCompilerSection);
 
       // PopSection fail on assert if a previous section is NULL
       // If error occurs during parse, previous section will be NULL
       if (Str->getPreviousSection().first)
-        Str->PopSection();
+        Str->popSection();
     }
 #endif
   std::unique_ptr<MCTargetAsmParser> TAP(

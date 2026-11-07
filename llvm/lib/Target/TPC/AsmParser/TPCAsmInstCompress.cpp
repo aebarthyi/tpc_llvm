@@ -1,6 +1,8 @@
 #include "MCTargetDesc/TPCMCTargetDesc.h"
 #include "MCTargetDesc/TPCMCInstrInfo.h"
 #include "TPCAsmInstCompress.h"
+#include "llvm/MC/MCExpr.h"
+#include "llvm/Support/Casting.h"
 #include <algorithm>
 
 using namespace llvm;

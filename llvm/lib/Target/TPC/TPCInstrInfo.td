@@ -156,7 +156,7 @@ def CastToImm32 : SDNodeXForm<imm, [{
 def FPToImm32 : SDNodeXForm<fpimm, [{
   const APFloat &Val = N->getValueAPF();
   APInt IC = Val.bitcastToAPInt();
-  IC = IC.zextOrSelf(32);
+  IC = IC.zext(32);
   assert(IC.getBitWidth() == 32);
   return CurDAG->getTargetConstant(IC, SDLoc(N), MVT::i32);
 }]>;

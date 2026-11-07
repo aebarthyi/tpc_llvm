@@ -6577,7 +6577,7 @@ bool TBAAVerifier::visitTBAAMetadata(Instruction &I, const MDNode *MD) {
   bool is_tpc = tagstr.find("tpc") == 0;
   if (!is_tpc) {
     if (!IsNewFormat) {
-      AssertTBAA(isValidScalarTBAANode(AccessType),
+      CheckTBAA(isValidScalarTBAANode(AccessType),
         "Access type node must be a valid scalar type", &I, MD,
         AccessType);
     }

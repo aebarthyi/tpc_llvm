@@ -1453,7 +1453,7 @@ void Sema::checkTranslationUnin() {
   if (MainFunc) {
     SmallVector<Stmt*, 32> InitStmts;
 
-    auto FnBody = CompoundStmt::Create(Context, InitStmts, MainFunc->getBeginLoc(), MainFunc->getBeginLoc());
+    auto FnBody = CompoundStmt::Create(Context, InitStmts, FPOptionsOverride(), MainFunc->getBeginLoc(), MainFunc->getBeginLoc());
     IdentifierInfo *III = PP.getIdentifierInfo("__initialize");
     DeclarationName DN1(III);
     DeclarationNameInfo DNII(DN1, SourceLocation());

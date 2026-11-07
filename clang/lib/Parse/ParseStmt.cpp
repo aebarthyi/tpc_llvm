@@ -366,22 +366,26 @@ Retry:
 
 #ifdef LLVM_TPC_COMPILER
   case tok::annot_pragma_tpc_printf:
-    ProhibitAttributes(Attrs);
+    ProhibitAttributes(CXX11Attrs);
+    ProhibitAttributes(GNUAttrs);
     HandlePragmaTpc_printf();
     return StmtEmpty();
 
   case tok::annot_pragma_index_space:
-    ProhibitAttributes(Attrs);
+    ProhibitAttributes(CXX11Attrs);
+    ProhibitAttributes(GNUAttrs);
     HandlePragmaIndexSpace();
     return StmtEmpty();
 
   case tok::annot_pragma_index_space_b:
-    ProhibitAttributes(Attrs);
+    ProhibitAttributes(CXX11Attrs);
+    ProhibitAttributes(GNUAttrs);
     HandlePragmaIndexSpaceb();
     return StmtEmpty();
 
   case tok::annot_pragma_reduction_or_norm_axes:
-    ProhibitAttributes(Attrs);
+    ProhibitAttributes(CXX11Attrs);
+    ProhibitAttributes(GNUAttrs);
     HandlePragmaReductionOrNormAxes();
     return StmtEmpty();
 #endif

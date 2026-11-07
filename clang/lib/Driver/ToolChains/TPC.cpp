@@ -38,7 +38,7 @@ void clang::driver::addCommonTPCTargetArgs(const ArgList &Args, ArgStringList &C
       CmdArgs.push_back("-instr-compress");
     else
       CmdArgs.push_back("-no-instr-compress");
-  } else if (Args.hasFlag(options::OPT_instr_compress, options::OPT_no_instr_compress))
+  } else if (Args.hasFlag(options::OPT_instr_compress, options::OPT_no_instr_compress, true))
     CmdArgs.push_back("-instr-compress");
   else
     CmdArgs.push_back("-no-instr-compress");

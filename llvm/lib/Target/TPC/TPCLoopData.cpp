@@ -322,7 +322,7 @@ LoopData::LoopData(Loop *L, ScalarEvolution *SE, bool costModel)
     p_Latch = Latches[0];
     p_MD = L->getBlocksVector().at(0)->getParent()->getParent();
     p_Nested = L->getLoopPredecessor();
-    SCEVUnionPredicate Pred;
+    SmallVector<const SCEVPredicate *, 4> Pred;
     p_LoopSCEV = p_SEL->getPredicatedBackedgeTakenCount(L, Pred);
     // since this is pollynom we want to multiply with the netural number.
     vector<BasicBlock *> bb = L->getBlocks();

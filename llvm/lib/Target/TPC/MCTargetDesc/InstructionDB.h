@@ -14,6 +14,7 @@
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/Support/ErrorOr.h"
 #include <string>
+#include <vector>
 
 
 enum class SwitchError {

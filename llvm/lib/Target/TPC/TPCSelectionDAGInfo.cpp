@@ -17,7 +17,7 @@ using namespace llvm;
 
 SDValue TPCSelectionDAGInfo::EmitTargetCodeForMemset(
     SelectionDAG &DAG, const SDLoc &dl, SDValue Chain, SDValue Dst, SDValue Src,
-    SDValue Size, Align Alignment, bool isVolatile,
+    SDValue Size, Align Alignment, bool isVolatile, bool AlwaysInline,
     MachinePointerInfo DstPtrInfo) const {
   ConstantSDNode *V = dyn_cast<ConstantSDNode>(Src);
   assert(V && "Fill value of memset must be a compile time constant");

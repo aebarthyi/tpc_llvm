@@ -252,7 +252,7 @@ static bool isOnlyCopy(const MemCpyInst *MemCopy, Value *&Dest, Value *&Src) {
   PointerType *PTy = dyn_cast<PointerType>(DestType);
   if (!PTy)
     return false;
-  if (!PTy->getElementType()->isStructTy())
+  if (!PTy->getNonOpaquePointerElementType()->isStructTy())
     return false;
 
   // TODO: check size.

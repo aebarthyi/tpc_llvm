@@ -1194,7 +1194,7 @@ void ValueHandleBase::ValueIsRAUWd(Value *Old, Value *New) {
     PointerType *NewPT = cast<PointerType>(New->getType());
     (void)OldPT;
     (void)NewPT;
-    assert(OldPT->getElementType() == NewPT->getElementType() &&
+    assert(OldPT->hasSameElementTypeAs(NewPT) &&
            "replaceAllUses of value with new value of different type!");
   } else {
   assert(Old->getType() == New->getType() &&

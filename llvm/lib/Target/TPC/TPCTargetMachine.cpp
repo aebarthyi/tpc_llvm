@@ -136,7 +136,7 @@ const TPCSubtarget *TPCTargetMachine::getSubtargetImpl(const Function& F) const 
 }
 
 
-TargetTransformInfo TPCTargetMachine::getTargetTransformInfo(const Function &F) {
+TargetTransformInfo TPCTargetMachine::getTargetTransformInfo(const Function &F) const {
   return TargetTransformInfo(TPCTTIImpl(this, F));
 }
 

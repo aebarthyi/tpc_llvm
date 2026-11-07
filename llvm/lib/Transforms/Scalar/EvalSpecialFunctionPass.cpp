@@ -1199,7 +1199,7 @@ void EvalSpecialFunctionImpl::replaceBF16SinWithTPCIntrinsics(
 
   // %X = shufflevector <128 x float> %5, <128 x float> undef, <64 x
   // i32>(0...63)
-  SmallVector<uint32_t, 64> Vec0, Vec1;
+  SmallVector<int, 64> Vec0, Vec1;
   for (int i = 0; i < 64; i++) {
     Vec0.push_back(i);
     Vec1.push_back(64 + i);
@@ -1690,7 +1690,7 @@ void EvalSpecialFunctionImpl::replaceBF16CosWithTPCIntrinsics(
 
   // %X = shufflevector <128 x float> %6, <128 x float> undef, <64 x
   // i32>(0...63)
-  SmallVector<uint32_t, 64> Vec0, Vec1;
+  SmallVector<int, 64> Vec0, Vec1;
   for (int i = 0; i < 64; i++) {
     Vec0.push_back(i);
     Vec1.push_back(64 + i);
@@ -3856,8 +3856,8 @@ void EvalSpecialFunctionImpl::replaceSinCosWithTPCIntrinsics(
                   ConstantInt::get(I8Type, 0), ConstantInt::get(I32Type, 24576),
                   UndefValue::get(FixedVectorType::get(I32Type, 128)),
                   ConstantInt::get(I1Type, 1), ConstantInt::get(I1Type, 0)});
-  SmallVector<uint32_t, 64> Vec0;
-  SmallVector<uint32_t, 64> Vec1;
+  SmallVector<int, 64> Vec0;
+  SmallVector<int, 64> Vec1;
   for (int i = 0; i < 64; i++) {
     Vec0.push_back(i);
     Vec1.push_back(64 + i);

@@ -58,8 +58,8 @@ struct Globalizer : public ModulePass {
         for (auto &I : BB) {
           if (AllocaInst *AI = dyn_cast<AllocaInst>(&I)) {
             const PointerType *T = AI->getType();
-            unsigned AS = llvm::isTpcVectorType(T->getElementType()) ? 2 : 1;
-            Constant *Init = UndefValue::get(T->getElementType());
+            unsigned AS = llvm::isTpcVectorType(T->getNonOpaquePointerElementType()) ? 2 : 1;
+            Constant *Init = UndefValue::get(T->getNonOpaquePointerElementType());
             StringRef ainame = AI->getName();
             StringRef cutname = ainame;
             std::string ss = ainame.str();
@@ -69,7 +69,7 @@ struct Globalizer : public ModulePass {
               cutname = StringRef(ss);
             }
             // This value will replace alloca uses.
-            auto *GV = new GlobalVariable(M, T->getElementType(), false,
+            auto *GV = new GlobalVariable(M, T->getNonOpaquePointerElementType(), false,
                  GlobalValue::PrivateLinkage, Init, ainame , nullptr,
                  GlobalValue::NotThreadLocal, AS);
             // DEBUG:

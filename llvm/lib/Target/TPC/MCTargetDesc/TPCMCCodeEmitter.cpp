@@ -109,9 +109,7 @@ static cl::opt<bool> TPCAssertOnImmConflict("tpc-imm-conflict-assert", cl::Hidde
 ****/
 
 namespace llvm {
-MCCodeEmitter *createTPCMCCodeEmitter(const MCInstrInfo &MCII,
-                                      const MCRegisterInfo &MRI,
-                                      MCContext &Ctx) {
+MCCodeEmitter *createTPCMCCodeEmitter(const MCInstrInfo &MCII, MCContext &Ctx) {
   return new TPCMCCodeEmitter(MCII, Ctx);
 }
 

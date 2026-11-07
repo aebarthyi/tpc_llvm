@@ -6,6 +6,7 @@
 
 #include "TPCTargetMachine.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/InstIterator.h"
