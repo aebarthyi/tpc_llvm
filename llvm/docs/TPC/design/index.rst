@@ -12,6 +12,7 @@ Welcome to TPC-LLVM's documentation!
 
    BuiltinSupport
    EventSupport
+   Passes
 
 Indices and tables
 ==================

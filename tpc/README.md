@@ -40,6 +40,10 @@ tpc/difftest/run.py --candidate-flags=-flegacy-pass-manager
 # Only some kernels or architectures.
 tpc/difftest/run.py --arch gaudi2 tpc/difftest/kernels/add_f32.c
 
+# Another optimization level (the default is -O2). -O0 and -O1 take different
+# paths through the pipeline, so check them when changing it.
+tpc/difftest/run.py --cflags=-O0
+
 # Compile parity: does every RC99 lit-test source still compile (or still fail
 # to compile) the same way Habana's compiler and the baseline do?
 tpc/difftest/run.py --compile-parity --baseline build/bin/tpc-clang
@@ -91,5 +95,8 @@ Keep each kernel focused on one feature, so a failure points at a cause.
   emits version 20 metadata.
 * **`srem_var_i32`.** The fork crashes on signed scalar remainder by a
   non-constant divisor; expected `KNOWN` until fixed.
+* **`scalar_math_i32` at `-O0` on gaudi2.** The fork miscompiles it: every output
+  element is wrong against a host computation, while Habana's compiler is
+  correct. Reproduce with `--cflags=-O0`; expected `KNOWN` until fixed.
 * **`doron1`.** The fork asserts (`hasDoron1()`) for this arch, which accounts
   for nearly all failures in the fork's own lit suite.
