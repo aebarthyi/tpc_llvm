@@ -1,4 +1,4 @@
-; RUN: opt -S -scalar2irf < %s | FileCheck %s
+; RUN: opt -S -passes=scalar2irf < %s | FileCheck %s
 
 target triple = "tpc"
 

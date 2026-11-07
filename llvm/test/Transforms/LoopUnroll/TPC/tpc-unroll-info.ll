@@ -1,4 +1,4 @@
-; RUN: opt --loop-unroll -mtriple=tpc -mcpu=gaudi -S %s | FileCheck %s
+; RUN: opt -passes=loop-unroll -mtriple=tpc -mcpu=gaudi -S %s | FileCheck %s
 ; CHECK: define {{.*}}void @main{{.*}} !unroll_info [[METADATA:.*]] {
 ; CHECK: [[METADATA]] = !{!"{4, 4}"}
 

@@ -18,9 +18,11 @@ declare <256 x i8> @llvm.tpc.ld.tnsr.v256i8.i1(<5 x i32>, i8, i32, <256 x i8>, i
 declare void @llvm.tpc.st.tnsr.v256i8(<5 x i32>, i8, <256 x i8>, i32, i1, i1)
 
 
-; CHECK:     set_indx [[NDX0:%I[0-9]+]], b11101, 0x0
+; CHECK:     set_indx [[NDX0:%I[0-9]+]], b00001, 0x0
 ; CHECK-DAG: mov      b11111 {{%I[0-9]+}}, [[NDX0]]
 ; CHECK-DAG: set_indx [[NDX1:%I[0-9]+]], b00010, %S0
+; CHECK-DAG: set_indx [[NDX1]], b11100, 0x0
 ; CHECK-DAG: set_indx [[NDX2:%I[0-9]+]], b00010, %S1
+; CHECK-DAG: set_indx [[NDX2]], b11100, 0x0
 ; CHECK:     ld_tnsr  [[VREG:%V[0-9]+]], 0x0, [[NDX1]]
 ; CHECK:     st_tnsr  0x1, [[NDX2]], [[VREG]]

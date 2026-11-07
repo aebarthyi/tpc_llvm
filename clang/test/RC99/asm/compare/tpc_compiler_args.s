@@ -1,4 +1,4 @@
-// RUN: %clang -cc1as -triple tpc -filetype obj -main-file-name tpc_compiler_args.s -target-cpu goya -fdebug-compilation-dir %T -dwarf-version=4 -mrelocation-model static -no-instr-compress --mrelax-relocations -o %t.o %s
+// RUN: %clang -cc1as -triple tpc -filetype obj -main-file-name tpc_compiler_args.s -target-cpu goya -fdebug-compilation-dir %T -dwarf-version=4 -mrelocation-model static -no-instr-compress -o %t.o %s
 // RUN: %llvm-objdump --triple tpc -s -j .tpc_compiler %t.o | FileCheck %s
 
 NOP;
