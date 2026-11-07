@@ -83,7 +83,7 @@ struct UpdateIndexCallbacks : public ParsingCallbacks {
 
     auto &PP = ASTCtx.getPreprocessor();
     auto &CI = ASTCtx.getCompilerInvocation();
-    if (auto Loc = Stdlib->add(*CI.getLangOpts(), PP.getHeaderSearchInfo()))
+    if (auto Loc = Stdlib->add(CI.getLangOpts(), PP.getHeaderSearchInfo()))
       indexStdlib(CI, std::move(*Loc));
 
     // FIndex outlives the UpdateIndexCallbacks.
@@ -105,7 +105,7 @@ struct UpdateIndexCallbacks : public ParsingCallbacks {
     // This task is owned by Tasks, which outlives the TUScheduler and
     // therefore the UpdateIndexCallbacks.
     // We must be careful that the references we capture outlive TUScheduler.
-    auto Task = [LO(*CI.getLangOpts()), Loc(std::move(Loc)),
+    auto Task = [LO(CI.getLangOpts()), Loc(std::move(Loc)),
                  CI(std::make_unique<CompilerInvocation>(CI)),
                  // External values that outlive ClangdServer
                  TFS(&TFS),
@@ -437,7 +437,7 @@ void ClangdServer::codeComplete(PathRef File, Position Pos,
     ParseInputs ParseInput{IP->Command, &getHeaderFS(), IP->Contents.str()};
     // FIXME: Add traling new line if there is none at eof, workaround a crash,
     // see https://github.com/clangd/clangd/issues/332
-    if (!IP->Contents.endswith("\n"))
+    if (!IP->Contents.ends_with("\n"))
       ParseInput.Contents.append("\n");
     ParseInput.Index = Index;
 
@@ -488,7 +488,7 @@ void ClangdServer::signatureHelp(PathRef File, Position Pos,
     ParseInputs ParseInput{IP->Command, &getHeaderFS(), IP->Contents.str()};
     // FIXME: Add traling new line if there is none at eof, workaround a crash,
     // see https://github.com/clangd/clangd/issues/332
-    if (!IP->Contents.endswith("\n"))
+    if (!IP->Contents.ends_with("\n"))
       ParseInput.Contents.append("\n");
     ParseInput.Index = Index;
     CB(clangd::signatureHelp(File, Pos, *PreambleData, ParseInput,
@@ -661,7 +661,7 @@ void ClangdServer::codeAction(const CodeActionInputs &Params,
             return true;
           return llvm::any_of(Only, [&](llvm::StringRef Base) {
             return Kind.consume_front(Base) &&
-                   (Kind.empty() || Kind.startswith("."));
+                   (Kind.empty() || Kind.starts_with("."));
           });
         };
 
@@ -701,38 +701,6 @@ void ClangdServer::codeAction(const CodeActionInputs &Params,
   };
 
   WorkScheduler->runWithAST("codeAction", Params.File, std::move(Action),
-                            Transient);
-}
-
-void ClangdServer::enumerateTweaks(
-    PathRef File, Range Sel, llvm::unique_function<bool(const Tweak &)> Filter,
-    Callback<std::vector<TweakRef>> CB) {
-  auto Action = [Sel, CB = std::move(CB), Filter = std::move(Filter),
-                 FeatureModules(this->FeatureModules)](
-                    Expected<InputsAndAST> InpAST) mutable {
-    if (!InpAST)
-      return CB(InpAST.takeError());
-    auto Selections = tweakSelection(Sel, *InpAST, /*FS=*/nullptr);
-    if (!Selections)
-      return CB(Selections.takeError());
-    std::vector<TweakRef> Res;
-    // Don't allow a tweak to fire more than once across ambiguous selections.
-    llvm::DenseSet<llvm::StringRef> PreparedTweaks;
-    auto DeduplicatingFilter = [&](const Tweak &T) {
-      return Filter(T) && !PreparedTweaks.count(T.id());
-    };
-    for (const auto &Sel : *Selections) {
-      for (auto &T : prepareTweaks(*Sel, DeduplicatingFilter, FeatureModules)) {
-        Res.push_back({T->id(), T->title(), T->kind()});
-        PreparedTweaks.insert(T->id());
-        TweakAvailable.record(1, T->id());
-      }
-    }
-
-    CB(std::move(Res));
-  };
-
-  WorkScheduler->runWithAST("EnumerateTweaks", File, std::move(Action),
                             Transient);
 }
 
@@ -1119,7 +1087,8 @@ ClangdServer::blockUntilIdleForTest(std::optional<double> TimeoutSeconds) {
 #if defined(__has_feature) &&                                                  \
     (__has_feature(address_sanitizer) || __has_feature(hwaddress_sanitizer) || \
      __has_feature(memory_sanitizer) || __has_feature(thread_sanitizer))
-  (*TimeoutSeconds) *= 10;
+  if (TimeoutSeconds.has_value())
+    (*TimeoutSeconds) *= 10;
 #endif
 
   // Nothing else can schedule work on TUScheduler, because it's not threadsafe

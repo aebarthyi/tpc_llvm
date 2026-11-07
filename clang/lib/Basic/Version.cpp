@@ -74,6 +74,14 @@ std::string getLLVMRevision() {
 #endif
 }
 
+std::string getClangVendor() {
+#ifdef CLANG_VENDOR
+  return CLANG_VENDOR;
+#else
+  return "";
+#endif
+}
+
 std::string getClangFullRepositoryVersion() {
   std::string buf;
   llvm::raw_string_ostream OS(buf);
@@ -125,10 +133,7 @@ std::string getTpcGITClangFullVersion(){
 std::string getClangToolFullVersion(StringRef ToolName) {
   std::string buf;
   llvm::raw_string_ostream OS(buf);
-#ifdef CLANG_VENDOR
-  OS << CLANG_VENDOR;
-#endif
-  OS << ToolName << " version " CLANG_VERSION_STRING;
+  OS << getClangVendor() << ToolName << " version " CLANG_VERSION_STRING;
 
   std::string repo = getClangFullRepositoryVersion();
   if (!repo.empty()) {
@@ -143,10 +148,7 @@ std::string getClangFullCPPVersion() {
   // the one we report on the command line.
   std::string buf;
   llvm::raw_string_ostream OS(buf);
-#ifdef CLANG_VENDOR
-  OS << CLANG_VENDOR;
-#endif
-  OS << "Clang " CLANG_VERSION_STRING;
+  OS << getClangVendor() << "Clang " CLANG_VERSION_STRING;
 
   std::string repo = getClangFullRepositoryVersion();
   if (!repo.empty()) {

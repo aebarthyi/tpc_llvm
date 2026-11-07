@@ -44,6 +44,7 @@
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCSymbolMachO.h"
 #include "llvm/MC/MCTargetOptions.h"
 #include "llvm/MC/MCValue.h"
 #include "llvm/Support/Casting.h"
@@ -125,6 +126,7 @@ private:
   void *SavedDiagContext;
   std::unique_ptr<MCAsmParserExtension> PlatformParser;
   SMLoc StartTokLoc;
+  std::optional<SMLoc> CFIStartProcLoc;
 
   /// This is the current buffer index we're lexing from as managed by the
   /// SourceMgr object.
@@ -807,7 +809,7 @@ AsmParser::AsmParser(SourceMgr &SM, MCContext &Ctx, MCStreamer &Out,
     PlatformParser.reset(createXCOFFAsmParser());
     break;
   case MCContext::IsDXContainer:
-    llvm_unreachable("DXContainer is not supported yet");
+    report_fatal_error("DXContainer is not supported yet");
     break;
   }
 
@@ -1970,6 +1972,12 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
       Lex();
     }
 
+    if (MAI.hasSubsectionsViaSymbols() && CFIStartProcLoc &&
+        Sym->isExternal() && !cast<MCSymbolMachO>(Sym)->isAltEntry())
+      return Error(StartTokLoc, "non-private labels cannot appear between "
+                                ".cfi_startproc / .cfi_endproc pairs") &&
+             Error(*CFIStartProcLoc, "previous .cfi_startproc was here");
+
     if (discardLTOSymbol(IDVal))
       return false;
 
@@ -2006,7 +2014,7 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
   // Otherwise, we have a normal instruction or directive.
 
   // Directives start with "."
-  if (IDVal.startswith(".") && IDVal != ".") {
+  if (IDVal.starts_with(".") && IDVal != ".") {
     // There are several entities interested in parsing directives:
     //
     // 1. The target-specific assembly parser. Some directives are target
@@ -3413,6 +3421,7 @@ bool AsmParser::parseDirectiveAlign(bool IsPow2, unsigned ValueSize) {
   bool HasFillExpr = false;
   int64_t FillExpr = 0;
   int64_t MaxBytesToFill = 0;
+  SMLoc FillExprLoc;
 
   auto parseAlign = [&]() -> bool {
     if (parseAbsoluteExpression(Alignment))
@@ -3423,7 +3432,7 @@ bool AsmParser::parseDirectiveAlign(bool IsPow2, unsigned ValueSize) {
       //  .align 3,,4
       if (getTok().isNot(AsmToken::Comma)) {
         HasFillExpr = true;
-        if (parseAbsoluteExpression(FillExpr))
+        if (parseTokenLoc(FillExprLoc) || parseAbsoluteExpression(FillExpr))
           return true;
       }
       if (parseOptionalToken(AsmToken::Comma))
@@ -3469,6 +3478,17 @@ bool AsmParser::parseDirectiveAlign(bool IsPow2, unsigned ValueSize) {
     if (!isUInt<32>(Alignment)) {
       ReturnVal |= Error(AlignmentLoc, "alignment must be smaller than 2**32");
       Alignment = 1u << 31;
+    }
+  }
+
+  if (HasFillExpr && FillExpr != 0) {
+    MCSection *Sec = getStreamer().getCurrentSectionOnly();
+    if (Sec && Sec->isVirtualSection()) {
+      ReturnVal |=
+          Warning(FillExprLoc, "ignoring non-zero fill value in " +
+                                   Sec->getVirtualSectionKind() + " section '" +
+                                   Sec->getName() + "'");
+      FillExpr = 0;
     }
   }
 
@@ -4202,6 +4222,8 @@ bool AsmParser::parseDirectiveCFISections() {
 /// parseDirectiveCFIStartProc
 /// ::= .cfi_startproc [simple]
 bool AsmParser::parseDirectiveCFIStartProc() {
+  CFIStartProcLoc = StartTokLoc;
+
   StringRef Simple;
   if (!parseOptionalToken(AsmToken::EndOfStatement)) {
     if (check(parseIdentifier(Simple) || Simple != "simple",
@@ -4222,8 +4244,11 @@ bool AsmParser::parseDirectiveCFIStartProc() {
 /// parseDirectiveCFIEndProc
 /// ::= .cfi_endproc
 bool AsmParser::parseDirectiveCFIEndProc() {
+  CFIStartProcLoc = std::nullopt;
+
   if (parseEOL())
     return true;
+
   getStreamer().emitCFIEndProc();
   return false;
 }

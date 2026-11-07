@@ -25,6 +25,7 @@ add_llvm_component_library(LLVMScalarOpts
   InductiveRangeCheckElimination.cpp
   IndVarSimplify.cpp
   InferAddressSpaces.cpp
+  InferAlignment.cpp
   InstSequence.cpp
   InstSimplifyPass.cpp
   IterationInterleave.cpp

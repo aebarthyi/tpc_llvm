@@ -1,5 +1,7 @@
 ; RUN: opt -passes=instcombine -S < %s | FileCheck %s
 ;XFAIL:*
+; RUN: opt -passes=instcombine -S < %s --try-experimental-debuginfo-iterators | FileCheck %s
+
 ; CHECK-LABEL: define {{.*}} @test5
 define i16 @test5(i16 %A) !dbg !34 {
   ; CHECK: [[and:%.*]] = and i16 %A, 15

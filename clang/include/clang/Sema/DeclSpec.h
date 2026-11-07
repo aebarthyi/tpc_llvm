@@ -2678,6 +2678,8 @@ public:
   /// redeclaration time if the decl is static.
   bool isStaticMember();
 
+  bool isExplicitObjectMemberFunction();
+
   /// Returns true if this declares a constructor or a destructor.
   bool isCtorOrDtor();
 
@@ -2709,7 +2711,7 @@ public:
     VS_Abstract = 16
   };
 
-  VirtSpecifiers() : Specifiers(0), LastSpecifier(VS_None) { }
+  VirtSpecifiers() = default;
 
   bool SetSpecifier(Specifier VS, SourceLocation Loc,
                     const char *&PrevSpec);
@@ -2733,8 +2735,8 @@ public:
   Specifier getLastSpecifier() const { return LastSpecifier; }
 
 private:
-  unsigned Specifiers;
-  Specifier LastSpecifier;
+  unsigned Specifiers = 0;
+  Specifier LastSpecifier = VS_None;
 
   SourceLocation VS_overrideLoc, VS_finalLoc, VS_abstractLoc;
   SourceLocation FirstLocation;
@@ -2773,11 +2775,10 @@ struct LambdaIntroducer {
 
   SourceRange Range;
   SourceLocation DefaultLoc;
-  LambdaCaptureDefault Default;
+  LambdaCaptureDefault Default = LCD_None;
   SmallVector<LambdaCapture, 4> Captures;
 
-  LambdaIntroducer()
-    : Default(LCD_None) {}
+  LambdaIntroducer() = default;
 
   bool hasLambdaCapture() const {
     return Captures.size() > 0 || Default != LCD_None;

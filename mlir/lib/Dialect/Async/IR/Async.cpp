@@ -9,8 +9,8 @@
 #include "mlir/Dialect/Async/IR/Async.h"
 
 #include "mlir/IR/DialectImplementation.h"
-#include "mlir/IR/FunctionImplementation.h"
 #include "mlir/IR/IRMapping.h"
+#include "mlir/Interfaces/FunctionImplementation.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/TypeSwitch.h"
 
@@ -33,39 +33,13 @@ void AsyncDialect::initialize() {
 }
 
 //===----------------------------------------------------------------------===//
-// YieldOp
-//===----------------------------------------------------------------------===//
-
-LogicalResult YieldOp::verify() {
-  // Get the underlying value types from async values returned from the
-  // parent `async.execute` operation.
-  auto executeOp = (*this)->getParentOfType<ExecuteOp>();
-  auto types =
-      llvm::map_range(executeOp.getBodyResults(), [](const OpResult &result) {
-        return llvm::cast<ValueType>(result.getType()).getValueType();
-      });
-
-  if (getOperandTypes() != types)
-    return emitOpError("operand types do not match the types returned from "
-                       "the parent ExecuteOp");
-
-  return success();
-}
-
-MutableOperandRange
-YieldOp::getMutableSuccessorOperands(std::optional<unsigned> index) {
-  return getOperandsMutable();
-}
-
-//===----------------------------------------------------------------------===//
 /// ExecuteOp
 //===----------------------------------------------------------------------===//
 
 constexpr char kOperandSegmentSizesAttr[] = "operandSegmentSizes";
 
-OperandRange
-ExecuteOp::getSuccessorEntryOperands(std::optional<unsigned> index) {
-  assert(index && *index == 0 && "invalid region index");
+OperandRange ExecuteOp::getEntrySuccessorOperands(RegionBranchPoint point) {
+  assert(point == getBodyRegion() && "invalid region index");
   return getBodyOperands();
 }
 
@@ -78,12 +52,10 @@ bool ExecuteOp::areTypesCompatible(Type lhs, Type rhs) {
   return getValueOrTokenType(lhs) == getValueOrTokenType(rhs);
 }
 
-void ExecuteOp::getSuccessorRegions(std::optional<unsigned> index,
-                                    ArrayRef<Attribute>,
+void ExecuteOp::getSuccessorRegions(RegionBranchPoint point,
                                     SmallVectorImpl<RegionSuccessor> &regions) {
   // The `body` region branch back to the parent operation.
-  if (index) {
-    assert(*index == 0 && "invalid region index");
+  if (point == getBodyRegion()) {
     regions.push_back(RegionSuccessor(getBodyResults()));
     return;
   }

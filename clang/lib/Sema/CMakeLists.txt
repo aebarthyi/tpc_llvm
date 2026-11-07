@@ -72,8 +72,10 @@ add_clang_library(clangSema
   DEPENDS
   ClangOpenCLBuiltinsImpl
   omp_gen
+  ClangDriverOptions
 
   LINK_LIBS
+  clangAPINotes
   clangAST
   clangAnalysis
   clangBasic
