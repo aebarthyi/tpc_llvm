@@ -211,9 +211,6 @@ void TPCToolChain::addClangTargetOptions(const llvm::opt::ArgList &DriverArgs,
     }
   }
 
-  CC1Args.push_back("-mllvm");
-  CC1Args.push_back("-loop-unswitch-threshold=0");
-
   // TPC Cost Model.
   CC1Args.push_back("-mllvm");
   CC1Args.push_back("-dontAnalysis=1");

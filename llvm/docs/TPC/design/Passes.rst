@@ -80,8 +80,8 @@ pipeline the same way the legacy ``PassManagerBuilder`` does (look for
   pipeline runs ``AlwaysInlinerPass``, ``PostOrderFunctionAttrsPass``,
   ``EvalSpecialFunctionPass``, then the function simplification pipeline,
   instead of the regular inliner pipeline.
-* Function simplification: no loop rotation at ``-O1``; non-trivial loop
-  unswitching at all levels; ``CoordUpdateSimplifyPass`` (default on,
+* Function simplification: no loop rotation at ``-O1``; only trivial loop
+  unswitching at every level; ``CoordUpdateSimplifyPass`` (default on,
   ``-enable-simplify-coord-update-pass``) and ``LoopSimplifyCFGPass`` after
   loop interchange; ``EliminateSwizzleCastPass`` (default off,
   ``-enable-cast-swizzle-opt``) after the loop passes; ``MergedLoadStoreMotion``

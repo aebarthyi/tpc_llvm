@@ -265,7 +265,6 @@ void llvm_tpc_startup(const char *args) {
   argv.insert(itOptLevel.base(), {
                                      "-simplifycfg-sink-common=false",
                                      "-enable-load-pre=false",
-                                     "-loop-unswitch-threshold=0",
                                      "-unroll-max-count=4",
                                      "-dontAnalysis=1",
                                  });

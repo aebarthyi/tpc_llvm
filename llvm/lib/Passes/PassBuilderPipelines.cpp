@@ -339,12 +339,7 @@ PassBuilder::buildO1FunctionSimplificationPipeline(OptimizationLevel Level,
   // TODO: Investigate promotion cap for O1.
   LPM1.addPass(LICMPass(PTO.LicmMssaOptCap, PTO.LicmMssaNoAccForPromotionCap,
                         /*AllowSpeculation=*/true));
-#ifdef LLVM_TPC_COMPILER
-  // TPC: non-trivial unswitching below -O3 too.
-  LPM1.addPass(SimpleLoopUnswitchPass(/* NonTrivial */ isTPCTarget(TM)));
-#else
   LPM1.addPass(SimpleLoopUnswitchPass());
-#endif
   if (EnableLoopFlatten)
     LPM1.addPass(LoopFlattenPass());
 
@@ -548,11 +543,11 @@ PassBuilder::buildFunctionSimplificationPipeline(OptimizationLevel Level,
   LPM1.addPass(LICMPass(PTO.LicmMssaOptCap, PTO.LicmMssaNoAccForPromotionCap,
                         /*AllowSpeculation=*/true));
 #ifdef LLVM_TPC_COMPILER
-  // TPC: non-trivial unswitching at -O2 too (not when optimizing for size).
+  // TPC only unswitches trivially, at every level. Its driver used to get this
+  // with -loop-unswitch-threshold=0 on the pass this one replaced.
   LPM1.addPass(SimpleLoopUnswitchPass(
-      /* NonTrivial */ (Level == OptimizationLevel::O3 &&
-                        EnableO3NonTrivialUnswitching) ||
-      (isTPCTarget(TM) && !Level.isOptimizingForSize())));
+      /* NonTrivial */ Level == OptimizationLevel::O3 &&
+      EnableO3NonTrivialUnswitching && !isTPCTarget(TM)));
 #else
   LPM1.addPass(
       SimpleLoopUnswitchPass(/* NonTrivial */ Level == OptimizationLevel::O3 &&
