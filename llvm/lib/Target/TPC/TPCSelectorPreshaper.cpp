@@ -366,6 +366,38 @@ static void unite_shuffle(ShuffleVectorInst *shufinstr) {
   }
 }
 
+/// Forwarding a store to a load of another type can leave a splat of a
+/// reinterpreted scalar:
+///
+///     %i = insertelement <256 x i8> undef, i8 %s, i64 0
+///     %c = bitcast <256 x i8> %i to <256 x f8_143>
+///     %v = shufflevector <256 x f8_143> %c, <256 x f8_143> poison, <256 x i32> zeroinitializer
+///
+/// Move the bitcast to the scalar, so that the selector sees a plain splat.
+static void moveBitcastToSplatScalar(ShuffleVectorInst *Shuffle) {
+  if (!MaskIs0(Shuffle->getShuffleMask()))
+    return;
+  auto *BC = dyn_cast<BitCastInst>(Shuffle->getOperand(0));
+  if (!BC)
+    return;
+  auto *Ins = dyn_cast<InsertElementInst>(BC->getOperand(0));
+  if (!Ins || !isa<UndefValue>(Ins->getOperand(0)))
+    return;
+  auto *Index = dyn_cast<ConstantInt>(Ins->getOperand(2));
+  if (!Index || !Index->isZero())
+    return;
+  auto *DstTy = cast<FixedVectorType>(BC->getType());
+  if (DstTy->getNumElements() !=
+      cast<FixedVectorType>(Ins->getType())->getNumElements())
+    return;
+
+  IRBuilder<> Builder(Shuffle);
+  Value *Scalar =
+      Builder.CreateBitCast(Ins->getOperand(1), DstTy->getElementType());
+  Shuffle->setOperand(0, Builder.CreateInsertElement(UndefValue::get(DstTy),
+                                                     Scalar, Index));
+}
+
 static void unvect_instr(Instruction &I, LLVMContext &Ctx)
 {
   IRBuilder<> Builder(&I);
@@ -516,6 +548,9 @@ bool TPCSelectorPreshaperLegacyPass::runOnFunction(Function &Func) {
     for (auto It = BB.begin(), E = BB.end(); It != E; ) {
       Instruction &I = *It;
       ++It;
+      if (auto *Shuffle = dyn_cast<ShuffleVectorInst>(&I))
+        moveBitcastToSplatScalar(Shuffle);
+
       // Find intrinsics that we do not lower in selector.
       if (shallExpandIntrinsic(I)) {
         IntrinsicsToExpand.push_back(&I);

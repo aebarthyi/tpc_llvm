@@ -8357,6 +8357,35 @@ def : Pat<(v256i8  (bitconvert v128f16:$src)),  (COPY VRF:$src)>;
 def : Pat<(v256i8  (bitconvert v64i32:$src)),   (COPY VRF:$src)>;
 def : Pat<(v256i8  (bitconvert v128i16:$src)),  (COPY VRF:$src)>;
 
+def : Pat<(v256f8_143 (bitconvert v64f32:$src)), (COPY VRF:$src)>;
+def : Pat<(v256f8_143 (bitconvert v128bf16:$src)), (COPY VRF:$src)>;
+def : Pat<(v256f8_143 (bitconvert v128f16:$src)), (COPY VRF:$src)>;
+def : Pat<(v256f8_143 (bitconvert v128i16:$src)), (COPY VRF:$src)>;
+def : Pat<(v256f8_143 (bitconvert v256i8:$src)), (COPY VRF:$src)>;
+def : Pat<(v256f8_143 (bitconvert v256f8_152:$src)), (COPY VRF:$src)>;
+
+def : Pat<(v256f8_152 (bitconvert v64f32:$src)), (COPY VRF:$src)>;
+def : Pat<(v256f8_152 (bitconvert v128bf16:$src)), (COPY VRF:$src)>;
+def : Pat<(v256f8_152 (bitconvert v128f16:$src)), (COPY VRF:$src)>;
+def : Pat<(v256f8_152 (bitconvert v128i16:$src)), (COPY VRF:$src)>;
+def : Pat<(v256f8_152 (bitconvert v256i8:$src)), (COPY VRF:$src)>;
+def : Pat<(v256f8_152 (bitconvert v256f8_143:$src)), (COPY VRF:$src)>;
+
+def : Pat<(v64f32 (bitconvert v256f8_143:$src)), (COPY VRF:$src)>;
+def : Pat<(v64f32 (bitconvert v256f8_152:$src)), (COPY VRF:$src)>;
+
+def : Pat<(v128bf16 (bitconvert v256f8_143:$src)), (COPY VRF:$src)>;
+def : Pat<(v128bf16 (bitconvert v256f8_152:$src)), (COPY VRF:$src)>;
+
+def : Pat<(v128f16 (bitconvert v256f8_143:$src)), (COPY VRF:$src)>;
+def : Pat<(v128f16 (bitconvert v256f8_152:$src)), (COPY VRF:$src)>;
+
+def : Pat<(v128i16 (bitconvert v256f8_143:$src)), (COPY VRF:$src)>;
+def : Pat<(v128i16 (bitconvert v256f8_152:$src)), (COPY VRF:$src)>;
+
+def : Pat<(v256i8 (bitconvert v256f8_143:$src)), (COPY VRF:$src)>;
+def : Pat<(v256i8 (bitconvert v256f8_152:$src)), (COPY VRF:$src)>;
+
 def : Pat<(v128f32 (bitconvert v256bf16:$src)), (COPY DRF:$src)>;
 def : Pat<(v128f32 (bitconvert v256f16:$src)),  (COPY DRF:$src)>;
 def : Pat<(v128f32 (bitconvert v128i32:$src)),  (COPY DRF:$src)>;
@@ -8391,6 +8420,40 @@ def : Pat<(v512i8 (bitconvert v256bf16:$src)),  (COPY DRF:$src)>;
 def : Pat<(v512i8 (bitconvert v256f16:$src)),   (COPY DRF:$src)>;
 def : Pat<(v512i8 (bitconvert v128i32:$src)),   (COPY DRF:$src)>;
 def : Pat<(v512i8 (bitconvert v256i16:$src)),   (COPY DRF:$src)>;
+
+def : Pat<(v512f8_143 (bitconvert v128f32:$src)), (COPY DRF:$src)>;
+def : Pat<(v512f8_143 (bitconvert v256bf16:$src)), (COPY DRF:$src)>;
+def : Pat<(v512f8_143 (bitconvert v256f16:$src)), (COPY DRF:$src)>;
+def : Pat<(v512f8_143 (bitconvert v128i32:$src)), (COPY DRF:$src)>;
+def : Pat<(v512f8_143 (bitconvert v256i16:$src)), (COPY DRF:$src)>;
+def : Pat<(v512f8_143 (bitconvert v512i8:$src)), (COPY DRF:$src)>;
+def : Pat<(v512f8_143 (bitconvert v512f8_152:$src)), (COPY DRF:$src)>;
+
+def : Pat<(v512f8_152 (bitconvert v128f32:$src)), (COPY DRF:$src)>;
+def : Pat<(v512f8_152 (bitconvert v256bf16:$src)), (COPY DRF:$src)>;
+def : Pat<(v512f8_152 (bitconvert v256f16:$src)), (COPY DRF:$src)>;
+def : Pat<(v512f8_152 (bitconvert v128i32:$src)), (COPY DRF:$src)>;
+def : Pat<(v512f8_152 (bitconvert v256i16:$src)), (COPY DRF:$src)>;
+def : Pat<(v512f8_152 (bitconvert v512i8:$src)), (COPY DRF:$src)>;
+def : Pat<(v512f8_152 (bitconvert v512f8_143:$src)), (COPY DRF:$src)>;
+
+def : Pat<(v128f32 (bitconvert v512f8_143:$src)), (COPY DRF:$src)>;
+def : Pat<(v128f32 (bitconvert v512f8_152:$src)), (COPY DRF:$src)>;
+
+def : Pat<(v256bf16 (bitconvert v512f8_143:$src)), (COPY DRF:$src)>;
+def : Pat<(v256bf16 (bitconvert v512f8_152:$src)), (COPY DRF:$src)>;
+
+def : Pat<(v256f16 (bitconvert v512f8_143:$src)), (COPY DRF:$src)>;
+def : Pat<(v256f16 (bitconvert v512f8_152:$src)), (COPY DRF:$src)>;
+
+def : Pat<(v128i32 (bitconvert v512f8_143:$src)), (COPY DRF:$src)>;
+def : Pat<(v128i32 (bitconvert v512f8_152:$src)), (COPY DRF:$src)>;
+
+def : Pat<(v256i16 (bitconvert v512f8_143:$src)), (COPY DRF:$src)>;
+def : Pat<(v256i16 (bitconvert v512f8_152:$src)), (COPY DRF:$src)>;
+
+def : Pat<(v512i8 (bitconvert v512f8_143:$src)), (COPY DRF:$src)>;
+def : Pat<(v512i8 (bitconvert v512f8_152:$src)), (COPY DRF:$src)>;
 
 def : Pat<(v256f32 (bitconvert v256i32:$src)),  (COPY ARF:$src)>;
 def : Pat<(v256i32 (bitconvert v256f32:$src)),  (COPY ARF:$src)>;
@@ -8427,6 +8490,34 @@ def : Pat<(i16 (bitconvert i8:$src)),  (COPY SRF:$src)>;
 def : Pat<(f32 (bitconvert i8:$src)),  (COPY SRF:$src)>;
 def : Pat<(f16 (bitconvert i8:$src)),  (COPY SRF:$src)>;
 def : Pat<(bf16 (bitconvert i8:$src)),  (COPY SRF:$src)>;
+def : Pat<(f8_143 (bitconvert f32:$src)), (COPY SRF:$src)>;
+def : Pat<(f8_143 (bitconvert f16:$src)), (COPY SRF:$src)>;
+def : Pat<(f8_143 (bitconvert bf16:$src)), (COPY SRF:$src)>;
+def : Pat<(f8_143 (bitconvert i32:$src)), (COPY SRF:$src)>;
+def : Pat<(f8_143 (bitconvert i16:$src)), (COPY SRF:$src)>;
+def : Pat<(f8_143 (bitconvert i8:$src)), (COPY SRF:$src)>;
+def : Pat<(f8_143 (bitconvert f8_152:$src)), (COPY SRF:$src)>;
+def : Pat<(f8_152 (bitconvert f32:$src)), (COPY SRF:$src)>;
+def : Pat<(f8_152 (bitconvert f16:$src)), (COPY SRF:$src)>;
+def : Pat<(f8_152 (bitconvert bf16:$src)), (COPY SRF:$src)>;
+def : Pat<(f8_152 (bitconvert i32:$src)), (COPY SRF:$src)>;
+def : Pat<(f8_152 (bitconvert i16:$src)), (COPY SRF:$src)>;
+def : Pat<(f8_152 (bitconvert i8:$src)), (COPY SRF:$src)>;
+def : Pat<(f8_152 (bitconvert f8_143:$src)), (COPY SRF:$src)>;
+def : Pat<(f32 (bitconvert f8_143:$src)), (COPY SRF:$src)>;
+def : Pat<(f32 (bitconvert f8_152:$src)), (COPY SRF:$src)>;
+def : Pat<(f16 (bitconvert f8_143:$src)), (COPY SRF:$src)>;
+def : Pat<(f16 (bitconvert f8_152:$src)), (COPY SRF:$src)>;
+def : Pat<(bf16 (bitconvert f8_143:$src)), (COPY SRF:$src)>;
+def : Pat<(bf16 (bitconvert f8_152:$src)), (COPY SRF:$src)>;
+def : Pat<(i32 (bitconvert f8_143:$src)), (COPY SRF:$src)>;
+def : Pat<(i32 (bitconvert f8_152:$src)), (COPY SRF:$src)>;
+def : Pat<(i16 (bitconvert f8_143:$src)), (COPY SRF:$src)>;
+def : Pat<(i16 (bitconvert f8_152:$src)), (COPY SRF:$src)>;
+def : Pat<(i8 (bitconvert f8_143:$src)), (COPY SRF:$src)>;
+def : Pat<(i8 (bitconvert f8_152:$src)), (COPY SRF:$src)>;
+def : Pat<(f16 (bitconvert bf16:$src)), (COPY SRF:$src)>;
+def : Pat<(bf16 (bitconvert f16:$src)), (COPY SRF:$src)>;
 
 // Arithmetics.
 def : Pat<(fadd v256f8_143:$op1, v256f8_143:$op2),
