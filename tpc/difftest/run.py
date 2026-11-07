@@ -246,7 +246,10 @@ def run(cmd, timeout, env=None):
 
 
 def compile_kernel(cc, src, arch, obj, extra):
-    cmd = [str(cc.path), f"-march={arch}", "-c", str(src), "-o", str(obj), *cc.flags, *extra]
+    # -fno-crash-diagnostics: crashes are expected for known bugs; don't write
+    # reproducer files into /tmp on every run.
+    cmd = [str(cc.path), f"-march={arch}", "-fno-crash-diagnostics", "-c", str(src),
+           "-o", str(obj), *cc.flags, *extra]
     return run(cmd, timeout=600)
 
 
