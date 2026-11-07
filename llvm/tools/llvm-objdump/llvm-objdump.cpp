@@ -2614,6 +2614,18 @@ static void parseObjdumpOptions(const llvm::opt::InputArgList &InputArgs) {
   HasStopAddressFlag = InputArgs.hasArg(OBJDUMP_stop_address_EQ);
   SymbolTable = InputArgs.hasArg(OBJDUMP_syms);
   SymbolizeOperands = InputArgs.hasArg(OBJDUMP_symbolize_operands);
+#ifdef LLVM_TPC_COMPILER
+  TPCCompressStatus = InputArgs.hasArg(OBJDUMP_tpc_compress_info);
+  TPCCompressStatusFile =
+      InputArgs.getLastArgValue(OBJDUMP_tpc_compress_info_file_EQ, "-").str();
+  TPCLeadingAddr = InputArgs.hasArg(OBJDUMP_tpc_leading_addr);
+  TPCEncodingInfo = InputArgs.hasArg(OBJDUMP_tpc_encoding_info);
+  IgnoreMovDT = InputArgs.hasArg(OBJDUMP_tpc_ignore_mov_dt);
+  TPCEncodingCover = InputArgs.hasArg(OBJDUMP_tpc_encoding_cover);
+  TPCEncodingCoverFile =
+      InputArgs.getLastArgValue(OBJDUMP_tpc_encoding_cover_file_EQ).str();
+  ForAssembler = InputArgs.hasArg(OBJDUMP_tpc_for_assembler);
+#endif
   DynamicSymbolTable = InputArgs.hasArg(OBJDUMP_dynamic_syms);
   TripleName = InputArgs.getLastArgValue(OBJDUMP_triple_EQ).str();
   UnwindInfo = InputArgs.hasArg(OBJDUMP_unwind_info);

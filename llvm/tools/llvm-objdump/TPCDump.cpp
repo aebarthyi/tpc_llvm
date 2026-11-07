@@ -28,46 +28,20 @@ using namespace llvm;
 using namespace object;
 using namespace objdump;
 
-cl::opt<bool> TPCCompressStatus(
-    "tpc-compress-info",
-    cl::desc("Displays compression status of TPC instructions"));
-
-cl::opt<std::string> TPCCompressStatusFile(
-    "tpc-compress-info-file",
-    cl::desc("Name of the output file for TPC compression status information (default is 'stdout')"),
-    cl::ValueOptional, cl::init("-"));
-
-cl::opt<bool> TPCLeadingAddr(
-    "tpc-leading-addr",
-    cl::desc("Print leading address"));
-
-cl::opt<bool> TPCEncodingInfo(
-    "tpc-encoding-info",
-    cl::desc("Displays the encoding info for instructions"));
-
-cl::opt<bool> IgnoreMovDT(
-    "tpc-ignore-mov-dt",
-    cl::desc("Do not print fields reflecting data type for MOV instructions"),
-    cl::Hidden);
-
-cl::opt<bool> TPCEncodingCover(
-    "tpc-encoding-cover",
-    cl::desc("Gathering the coverage info for instructions"));
-
-cl::opt<std::string> TPCEncodingCoverFile(
-    "tpc-encoding-cover-file",
-    cl::desc("Name of file containing the binaries to cover"),
-    cl::ValueRequired);
-
-cl::opt<bool> ForAssembler(
-    "tpc-for-assembler",
-    cl::desc("Output disassembled text in form suitable for assembling"));
-
-// Alias for ForAssembler, to facilitate transition.
-static cl::opt<bool> NoCommonHeader(
-    "no-common-header",
-    cl::desc("Alias for --tpc-for-assembler"),
-    cl::Hidden);
+// TPC-specific options, set from the option table in parseObjdumpOptions
+// (see ObjdumpOpts.td).
+namespace llvm {
+namespace objdump {
+bool TPCCompressStatus;
+std::string TPCCompressStatusFile = "-";
+bool TPCLeadingAddr;
+bool TPCEncodingInfo;
+bool IgnoreMovDT;
+bool TPCEncodingCover;
+std::string TPCEncodingCoverFile;
+bool ForAssembler; // --no-common-header is an alias.
+} // namespace objdump
+} // namespace llvm
 
 
 static TPCArch TpcArch = Goya;
@@ -278,7 +252,7 @@ void llvm::printTpcCompressStatus(const ObjectFile *Obj) {
   std::error_code EC;
 
   llvm::raw_fd_ostream OS(TPCCompressStatusFile, EC,
-              llvm::sys::fs::F_Text);
+              llvm::sys::fs::OF_Text);
   if (EC) {
     reportError(TPCCompressStatusFile, "Can't open output file");
     return;
@@ -974,7 +948,7 @@ void llvm::printTPCTables(const ObjectFile *Obj, bool Disassemble) {
 bool llvm::printTPCArch(const object::ObjectFile *Obj) {
   if (!isTPCTarget(Obj))
     return false;
-  bool ToPrint = !ForAssembler && !NoCommonHeader;
+  bool ToPrint = !ForAssembler;
   if (ToPrint)
     outs() << "\nTPC architecture: " << getTPCCPUName(Obj, MCPU) << "\n";
   return ToPrint;
@@ -999,7 +973,7 @@ bool llvm::tryDisassembleTPCSection(const object::SectionRef &Section) {
       *SectionNameOrError == ".BailoutGCCUSTOM" ||
       *SectionNameOrError == ".KernelInfo" ||
       *SectionNameOrError == ".tpc_compiler") {
-        if (ForAssembler || NoCommonHeader) {
+        if (ForAssembler) {
           // TODO support in assembler
           return true;
         }
@@ -1026,7 +1000,7 @@ bool llvm::printAsTPCSymbol(const SectionRef &Section, SymbolInfoTy Symbol) {
   StringRef SectionName = unwrapOrError(Section.getName(), Obj->getFileName());
   uint64_t SectionAddr = Section.getAddress();
 
-  return !(SymbolName == SectionName && Symbol.Addr == SectionAddr && (ForAssembler || NoCommonHeader));
+  return !(SymbolName == SectionName && Symbol.Addr == SectionAddr && ForAssembler);
 }
 
 bool llvm::hasTPCActionOptions() {
@@ -1036,5 +1010,5 @@ bool llvm::hasTPCActionOptions() {
 bool llvm::printCommonHeader(const object::ObjectFile *Obj) {
   if (!isTPCTarget(Obj))
     return true;
-  return !ForAssembler && !NoCommonHeader;
+  return !ForAssembler;
 }

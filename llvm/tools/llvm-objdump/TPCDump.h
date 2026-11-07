@@ -28,8 +28,17 @@ class SectionRef;
 }
 
 namespace objdump {
-extern cl::opt<std::string> MCPU;
-}
+extern std::string MCPU;
+// TPC-specific options (ObjdumpOpts.td).
+extern bool TPCCompressStatus;
+extern std::string TPCCompressStatusFile;
+extern bool TPCLeadingAddr;
+extern bool TPCEncodingInfo;
+extern bool IgnoreMovDT;
+extern bool TPCEncodingCover;
+extern std::string TPCEncodingCoverFile;
+extern bool ForAssembler;
+} // namespace objdump
 
 const Target *getTarget(const object::ObjectFile *Obj);
 inline bool isTPCTarget(const object::ObjectFile *Obj) {

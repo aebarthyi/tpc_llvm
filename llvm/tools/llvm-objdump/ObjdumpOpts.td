@@ -321,3 +321,33 @@ def arch_EQ : Joined<["--"], "arch=">,
 def : Separate<["--"], "arch">,
   Alias<arch_EQ>,
   Group<grp_mach_o>;
+
+//===----------------------------------------------------------------------===//
+// TPC-specific options. Both "-" and "--" are accepted, as with the cl::opt
+// options these replace.
+//===----------------------------------------------------------------------===//
+
+def tpc_compress_info : Flag<["-", "--"], "tpc-compress-info">,
+  HelpText<"Displays compression status of TPC instructions">;
+def tpc_compress_info_file_EQ : Joined<["-", "--"], "tpc-compress-info-file=">,
+  MetaVarName<"file">,
+  HelpText<"Name of the output file for TPC compression status information "
+           "(default is 'stdout')">;
+def tpc_leading_addr : Flag<["-", "--"], "tpc-leading-addr">,
+  HelpText<"Print leading address">;
+def tpc_encoding_info : Flag<["-", "--"], "tpc-encoding-info">,
+  HelpText<"Displays the encoding info for instructions">;
+def tpc_ignore_mov_dt : Flag<["-", "--"], "tpc-ignore-mov-dt">,
+  Flags<[HelpHidden]>,
+  HelpText<"Do not print fields reflecting data type for MOV instructions">;
+def tpc_encoding_cover : Flag<["-", "--"], "tpc-encoding-cover">,
+  HelpText<"Gathering the coverage info for instructions">;
+def tpc_encoding_cover_file_EQ : Joined<["-", "--"], "tpc-encoding-cover-file=">,
+  MetaVarName<"file">,
+  HelpText<"Name of file containing the binaries to cover">;
+def : Separate<["-", "--"], "tpc-encoding-cover-file">,
+  Alias<tpc_encoding_cover_file_EQ>;
+def tpc_for_assembler : Flag<["-", "--"], "tpc-for-assembler">,
+  HelpText<"Output disassembled text in form suitable for assembling">;
+def : Flag<["-", "--"], "no-common-header">, Alias<tpc_for_assembler>,
+  Flags<[HelpHidden]>, HelpText<"Alias for --tpc-for-assembler">;
