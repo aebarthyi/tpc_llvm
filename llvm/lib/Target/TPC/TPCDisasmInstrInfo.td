@@ -7,6 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+//
+// Bits that a custom decoder reads for itself are left unset (Switches = ?).
+// The fields holding them are declared with 'field' in TPCInstrFormats.td, so
+// TableGen takes them as don't-care bits, not as operands to bind by name.
 
 let isNotUsedInDisasm = 0, AsmVariantName = "None" in {
 

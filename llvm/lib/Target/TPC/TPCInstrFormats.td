@@ -453,7 +453,7 @@ class ScalarInstGeneric<bits<6> opc, string asmstr>
   let AsmVariantName = "scalar";
   let DecoderNamespace = "ScalarSlot";
 
-  bits<7> Switches = 0;
+  field bits<7> Switches = 0;
   bits<1> IsPredicated = 0;
 
   let Inst{5-0}   = Opcode;
@@ -490,14 +490,14 @@ class ScalarInstDest<bits<6> opc, string asmstr>
 
 class ScalarInstSrcB<bits<6> opc, string asmstr>
   : ScalarInstDest<opc, asmstr> {
-  bits<8> SrcB = 0;
+  field bits<8> SrcB = 0;
 
   let Inst{21-14} = SrcB;
 }
 
 class ScalarInstBase<bits<6> opc, string asmstr>
   : ScalarInstSrcB<opc, asmstr> {
-  bits<4> OperandType = OpType.FP32;
+  field bits<4> OperandType = OpType.FP32;
 
   let Inst{33-30} = OperandType;
 }
@@ -553,10 +553,10 @@ class VectorInstGeneric<bits<6> opc, string asmstr>
 class VectorInstShort<bits<6> opc, string asmstr>
   : VectorInstGeneric<opc, asmstr> {
   bits<8> SrcA = 0;
-  bits<8> SrcB = 0;
+  field bits<8> SrcB = 0;
   bits<8> Dest = 0;
-  bits<7> Switches = 0;
-  bits<4> OperandType = OpType.FP32;
+  field bits<7> Switches = 0;
+  field bits<4> OperandType = OpType.FP32;
 
   let Inst{13-6}  = SrcA;               // 55-42 = 13
   let Inst{21-14} = SrcB;               // 63-42 = 21
@@ -569,12 +569,12 @@ class VectorInstShort<bits<6> opc, string asmstr>
 class VectorInstBase<bits<6> opc, string asmstr>
   : VectorInstGeneric<opc, asmstr> {
   bits<8> SrcA = 0;
-  bits<8> SrcB = 0;
+  field bits<8> SrcB = 0;
   bits<8> SrcC = 0;
   bits<9> SrcD = 0;
   bits<8> Dest = 0;
-  bits<7> Switches = 0;
-  bits<4> OperandType = OpType.FP32;
+  field bits<7> Switches = 0;
+  field bits<4> OperandType = OpType.FP32;
 
   let Inst{13-6}  = SrcA;               // 55-42 = 13
   let Inst{21-14} = SrcB;               // 63-42 = 21
@@ -619,7 +619,7 @@ class StoreInstGeneric<bits<6> opc, string asmstr>
 
   // Always define Switch field. In architectures where it is absent, the field
   // is always zero.
-  bits<7> Switches = 0;
+  field bits<7> Switches = 0;
 
   let Inst{20-16} = Opcode{4-0};    // 144-124 = 20
   let Inst{42-36} = Switches;       // Out of slot.
@@ -659,7 +659,7 @@ class StoreInstGenericSrcA<bits<6> opc, string asmstr>
 //
 class StoreInstGenericSrcC<bits<6> opc, string asmstr>
   : StoreInstGenericSrcA<opc, asmstr> {
-  bits<8> SrcExtra = 0;
+  field bits<8> SrcExtra = 0;
 
   let Inst{35-28} = SrcExtra;
 }
@@ -669,7 +669,7 @@ class StoreInstGenericSrcC<bits<6> opc, string asmstr>
 //
 class StoreInstGenericSrcB<bits<6> opc, string asmstr>
   : StoreInstGenericSrcC<opc, asmstr> {
-  bits<8> SrcB = 0;
+  field bits<8> SrcB = 0;
 
   let Inst{15-8}  = SrcB;           // 139-124 = 15
 }
@@ -683,7 +683,7 @@ class LoadInstGeneric<bits<6> opc, string asmstr>
 
   let AsmVariantName = "load";
   let DecoderNamespace = "LoadSlot";
-  bits<7> Switches = 0;
+  field bits<7> Switches = 0;
 
   let Inst{20-16} = Opcode{4-0};
   let Inst{43-37} = Switches{6-0};
@@ -729,7 +729,7 @@ class LoadInstGenericWithDest<bits<6> opc, string asmstr>
 
 class LoadInstGenericSrcB<bits<6> opc, string asmstr>
   : LoadInstGenericWithDest<opc, asmstr> {
-  bits<9> SrcExtra = 0;
+  field bits<9> SrcExtra = 0;
 
   let Inst{36-28} = SrcExtra;
 }
@@ -739,12 +739,12 @@ class TPCInstLoad<bits<6> opc, string asmstr>
 
   bits<8> SrcA = 0;
   bits<8> Dest = 0;
-  bits<9> SrcExtra = 0;
+  field bits<9> SrcExtra = 0;
   bits<1> PredPolarity = 0;
   bits<4> PredAddress = 0;
   bits<1> VectorPred = 0;
   bits<1> IsPredicated = 0;
-  bits<7> Switches = 0;
+  field bits<7> Switches = 0;
   // The size of Load Switches differs between Gen2 (size = 4) and Gen3 (size = 5).
   // In order to not duplicate formats for Gen2 and Gen3, let's use the biggest size
   // here. These bits are out-of-slot, anyway, so they are encoded specially
@@ -802,7 +802,9 @@ class VpuInst_MovFromHWRegG<bits<6> opc, RegisterClass Rdst, string asmstr, Oper
   bits<6> pred;
 
   let Dest = dest;
-  let SrcA = ?;
+  // The instruction does not use SrcA. Habana's compiler encodes dest in it, so
+  // keep the same bits.
+  let SrcA = dest;
   let SrcB = { 0b0, 0, reg };     // FROM_HW_REG
   let Switches = { sw{6-1}, 1 };  // HW_REG
 
@@ -846,7 +848,9 @@ class VpuInst_MovFromHWReg<bits<6> opc, RegisterClass Rdst, RegisterClass Rsrc, 
   bits<6> pred;
 
   let Dest = dest;
-  let SrcA = ?;
+  // The instruction does not use SrcA. Habana's compiler encodes dest in it, so
+  // keep the same bits.
+  let SrcA = dest;
   let SrcB = { 0b0, 0, src };     // FROM_HW_REG
   let Switches = { sw{6-1}, 1 };  // HW_REG
 
@@ -2672,7 +2676,9 @@ class SpuInst_MovFromHWReg<bits<6> opc, RegisterClass Rdst, RegisterClass Rsrc, 
   bits<6> pred;
 
   let Dest = dest;
-  let SrcA = ?;
+  // The instruction does not use SrcA. Habana's compiler encodes dest in it, so
+  // keep the same bits.
+  let SrcA = dest;
   let SrcB = { 0b00, src };          // FROM_HW_REG
   let Switches = { sw{6-1}, 1 };  // HW_REG
 
@@ -4000,7 +4006,9 @@ class LoadInst_MovFromHWReg<bits<6> opc, RegisterClass Rdst, RegisterClass Rsrc,
   bits<6> pred;
 
   let Dest = dest;
-  let SrcA = ?;
+  // The instruction does not use SrcA. Habana's compiler encodes dest in it, so
+  // keep the same bits.
+  let SrcA = dest;
   let SrcExtra = { 0b00, 0, src };  // FROM_HW_REG
   let Switches = { sw{6-1}, 1 };    // HW_REG
 
@@ -4904,11 +4912,11 @@ class LoadInst_LD_TNSR_CNVRT<bits<6> opc, RegisterClass Rdst, string asmstr, Ope
   
   bits<8> coords;
   bits<5> tensor;
-  bits<8> dest;
+  bits<8> dst;
   bits<32> sw;
   bits<6> pred;
   
-  let Dest = dest;
+  let Dest = dst;
   let SrcA = coords;
   let SrcExtra{4-0} = tensor{4-0};
   let SrcExtra{7-5} = sw{10-8};
