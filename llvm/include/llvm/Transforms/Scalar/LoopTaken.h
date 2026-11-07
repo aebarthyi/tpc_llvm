@@ -27,8 +27,7 @@ public:
 
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 
-  /// The optimization level the pass was created with. It is currently unused,
-  /// like the argument of the legacy createLoopTakenPass().
+  /// The optimization level the pass was created with. It is currently unused.
   int getOptLevel() const { return OptLevel; }
 
 private:

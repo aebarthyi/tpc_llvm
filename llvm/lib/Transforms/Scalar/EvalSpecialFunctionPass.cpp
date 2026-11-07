@@ -17,11 +17,8 @@ Expand special function definition for TPC
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/IntrinsicsTPC.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/Type.h"
-#include "llvm/InitializePasses.h"
-#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
@@ -35,7 +32,6 @@ Expand special function definition for TPC
 using namespace llvm;
 
 namespace {
-// Shared implementation of the legacy and new pass manager passes.
 class EvalSpecialFunctionImpl {
 public:
   // Returns true if the IR was changed.
@@ -76,24 +72,8 @@ private:
   bool expandSpecialFunction(Module &M);
 };
 
-class EvalSpecialFunctionLegacyPass : public ModulePass {
-public:
-  static char ID;
-
-  EvalSpecialFunctionLegacyPass() : ModulePass(ID) {}
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<AssumptionCacheTracker>();
-    AU.addRequired<DominatorTreeWrapperPass>();
-    AU.addPreserved<GlobalsAAWrapperPass>();
-    AU.setPreservesCFG();
-  }
-
-  bool runOnModule(Module &M) override;
-};
 } // end anonymous namespace
 
-char EvalSpecialFunctionLegacyPass::ID = 0;
 static cl::opt<bool> EvalSpclFunc("eval-special-function",
                                   cl::desc("Evaluate Special Funtion IR"),
                                   cl::init(true), cl::ZeroOrMore, cl::Hidden);
@@ -4211,22 +4191,11 @@ bool EvalSpecialFunctionImpl::run(Module &M) {
   return Changed;
 }
 
-bool EvalSpecialFunctionLegacyPass::runOnModule(Module &M) {
-  // The legacy pass has always reported no change, even when the IR was
-  // transformed. Keep that behaviour.
-  EvalSpecialFunctionImpl().run(M);
-  return false;
-}
-
-ModulePass *llvm::createEvalSpecialFunctionPass() {
-  return new EvalSpecialFunctionLegacyPass();
-}
-
 PreservedAnalyses EvalSpecialFunctionPass::run(Module &M,
                                                ModuleAnalysisManager &AM) {
   if (!EvalSpecialFunctionImpl().run(M))
     return PreservedAnalyses::all();
-  // Mirror the legacy getAnalysisUsage(): setPreservesCFG() and GlobalsAA.
+  // The pass preserves the CFG and GlobalsAA.
   PreservedAnalyses PA;
   PA.preserveSet<CFGAnalyses>();
   PA.preserve<GlobalsAA>();

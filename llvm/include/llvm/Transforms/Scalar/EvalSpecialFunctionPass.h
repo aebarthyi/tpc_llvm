@@ -9,8 +9,7 @@ class Module;
 
 /// Expands TPC special functions (sin, cos, exp, log, sqrt, rsqrt, tanh,
 /// reciprocal on <64 x float> and <128 x bfloat>) and vector fdiv into TPC
-/// intrinsic sequences. New pass manager version of
-/// createEvalSpecialFunctionPass().
+/// intrinsic sequences.
 class EvalSpecialFunctionPass : public PassInfoMixin<EvalSpecialFunctionPass> {
 public:
   PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);

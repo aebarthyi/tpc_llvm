@@ -101,7 +101,6 @@ Pass *createLoopGuardWideningPass();
 //
 FunctionPass *createBitTrackingDCEPass();
 
-ModulePass *createEvalSpecialFunctionPass();
 //===----------------------------------------------------------------------===//
 //
 // SROA - Replace aggregates or pieces of aggregates with scalar SSA values.
@@ -121,12 +120,6 @@ Pass *createInductiveRangeCheckEliminationPass();
 // use a single canonical induction variable per loop.
 //
 Pass *createIndVarSimplifyPass();
-
-//===----------------------------------------------------------------------===//
-//
-// IterationInterleave - Interleave iterations within an unrolled loop body.
-//
-Pass *createIterationInterleavePass();
 
 //===----------------------------------------------------------------------===//
 //
@@ -178,19 +171,6 @@ Pass *createLoopInstSimplifyPass();
 
 //===----------------------------------------------------------------------===//
 //
-// CoordUpdateSimplify - This pass simplifies Coordinate update instructions to
-// add.mask intrinsics
-//
-Pass *createCoordUpdateSimplifyPass();
-
-//===----------------------------------------------------------------------===//
-//
-// LoopSWP - This pass is a loop software pipelining pass for LLVM_TPC.
-//
-Pass *createLoopSWPPass();
-
-//===----------------------------------------------------------------------===//
-//
 // LoopUnroll - This pass is a simple loop unrolling pass.
 //
 Pass *createLoopUnrollPass(int OptLevel = 2, bool OnlyWhenForced = false,
@@ -209,11 +189,6 @@ Pass *createSimpleLoopUnrollPass(int OptLevel = 2, bool OnlyWhenForced = false,
 //
 Pass *createLoopUnrollAndJamPass(int OptLevel = 2);
 
-//===----------------------------------------------------------------------===//
-//
-// LoopTaken - This pass is a simple loop_taken processing.
-//
-Pass *createLoopTakenPass(int OptLevel = 2);
 //===----------------------------------------------------------------------===//
 //
 // LoopReroll - This pass is a simple loop rerolling pass.
@@ -539,20 +514,6 @@ FunctionPass *createLoopDataPrefetchPass();
 // used.
 //
 FunctionPass *createLibCallsShrinkWrapPass();
-
-//===----------------------------------------------------------------------===//
-//
-// TPCLICMPass - This pass implement a simple LICM for specific intrinsics.
-//
-Pass *createTPCLICMPass();
-
-//===----------------------------------------------------------------------===//
-//
-// EliminateSwizzleCast - This pass replaces the 'fpext/fptrunc' correlative
-// cast with TPC *convrt* intrinsics, if a given cast post dominates all other
-// correlative cast.
-//
-FunctionPass *createEliminateSwizzleCastLegacyPass();
 
 //===----------------------------------------------------------------------===//
 //

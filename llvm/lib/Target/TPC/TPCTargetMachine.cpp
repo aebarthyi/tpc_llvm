@@ -40,15 +40,7 @@ extern "C" void LLVMInitializeTPCTarget() {
 
   // Register the target passes.
   PassRegistry &Registry = *PassRegistry::getPassRegistry();
-  initializeScalarToIRFPassPass(Registry);
-  initializeGlobalResolverPass(Registry);
-  initializeGlobalizerPass(Registry);
-  initializeTPCModuleLegalizerPass(Registry);
-  initializeAttributeAdjusterPass(Registry);
-  initializePromoteMemoryToRegsPass(Registry);
-  initializeTpcLoopOptPass(Registry);
 //  initializeTPCAAWrapperPassPass(Registry);
-  initializeTpcCopyElisionPass(Registry);
   initializeTPCPredicateOptimizerPass(Registry);
   initializeTPCIncMergerPass(Registry);
 }

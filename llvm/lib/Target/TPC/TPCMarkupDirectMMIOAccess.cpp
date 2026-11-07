@@ -9,7 +9,6 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/IntrinsicsTPC.h"
-#include "llvm/Pass.h"
 
 using namespace llvm;
 
@@ -35,22 +34,8 @@ static void addDirectMMIOAccessMetadata(Function &F) {
   F.setMetadata("tpc.direct.mmio.access", N);
 }
 
-class MarkupDirectMMIOAccessPass : public FunctionPass {
+class MarkupDirectMMIOAccessPass {
 public:
-  static char ID;
-
-  MarkupDirectMMIOAccessPass() : FunctionPass(ID) {
-    initializeMarkupDirectMMIOAccessPassPass(*PassRegistry::getPassRegistry());
-  }
-
-  bool runOnFunction(Function &F) override {
-    if (skipFunction(F))
-      return false;
-
-    return runImpl(F);
-  }
-
-  /// Shared by the legacy and new pass manager entry points.
   static bool runImpl(Function &F) {
     const bool HasMMIOAccess = any_of(
         F, [](BasicBlock &BB) { return any_of(BB, isDirectMMIOAccess); });
@@ -62,18 +47,7 @@ public:
   }
 };
 
-char MarkupDirectMMIOAccessPass::ID = 0;
-INITIALIZE_PASS_BEGIN(MarkupDirectMMIOAccessPass,
-                      "tpc-markup-direct-mmio-access",
-                      "Markup Direct MMIO Access", false, false)
-INITIALIZE_PASS_END(MarkupDirectMMIOAccessPass, "tpc-markup-direct-mmio-access",
-                    "Markup Direct MMIO Access", false, false)
-
 namespace llvm {
-
-FunctionPass *createMarkupDirectMMIOAccessPass() {
-  return new MarkupDirectMMIOAccessPass;
-}
 
 PreservedAnalyses
 TPCMarkupDirectMMIOAccessPass::run(Function &F, FunctionAnalysisManager &AM) {

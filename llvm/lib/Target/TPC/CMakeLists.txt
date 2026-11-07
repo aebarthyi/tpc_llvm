@@ -25,7 +25,6 @@ set(sources
   latenciesGen3.cpp
   latenciesGen4.cpp
   latenciesDoron1.cpp
-  MemoryToReg.cpp
   TPCModuleLegalizer.cpp
   ScalarToIRF.cpp
   TPCTargetMachine.cpp

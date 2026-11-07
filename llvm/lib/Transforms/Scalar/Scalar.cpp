@@ -35,7 +35,6 @@ void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeAlignmentFromAssumptionsPass(Registry);
   initializeCallSiteSplittingLegacyPassPass(Registry);
   initializeConstantHoistingLegacyPassPass(Registry);
-  initializeCoordUpdateSimplifyPass(Registry);
   initializeCorrelatedValuePropagationPass(Registry);
   initializeDCELegacyPassPass(Registry);
   initializeDivRemPairsLegacyPassPass(Registry);
@@ -55,7 +54,6 @@ void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeIndVarSimplifyLegacyPassPass(Registry);
   initializeInferAddressSpacesPass(Registry);
   initializeInstSimplifyLegacyPassPass(Registry);
-  initializeIterationInterleaveLegacyPass(Registry);
   initializeJumpThreadingPass(Registry);
   initializeDFAJumpThreadingLegacyPassPass(Registry);
   initializeLegacyLICMPassPass(Registry);
@@ -71,10 +69,8 @@ void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeLoopRotateLegacyPassPass(Registry);
   initializeLoopStrengthReducePass(Registry);
   initializeLoopRerollLegacyPassPass(Registry);
-  initializeLoopSWPPass(Registry);
   initializeLoopUnrollPass(Registry);
   initializeLoopUnrollAndJamPass(Registry);
-  initializeLoopTakenPass(Registry);
   initializeWarnMissedTransformationsLegacyPass(Registry);
   initializeLoopVersioningLICMLegacyPassPass(Registry);
   initializeLoopIdiomRecognizeLegacyPassPass(Registry);
@@ -113,8 +109,6 @@ void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeLoopLoadEliminationPass(Registry);
   initializeLoopSimplifyCFGLegacyPassPass(Registry);
   initializeLoopVersioningLegacyPassPass(Registry);
-  initializeTPCLicmPassPass(Registry);
-  initializeEliminateSwizzleCastLegacyPassPass(Registry);
 }
 
 void LLVMAddLoopSimplifyCFGPass(LLVMPassManagerRef PM) {
@@ -205,22 +199,12 @@ void LLVMAddLoopRerollPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createLoopRerollPass());
 }
 
-#ifdef LLVM_TPC_COMPILER
-void LLVMAddLoopSWPPass(LLVMPassManagerRef PM) {
-  unwrap(PM)->add(createLoopSWPPass());
-}
-#endif
-
 void LLVMAddLoopUnrollPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createLoopUnrollPass());
 }
 
 void LLVMAddLoopUnrollAndJamPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createLoopUnrollAndJamPass());
-}
-
-void LLVMAddLoopTakenPass(LLVMPassManagerRef PM) {
-  unwrap(PM)->add(createLoopTakenPass());
 }
 
 void LLVMAddLowerAtomicPass(LLVMPassManagerRef PM) {

@@ -46,7 +46,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "TPCTargetMachine.h"
-#include "llvm/InitializePasses.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
@@ -57,7 +56,6 @@
 using namespace llvm;
 
 #define PassName "tpcopt"
-#define PassDescription "Create pipeline optimization in the level of the IR"
 #define DEBUG_TYPE PassName
 #include <iostream>
 
@@ -68,9 +66,9 @@ static cl::opt<bool> tpcoptDebug("TPCOPT_DEBUG",cl::init(false), cl::Hidden);
 using namespace std;
 
 namespace llvm {
-/// Transformation state and logic shared by the legacy (TpcLoopOpt) and new PM
-/// (TpcLoopOptPass) passes. One object is used for all loops the pass runs on,
-/// and most of the state below is not reset between loops.
+/// Transformation state and logic of TpcLoopOptPass. One object is used for all
+/// loops the pass runs on, and most of the state below is not reset between
+/// loops.
 class TpcLoopOptImpl {
 public:
     bool run(Loop *Lp, ScalarEvolution *SE);
@@ -115,35 +113,6 @@ private:
     void fixPhiInstruction(BasicBlock *BB);
 };
 } // namespace llvm
-
-class TpcLoopOpt : public LoopPass {
-public:
-    static char ID;
-    TpcLoopOpt() : LoopPass(ID) {
-      initializeTpcLoopOptPass(*PassRegistry::getPassRegistry());
-    }
-
-    void getAnalysisUsage(AnalysisUsage &AU) const override {
-      AU.addPreserved<ScalarEvolutionWrapperPass>();
-      getLoopAnalysisUsage(AU);
-    }
-
-private:
-    TpcLoopOptImpl Impl;
-    bool runOnLoop(Loop *Lp, LPPassManager &LPM) override;
-};
-
-INITIALIZE_PASS_BEGIN(TpcLoopOpt, PassName, PassDescription, false, false)
-  INITIALIZE_PASS_DEPENDENCY(LoopPass)
-INITIALIZE_PASS_END(TpcLoopOpt, PassName, PassDescription, false, false)
-
-char TpcLoopOpt::ID = 0;
-
-LoopPass *llvm::createTpcLoopOptPass() { return new TpcLoopOpt(); }
-
-bool TpcLoopOpt::runOnLoop(Loop *Lp, LPPassManager &LPM) {
-  return Impl.run(Lp, &getAnalysis<ScalarEvolutionWrapperPass>().getSE());
-}
 
 TpcLoopOptPass::TpcLoopOptPass() : Impl(std::make_unique<TpcLoopOptImpl>()) {}
 TpcLoopOptPass::TpcLoopOptPass(TpcLoopOptPass &&) = default;

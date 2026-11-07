@@ -16,22 +16,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Scalar/TPCLICM.h"
-#include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/IntrinsicsTPC.h"
-#include "llvm/InitializePasses.h"
-#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Scalar.h"
 #include <vector>
 
 using namespace llvm;
 
-static const char PassDescription[] = "TPC-LICM pass.";
-static const char PassName[] = "tpc-licm";
 
 #define DEBUG_TYPE "tpc-licm"
 static cl::opt<bool>
@@ -40,7 +35,6 @@ static cl::opt<bool>
                      cl::init(true), cl::Hidden);
 
 namespace {
-/// Implementation shared by the legacy and the new pass manager passes.
 class TPCLicmImpl {
 public:
   TPCLicmImpl() {
@@ -61,29 +55,7 @@ private:
   IntrinsicInst *isLICMIntrinsic(Instruction *II);
 };
 
-class TPCLicmPass : public LoopPass {
-public:
-  static char ID;
-  StringRef getPassName() const override { return PassDescription; }
-  TPCLicmPass() : LoopPass(ID) {
-    initializeTPCLicmPassPass(*PassRegistry::getPassRegistry());
-  }
-  bool runOnLoop(Loop *Lp, LPPassManager &LPM) override {
-    return Impl.run(Lp);
-  }
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.setPreservesCFG();
-    AU.addRequired<LoopInfoWrapperPass>();
-  }
-
-private:
-  TPCLicmImpl Impl;
-};
 } // namespace
-
-INITIALIZE_PASS(TPCLicmPass, PassName, PassDescription, false, false)
-char TPCLicmPass::ID = 0;
-Pass *llvm::createTPCLICMPass() { return new TPCLicmPass(); }
 
 /// @brief isLICMIntrinsic
 /// \param II IR instruction
@@ -206,7 +178,7 @@ PreservedAnalyses TPCLICMPass::run(Loop &L, LoopAnalysisManager &AM,
   // stale.
   AR.SE.forgetLoopDispositions();
 
-  // Like the legacy pass, preserve the CFG (instructions are only moved).
+  // Preserve the CFG (instructions are only moved).
   PreservedAnalyses PA = getLoopPassPreservedAnalyses();
   PA.preserveSet<CFGAnalyses>();
   return PA;

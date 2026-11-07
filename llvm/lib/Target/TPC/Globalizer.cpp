@@ -14,7 +14,6 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/IRBuilder.h"
-#include "llvm/Pass.h"
 #include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/ADT/StringRef.h"
@@ -24,12 +23,7 @@ using namespace llvm;
 
 
 namespace {
-struct Globalizer : public ModulePass {
-  static char ID; // Pass identification, replacement for typeid
-  SmallVector<Instruction *, 32> WorkList;
-
-  Globalizer() : ModulePass(ID) {}
-
+struct Globalizer {
   /* for low debuging
   static bool check_if_debug(Module &M)
   {
@@ -38,16 +32,6 @@ struct Globalizer : public ModulePass {
   }
 */
 
-  bool runOnModule(Module &M) override {
-    WorkList.clear();
-
-    if (skipModule(M))
-      return false;
-
-    return runImpl(M);
-  }
-
-  /// Shared by the legacy and new pass manager entry points.
   static bool runImpl(Module &M) {
     bool Changed = false;
     ValueReplacer Replacer;
@@ -144,13 +128,6 @@ struct Globalizer : public ModulePass {
     return Changed;
   }
 };
-}
-
-char Globalizer::ID = 0;
-INITIALIZE_PASS(Globalizer, "globalizer", "Alloca Globalizer", false, false)
-
-ModulePass *llvm::createGlobalizer() {
-  return new Globalizer();
 }
 
 PreservedAnalyses GlobalizerPass::run(Module &M, ModuleAnalysisManager &AM) {

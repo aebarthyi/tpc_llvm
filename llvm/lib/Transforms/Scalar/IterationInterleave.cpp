@@ -66,14 +66,11 @@
 #include "TPCOptUtils.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/IntrinsicsTPC.h"
-#include "llvm/InitializePasses.h"
-#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Scalar.h"
 #include <deque>
@@ -1275,44 +1272,7 @@ public:
   }
 };
 
-struct IterationInterleaveLegacy : public LoopPass {
-  static char ID;
-
-  bool runOnLoop(Loop *L, LPPassManager &LPM) override {
-    ScalarEvolution *SE = &getAnalysis<ScalarEvolutionWrapperPass>().getSE();
-    const TargetTransformInfo *TTI =
-        &getAnalysis<TargetTransformInfoWrapperPass>().getTTI(
-            *L->getHeader()->getParent());
-    IterationInterleaver II(SE, TTI, L);
-    return II.run();
-  }
-
-  IterationInterleaveLegacy() : LoopPass(ID) {
-    initializeIterationInterleaveLegacyPass(*PassRegistry::getPassRegistry());
-  }
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<ScalarEvolutionWrapperPass>();
-    AU.addRequired<TargetTransformInfoWrapperPass>();
-
-    AU.setPreservesCFG();
-  }
-};
-
 } // end anonymous namespace
-
-char IterationInterleaveLegacy::ID = 0;
-
-INITIALIZE_PASS_BEGIN(IterationInterleaveLegacy, "iter-ilv",
-                      "Iteration Interleave", false, false)
-INITIALIZE_PASS_DEPENDENCY(ScalarEvolutionWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(TargetTransformInfoWrapperPass)
-INITIALIZE_PASS_END(IterationInterleaveLegacy, "iter-ilv",
-                    "Iteration Interleave", false, false)
-
-Pass *llvm::createIterationInterleavePass() {
-  return new IterationInterleaveLegacy();
-}
 
 PreservedAnalyses IterationInterleavePass::run(Loop &L, LoopAnalysisManager &AM,
                                                LoopStandardAnalysisResults &AR,
@@ -1321,8 +1281,7 @@ PreservedAnalyses IterationInterleavePass::run(Loop &L, LoopAnalysisManager &AM,
   if (!II.run())
     return PreservedAnalyses::all();
 
-  // Like the legacy pass, preserve the CFG (instructions are only reordered
-  // within the loop header).
+  // Preserve the CFG (instructions are only reordered within the loop header).
   PreservedAnalyses PA = getLoopPassPreservedAnalyses();
   PA.preserveSet<CFGAnalyses>();
   return PA;

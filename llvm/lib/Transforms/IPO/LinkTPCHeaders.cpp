@@ -30,9 +30,7 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IRReader/IRReader.h"
-#include "llvm/InitializePasses.h"
 #include "llvm/Linker/Linker.h"
-#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Path.h"
@@ -232,7 +230,6 @@ static IntrinsicKey fun_of_SI32_SI32_SI32(const unsigned ID,
 }
 
 namespace {
-// Shared implementation of the legacy and new pass manager passes.
 class LinkTPCHeadersImpl {
 private:
   std::unordered_map<IntrinsicKey, LinkInfo> KeyToInfo;
@@ -666,9 +663,8 @@ public:
 
   bool callInstructionToSearch(const Instruction &I, StringRef &IRStr);
 
-  // Returns true if calls were replaced with linked functions (the legacy
-  // pass's return value). \p ExpandedFDiv is set to true if vector fdiv
-  // instructions in main were expanded.
+  // Returns true if calls were replaced with linked functions. \p ExpandedFDiv
+  // is set to true if vector fdiv instructions in main were expanded.
   bool run(Module &M, bool &ExpandedFDiv);
 };
 } // namespace
@@ -991,39 +987,6 @@ bool LinkTPCHeadersImpl::run(Module &M, bool &ExpandedFDiv) {
   return true;
 }
 
-namespace {
-class LinkTPCHeadersLegacyPass : public ModulePass {
-  // Owned for the lifetime of the pass object, as before the new pass manager
-  // port, so state such as LinkedIRs persists across runOnModule() calls.
-  LinkTPCHeadersImpl Impl;
-
-public:
-  static char ID; // Pass identification, replacement for typeid
-  LinkTPCHeadersLegacyPass() : ModulePass(ID) {
-    initializeLinkTPCHeadersLegacyPassPass(*PassRegistry::getPassRegistry());
-  }
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {}
-
-  bool runOnModule(Module &M) override {
-    if (skipModule(M))
-      return false;
-    // The legacy pass does not report the vector fdiv expansion as a change.
-    // Keep that behaviour.
-    bool ExpandedFDiv = false;
-    return Impl.run(M, ExpandedFDiv);
-  }
-};
-} // namespace
-
-char LinkTPCHeadersLegacyPass::ID = 0;
-INITIALIZE_PASS(LinkTPCHeadersLegacyPass, "link-tpc-headers",
-                "Link TPC Headers", false, false)
-
-Pass *llvm::createLinkTPCHeadersLegacyPass() {
-  return new LinkTPCHeadersLegacyPass();
-}
-
 PreservedAnalyses LinkTPCHeadersPass::run(Module &M,
                                           ModuleAnalysisManager &AM) {
   // The pass state (LinkedIRs, ReplacementList, SubArchName, the -ILTO
@@ -1033,7 +996,6 @@ PreservedAnalyses LinkTPCHeadersPass::run(Module &M,
   bool Changed = Impl.run(M, ExpandedFDiv);
   if (!Changed && !ExpandedFDiv)
     return PreservedAnalyses::all();
-  // The legacy pass does not declare any preserved analyses.
   return PreservedAnalyses::none();
 }
 

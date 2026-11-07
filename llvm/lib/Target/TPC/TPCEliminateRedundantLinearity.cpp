@@ -54,8 +54,6 @@
 #include "llvm/IR/IntrinsicsTPC.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
-#include "llvm/InitializePasses.h"
-#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Utils/TPCIntrinsicUtils.h"
@@ -2342,50 +2340,8 @@ static bool containsInstructionsToOptimize(const Function &F) {
   return false;
 }
 
-static TPCEliminateRedundantLinearityPassConfig makeDefaultConfig() {
-  TPCEliminateRedundantLinearityPassConfig Cfg;
-  Cfg.HasFeatureTensorStorePack32To16 = false;
-  Cfg.HasFeatureTensorStorePack32To8 = false;
-  Cfg.HasFeatureTensorStorePack16To8 = false;
-  Cfg.HasFeatureTensorLoadUnpack = false;
-  return Cfg;
-}
-
-class EliminateRedundantLinearityLegacyPass : public FunctionPass {
+class EliminateRedundantLinearityImpl {
 public:
-  static char ID;
-
-  EliminateRedundantLinearityLegacyPass()
-      : EliminateRedundantLinearityLegacyPass(makeDefaultConfig()) {}
-
-  EliminateRedundantLinearityLegacyPass(
-      const TPCEliminateRedundantLinearityPassConfig InCfg)
-      : FunctionPass(ID), Cfg(InCfg) {
-    initializeEliminateRedundantLinearityLegacyPassPass(
-        *PassRegistry::getPassRegistry());
-  }
-
-  bool runOnFunction(Function &F) override {
-    if (skipFunction(F))
-      return false;
-
-    if (!EnableEliminateRedundantLinearity)
-      return false;
-
-    // Avoid heavy analysis if nothing to optimize here.
-    if (!containsInstructionsToOptimize(F))
-      return false;
-
-    LLVM_DEBUG(dbgs() << "Pass input:\n" << F << "\n");
-
-    auto &AA = getAnalysis<AAResultsWrapperPass>().getAAResults();
-    auto &SE = getAnalysis<ScalarEvolutionWrapperPass>().getSE();
-    auto &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-
-    return runImpl(F, AA, SE, LI, Cfg);
-  }
-
-  /// Shared by the legacy and new pass manager entry points.
   static bool runImpl(Function &F, AAResults &AA, ScalarEvolution &SE,
                       LoopInfo &LI,
                       const TPCEliminateRedundantLinearityPassConfig &Cfg) {
@@ -2398,12 +2354,6 @@ public:
     LLVM_DEBUG(if (Changed) dbgs() << "\nPass output:\n" << F;);
 
     return Changed;
-  }
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<AAResultsWrapperPass>();
-    AU.addRequired<ScalarEvolutionWrapperPass>();
-    AU.addRequired<LoopInfoWrapperPass>();
   }
 
 private:
@@ -2437,31 +2387,14 @@ private:
            !Instructions.TPCConvertIntrinsics.empty());
     return !Instructions.TPCConvertIntrinsics.empty();
   }
-
-  const TPCEliminateRedundantLinearityPassConfig Cfg;
 };
 
-char EliminateRedundantLinearityLegacyPass::ID = 0;
-INITIALIZE_PASS_BEGIN(EliminateRedundantLinearityLegacyPass, DEBUG_TYPE,
-                      "Eliminate redundant linearity", false, false)
-INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(ScalarEvolutionWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
-INITIALIZE_PASS_END(EliminateRedundantLinearityLegacyPass, DEBUG_TYPE,
-                    "Eliminate redundant linearity", false, false)
-
 namespace llvm {
-
-FunctionPass *createTPCEliminateRedundantLinearityPass(
-    const TPCEliminateRedundantLinearityPassConfig Cfg) {
-  return new EliminateRedundantLinearityLegacyPass(Cfg);
-}
 
 PreservedAnalyses
 TPCEliminateRedundantLinearityPass::run(Function &F,
                                         FunctionAnalysisManager &AM) {
-  // Same early exits as the legacy pass, taken before any analysis is
-  // requested.
+  // Early exits, taken before any analysis is requested.
   if (!EnableEliminateRedundantLinearity)
     return PreservedAnalyses::all();
 
@@ -2475,7 +2408,7 @@ TPCEliminateRedundantLinearityPass::run(Function &F,
   auto &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
   auto &LI = AM.getResult<LoopAnalysis>(F);
 
-  if (!EliminateRedundantLinearityLegacyPass::runImpl(F, AA, SE, LI, Cfg))
+  if (!EliminateRedundantLinearityImpl::runImpl(F, AA, SE, LI, Cfg))
     return PreservedAnalyses::all();
   return PreservedAnalyses::none();
 }

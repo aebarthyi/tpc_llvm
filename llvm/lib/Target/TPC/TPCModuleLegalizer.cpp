@@ -12,8 +12,6 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Pass.h"
-#include "llvm/PassRegistry.h"
 #include <set>
 using namespace llvm;
 
@@ -31,19 +29,7 @@ static void printRecursiveCall(const std::map<Function *, std::set<Function *>> 
 }
 
 namespace {
-struct TPCModuleLegalizer : public FunctionPass {
-  static char ID; // Pass identification, replacement for typeid
-
-  Function *Kernel = nullptr;
-  std::set<Function *> UsedFunctions;
-
-  TPCModuleLegalizer() : FunctionPass(ID) {}
-
-  bool doInitialization(Module &M) override {
-    return runImpl(M, Kernel, UsedFunctions);
-  }
-
-  /// Shared by the legacy and new pass manager entry points.
+struct TPCModuleLegalizer {
   static bool runImpl(Module &M, Function *&Kernel,
                       std::set<Function *> &UsedFunctions) {
     bool Changed = false;
@@ -180,29 +166,7 @@ struct TPCModuleLegalizer : public FunctionPass {
 
     return Changed;
   }
-
-  bool runOnFunction(Function &F) override {
-    bool Changed = false;
-    return Changed;
-  }
-
-  bool doFinalization(Module &M) override {
-    bool Changed = false;
-    return Changed;
-  }
-
-  //StringRef getPassName() const override {
-  //  return "TPC Module Legalizer";
-  //}
 };
-}
-
-char TPCModuleLegalizer::ID = 0;
-INITIALIZE_PASS(TPCModuleLegalizer, "tpclegal",
-                "TPC Module Legalizer", false, false)
-
-FunctionPass *llvm::createTPCModuleLegalizer() {
-  return new TPCModuleLegalizer();
 }
 
 PreservedAnalyses TPCModuleLegalizerPass::run(Module &M,
@@ -211,9 +175,8 @@ PreservedAnalyses TPCModuleLegalizerPass::run(Module &M,
   std::set<Function *> UsedFunctions;
   const size_t NumFunctions = M.size();
   const bool Changed = TPCModuleLegalizer::runImpl(M, Kernel, UsedFunctions);
-  // runImpl() does not count erased functions as a change (the legacy
-  // doInitialization() result never triggers invalidation), but analyses
-  // cached for erased functions must be dropped here.
+  // runImpl() does not count erased functions as a change, but analyses cached
+  // for erased functions must be dropped here.
   if (!Changed && M.size() == NumFunctions)
     return PreservedAnalyses::all();
   return PreservedAnalyses::none();

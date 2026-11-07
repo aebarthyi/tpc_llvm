@@ -16,9 +16,9 @@ Where passes live
   that live in the generic tree. Scheduled directly by
   ``PassBuilderPipelines.cpp`` when the target triple is ``tpc``.
 
-Every pass has a new pass manager entry point (``...Pass``). Its older legacy
-entry point (``create...()``) calls the same implementation but is unused, except
-for ``TPCAA``'s wrapper, which code generation adds.
+Every pass has a new pass manager entry point (``...Pass``). The legacy entry
+points (``create...()``) were removed, except for ``TPCAA``'s wrapper, which code
+generation adds.
 
 ********************
 Pipeline integration
@@ -94,9 +94,10 @@ Legacy pass manager
 
 The legacy pipeline is gone: clang stopped using it in LLVM 15, and LLVM 16
 removed ``TargetMachine::adjustPassManager``, through which TPC scheduled its
-passes. Where a section below mentions a legacy placement or
-``PassManagerBuilder.cpp``, it records where the pass ran in that pipeline, which
-explains why the new pipeline is shaped this way.
+passes. The legacy entry points of the passes are gone too. Where a section below
+mentions a legacy pass, a legacy placement or ``PassManagerBuilder.cpp``, it
+records how the pass behaved in that pipeline, which explains why the new pipeline
+is shaped this way.
 
 Testing a pass
 ==============
@@ -118,8 +119,7 @@ TPCModuleLegalizer
 ==================
 
 :Source: ``llvm/lib/Target/TPC/TPCModuleLegalizer.cpp``
-:Kind: function pass in the legacy PM (all work is done in ``doInitialization(Module &)``); module pass in the new PM
-:Legacy: ``createTPCModuleLegalizer()`` (``-tpclegal``)
+:Kind: module pass
 :New PM: ``TPCModuleLegalizerPass`` (``tpclegal``)
 
 **Purpose.** Prepares a freshly linked TPC module (the file comment says it runs
@@ -175,18 +175,13 @@ pass (``isRequired()``) because the legacy pass never skips, and
 * ``printRecursiveCall()`` is an empty stub, so the "Recursive call found"
   error names no functions. ``findFunction()`` is unused (compiler warning).
 
-* The legacy pass keeps ``Kernel`` and ``UsedFunctions`` as members, so calling
-  ``doInitialization`` twice on the same object would report two kernels. The
-  new PM version uses fresh state on each run.
-
-* ``runOnFunction()`` and ``doFinalization()`` are no-ops.
+* ``Kernel`` and ``UsedFunctions`` are fresh on each run.
 
 TpcCopyElision
 ==============
 
 :Source: ``llvm/lib/Target/TPC/TPCCopyElision.cpp``
 :Kind: function pass
-:Legacy: ``createTpcCopyElision()`` (``-copyelide``)
 :New PM: ``TpcCopyElisionPass`` (``copyelide``)
 
 **Purpose.** Removes the extra struct copies that the frontend generates for
@@ -238,7 +233,6 @@ MarkupDirectMMIOAccessPass
 
 :Source: ``llvm/lib/Target/TPC/TPCMarkupDirectMMIOAccess.cpp``
 :Kind: function pass
-:Legacy: ``createMarkupDirectMMIOAccessPass()`` (``-tpc-markup-direct-mmio-access``)
 :New PM: ``TPCMarkupDirectMMIOAccessPass`` (``tpc-markup-direct-mmio-access``)
 
 **Purpose.** Marks functions that access MMIO directly so the backend can
@@ -278,7 +272,6 @@ TPCTransformIntrin
 
 :Source: ``llvm/lib/Target/TPC/TPCTransformIntrin.cpp``
 :Kind: function pass
-:Legacy: ``createTPCTransformIntrinPass()`` (``-tpc-trans-intr``)
 :New PM: ``TPCTransformIntrinPass`` (``tpc-trans-intr``)
 
 **Purpose.** Replaces TPC arithmetic intrinsic calls in their simplest form
@@ -368,7 +361,6 @@ ScalarToIRFPass
 
 :Source: ``llvm/lib/Target/TPC/ScalarToIRF.cpp``
 :Kind: function pass
-:Legacy: ``createScalarToIRFPass(bool FoldCmp)`` (``-scalar2irf``)
 :New PM: ``TPCScalarToIRFPass(bool FoldCmp = true)`` (``scalar2irf``)
 
 **Purpose.** Folds scalar arithmetic on single lanes of int5 (``<5 x i32>``,
@@ -410,11 +402,7 @@ legacy pipeline passes ``Subtarget->hasGen3Plus()``.
 
 **Maintainer notes.**
 
-* The legacy factory stores ``FoldCmp`` in a file-static global
-  (``ScalarToIRF.cpp:47``, ``:604``). So it applies to every legacy instance
-  in the process, the last factory call wins, and the default is ``true`` when
-  the pass is created via the registry. The new PM class keeps it per object;
-  its default is also ``true``.
+* ``FoldCmp`` is kept per object and defaults to ``true``.
 
 * ``mul``/``and``/``or``/``xor``/``shl``/``lshr`` are accepted as candidates,
   but ``getIRFIntrinsic`` only returns intrinsics for ``add`` and ``sub``
@@ -425,12 +413,11 @@ legacy pipeline passes ``Subtarget->hasGen3Plus()``.
 * The new PM class name follows the ``<Legacy>Pass`` rule, hence the doubled
   ``PassPass``.
 
-LinkTPCHeadersLegacyPass
-========================
+LinkTPCHeadersPass
+==================
 
 :Source: ``llvm/lib/Transforms/IPO/LinkTPCHeaders.cpp``
 :Kind: module pass
-:Legacy: ``createLinkTPCHeadersLegacyPass()`` (``-link-tpc-headers``)
 :New PM: ``LinkTPCHeadersPass`` (``link-tpc-headers``)
 
 **Purpose.** Links precompiled LLVM IR implementations of TPC library
@@ -495,15 +482,10 @@ the current working directory when relative.
 
 **Maintainer notes.**
 
-- The legacy ``runOnModule`` returns ``false`` when nothing was linked, even
-  if the vector ``fdiv`` expansion changed ``main``. The port keeps this for
-  the legacy pass. The NPM version reports the change.
-- State lifetime differs between the two pass managers. The legacy pass
-  object owns ``LinkedIRs``, ``ReplacementList``, ``SubArchName`` and the
-  ``dlopen`` handle for its whole lifetime, and ``ReplacementList`` is never
-  cleared. If one legacy instance runs on two modules, the second run sees
-  stale state. The NPM version creates that state fresh on every ``run()``,
-  so the table is rebuilt and ``-ILTO`` is ``dlopen``\ ed once per run.
+- A vector ``fdiv`` expansion counts as a change even when nothing was linked.
+- ``LinkedIRs``, ``ReplacementList``, ``SubArchName`` and the ``dlopen`` handle
+  are created fresh on every ``run()``, so the table is rebuilt and ``-ILTO`` is
+  ``dlopen``\ ed once per run.
 - When a scalar ``llvm.vector.reduce.*`` result does not feed the
   insertelement→shufflevector broadcast pattern, the fallback RAUW
   (``LinkTPCHeaders.cpp:874``) replaces a scalar with the vector-returning
@@ -524,15 +506,12 @@ the current working directory when relative.
   before ``EvalSpecialFunction``, which expands whatever this pass did not
   replace for ``<64 x float>`` and ``<128 x bfloat>``.
 
-EvalSpecialFunctionLegacyPass
-=============================
+EvalSpecialFunctionPass
+=======================
 
 :Source: ``llvm/lib/Transforms/Scalar/EvalSpecialFunctionPass.cpp``
 :Kind: module pass
-:Legacy: ``createEvalSpecialFunctionPass()`` (none: the pass has no
-         ``INITIALIZE_PASS`` registration, so there is no ``-<arg>``)
-:New PM: ``EvalSpecialFunctionPass`` (no legacy pass argument exists; the
-         pipeline name is still to be chosen)
+:New PM: ``EvalSpecialFunctionPass`` (``eval-special-function``)
 
 **Purpose.** Expands TPC "special functions" into inline sequences of TPC
 intrinsics. It handles calls to ``llvm.sin``, ``llvm.cos``, ``llvm.exp``,
@@ -543,7 +522,7 @@ this tree has no lowering for these operations: ``llvm/lib/Target/TPC`` does not
 reference ``ISD::FSIN``, ``FCOS``, ``FEXP``, ``FLOG``, ``FSQRT`` or the
 rsqrt/tanh/reciprocal intrinsics. They therefore have to be removed at the IR
 level. This pass does not depend on the architecture. Compare
-``LinkTPCHeadersLegacyPass``, which links a separate implementation for each
+``LinkTPCHeadersPass``, which links a separate implementation for each
 architecture.
 
 **How it works.**
@@ -586,23 +565,15 @@ when false, the pass does nothing.
 
 **Maintainer notes.**
 
-- The legacy ``runOnModule`` always returns ``false``, even when it rewrote
-  the IR, so the legacy PM never invalidates analyses after this pass. The
-  port keeps that behaviour for the legacy pass
-  (``EvalSpecialFunctionPass.cpp:4214``). The NPM version reports changes
-  correctly.
-- The pass has no ``INITIALIZE_PASS``, no ``initialize…Pass()`` and no
-  ``DEBUG_TYPE``. In ``-debug-pass`` output the legacy pass appears as
-  "Unnamed pass: implement Pass::getPassName()". The name
-  ``eval-special-function`` is already used by the ``cl::opt`` above, so it
-  would clash if used as a legacy pass argument.
+- The pass has no ``DEBUG_TYPE``. The name ``eval-special-function`` is also
+  used by the ``cl::opt`` above.
 - The legacy pass does not call ``skipModule()``, so ``-opt-bisect-limit`` can
   never skip it. The NPM version is not marked ``isRequired()``, so NPM
   opt-bisect can skip it.
 - Before the NPM port, the legacy class was declared in
   ``EvalSpecialFunctionPass.h`` inside an anonymous namespace. The port moved
   it into the ``.cpp`` as ``EvalSpecialFunctionImpl`` plus
-  ``EvalSpecialFunctionLegacyPass``. The header now declares only the NPM
+  ``EvalSpecialFunctionPass``. The header now declares only the NPM
   class.
 - If a vector ``fdiv`` has a type other than ``<64 x float>`` or
   ``<128 x bfloat>``, it becomes a ``llvm.tpc.reciprocal`` call that this pass
@@ -624,7 +595,6 @@ CoordUpdateSimplify
 
 :Source: ``llvm/lib/Transforms/Scalar/CoordUpdateSimplify.cpp``
 :Kind: loop pass
-:Legacy: ``createCoordUpdateSimplifyPass()`` (``-coord-simplify``)
 :New PM: ``CoordUpdateSimplifyPass`` (``coord-simplify``)
 
 **Purpose.** In an innermost, single-block loop, the pass replaces a coordinate
@@ -740,12 +710,11 @@ is scheduled.
 * The legacy pass never calls ``skipLoop()``, so it also runs on ``optnone``
   functions. The new-PM pass is marked ``isRequired()`` for the same behavior.
 
-EliminateSwizzleCastLegacyPass
-==============================
+EliminateSwizzleCastPass
+========================
 
 :Source: ``llvm/lib/Transforms/Scalar/EliminateSwizzleCast.cpp``
 :Kind: function pass
-:Legacy: ``createEliminateSwizzleCastLegacyPass()`` (``-cast-swizzle-opt``)
 :New PM: ``EliminateSwizzleCastPass`` (``cast-swizzle-opt``)
 
 **Purpose.** Finds pairs of mutually inverse conversions on a def-use path,
@@ -837,12 +806,11 @@ hidden): turns on the ``fptrunc`` → ``st.tnsr`` store-pack pattern (the
   deletion/interchange in the function simplification pipeline
   (``PassManagerBuilder.cpp:512-519``).
 
-EliminateRedundantLinearityLegacyPass
-=====================================
+TPCEliminateRedundantLinearityPass
+==================================
 
 :Source: ``llvm/lib/Target/TPC/TPCEliminateRedundantLinearity.cpp``
 :Kind: function pass
-:Legacy: ``createTPCEliminateRedundantLinearityPass(TPCEliminateRedundantLinearityPassConfig)`` (``-tpc-eliminate-redundant-linearity``)
 :New PM: ``TPCEliminateRedundantLinearityPass(TPCEliminateRedundantLinearityPassConfig Cfg = {})`` (``tpc-eliminate-redundant-linearity``)
 
 **Purpose.** Replaces ``tpc.convert.linear`` with the cheaper ``tpc.convert``
@@ -979,7 +947,6 @@ LoopTaken
 
 :Source: ``llvm/lib/Transforms/Scalar/LoopTaken.cpp``
 :Kind: function pass
-:Legacy: ``createLoopTakenPass(int OptLevel = 2)`` (``-looptaken``)
 :New PM: ``LoopTakenPass`` (``looptaken``)
 
 **Purpose.** Honours ``#pragma loop_taken``. Clang emits
@@ -1013,8 +980,7 @@ in place. The legacy pass declares no preserved analyses. The NPM version
 returns ``none()`` when it inserted an assume or ``simplifyLoop`` changed
 anything, and ``all()`` otherwise.
 
-**Options.** None. The ``OptLevel`` argument of ``createLoopTakenPass`` and
-``LoopTakenPass`` is ignored.
+**Options.** None. The ``OptLevel`` argument of ``LoopTakenPass`` is ignored.
 
 **Maintainer notes.**
 
@@ -1048,7 +1014,6 @@ TPCLicmPass
 
 :Source: ``llvm/lib/Transforms/Scalar/TPC_LICM.cpp``
 :Kind: loop pass
-:Legacy: ``createTPCLICMPass()`` (``-tpc-licm``)
 :New PM: ``TPCLICMPass`` (``tpc-licm``)
 
 **Purpose.** A small LICM specialised for TPC lookup intrinsics
@@ -1115,7 +1080,6 @@ LoopSWP
 
 :Source: ``llvm/lib/Transforms/Scalar/LoopSWPPass.cpp``
 :Kind: loop pass
-:Legacy: ``createLoopSWPPass()`` (``-loop-swp``)
 :New PM: ``LoopSWPPass`` (``loop-swp``)
 
 **Purpose.** IR-level software pipelining of unrolled, single-block innermost
@@ -1217,12 +1181,11 @@ after GlobalDCE/ConstantMerge, before LoopSink.
   that uses MemorySSA or BlockFrequencyInfo, or before loop passes that need a
   preheader.
 
-IterationInterleaveLegacy
-=========================
+IterationInterleavePass
+=======================
 
 :Source: ``llvm/lib/Transforms/Scalar/IterationInterleave.cpp``
 :Kind: loop pass
-:Legacy: ``createIterationInterleavePass()`` (``-iter-ilv``)
 :New PM: ``IterationInterleavePass`` (``iter-ilv``)
 
 **Purpose.** It reorders the instructions of an unrolled, single-block
@@ -1305,7 +1268,6 @@ TpcLoopOpt
 
 :Source: ``llvm/lib/Target/TPC/TPCoptimization.cpp``
 :Kind: loop pass
-:Legacy: ``createTpcLoopOptPass()`` (``-tpcopt``)
 :New PM: ``TpcLoopOptPass`` (``tpcopt``)
 
 **Purpose.** "TPC-IR pipelined optimization". In a two-level loop nest where
@@ -1401,7 +1363,6 @@ AttributeAdjuster
 
 :Source: ``llvm/lib/Target/TPC/AttributeAdjuster.cpp``
 :Kind: function pass
-:Legacy: ``createAttributeAdjuster()`` (``-adjust-attr``)
 :New PM: ``AttributeAdjusterPass`` (``adjust-attr``)
 
 **Purpose.** Removes the ``optnone`` function attribute "so that instruction
@@ -1436,7 +1397,6 @@ Globalizer
 
 :Source: ``llvm/lib/Target/TPC/Globalizer.cpp``
 :Kind: module pass
-:Legacy: ``createGlobalizer()`` (``-globalizer``)
 :New PM: ``GlobalizerPass`` (``globalizer``)
 
 **Purpose.** Turns every ``alloca`` into a private global variable. A code
@@ -1488,7 +1448,6 @@ GlobalResolver
 
 :Source: ``llvm/lib/Target/TPC/GlobalResolver.cpp``
 :Kind: module pass
-:Legacy: ``createGlobalResolver()`` (``-glbresolver``)
 :New PM: ``GlobalResolverPass`` (``glbresolver``)
 
 **Purpose.** Assigns every used global variable a fixed address in TPC scalar

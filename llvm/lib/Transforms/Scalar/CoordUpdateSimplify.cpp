@@ -53,7 +53,6 @@
 
 #include "llvm/Transforms/Scalar/CoordUpdateSimplifyPass.h"
 #include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Instruction.h"
@@ -61,8 +60,6 @@
 #include "llvm/IR/IntrinsicsTPC.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/PassManager.h"
-#include "llvm/InitializePasses.h"
-#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
@@ -74,8 +71,6 @@
 using namespace llvm;
 
 #define PassName "coord-simplify"
-#define PassDescription                                                        \
-  "Simplify costly TPC Coordinate update instructions in IR"
 #define DEBUG_TYPE PassName
 
 #define CSP_DEBUG(x) LLVM_DEBUG(dbgs() << "[CoordSimplPass] " << x << "\n");
@@ -100,7 +95,6 @@ static cl::opt<double> LiveRangeToleranceFactor("csp-live-range-tolerance",
                                                 cl::init(0.2), cl::Hidden);
 
 namespace llvm {
-// Implementation shared by the legacy and the new pass manager passes.
 class CoordUpdateSimplifyImpl {
 public:
   // entry; returns true if the IR was changed
@@ -200,39 +194,6 @@ private:
   bool isSimplifyPossible(std::string Indent = "\t");
 };
 } // end namespace llvm
-
-class CoordUpdateSimplify : public LoopPass {
-public:
-  static char ID;
-  CoordUpdateSimplify() : LoopPass(ID) {
-    initializeCoordUpdateSimplifyPass(*PassRegistry::getPassRegistry());
-  }
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addPreserved<ScalarEvolutionWrapperPass>();
-    getLoopAnalysisUsage(AU);
-  }
-
-  // entry
-  bool runOnLoop(Loop *Lp, LPPassManager &LPM) override;
-
-private:
-  // The implementation keeps part of its state across loops; keep it alive as
-  // long as the pass object, as before the new pass manager port.
-  CoordUpdateSimplifyImpl Impl;
-};
-
-char CoordUpdateSimplify::ID = 0;
-
-INITIALIZE_PASS_BEGIN(CoordUpdateSimplify, PassName, PassDescription, false,
-                      false)
-INITIALIZE_PASS_DEPENDENCY(LoopPass)
-INITIALIZE_PASS_END(CoordUpdateSimplify, PassName, PassDescription, false,
-                    false)
-
-Pass *llvm::createCoordUpdateSimplifyPass() {
-  return new CoordUpdateSimplify();
-}
 
 void CoordUpdateSimplifyImpl::dumpLoopBlocks(std::string HeaderNote) {
   LLVM_DEBUG(CSP_DEBUG("Loop Blocks : " << HeaderNote);
@@ -800,10 +761,6 @@ bool CoordUpdateSimplifyImpl::run(Loop *L, ScalarEvolution &SE_) {
   resetContainers();
 
   return true;
-}
-
-bool CoordUpdateSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
-  return Impl.run(L, getAnalysis<ScalarEvolutionWrapperPass>().getSE());
 }
 
 CoordUpdateSimplifyPass::CoordUpdateSimplifyPass()

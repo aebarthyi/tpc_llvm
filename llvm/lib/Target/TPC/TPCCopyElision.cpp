@@ -38,8 +38,6 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Pass.h"
-#include "llvm/PassRegistry.h"
 #include "llvm/Support/Debug.h"
 
 #define DEBUG_TYPE "copyelision"
@@ -50,25 +48,9 @@ static cl::opt<bool> EnableCopyElision("tpc-copy-elision",
                                        cl::Hidden, cl::ZeroOrMore, cl::init(true));
 
 namespace {
-struct TpcCopyElision : public FunctionPass {
-  static char ID; // Pass identification, replacement for typeid
-
-  TpcCopyElision() : FunctionPass(ID) {}
-
-  bool runOnFunction(Function &F) override;
-
-  /// Shared by the legacy and new pass manager entry points.
+struct TpcCopyElision {
   static bool runImpl(Function &F);
 };
-}
-
-
-char TpcCopyElision::ID = 0;
-INITIALIZE_PASS(TpcCopyElision, "copyelide",
-                "Structure copy removal", false, false)
-
-  FunctionPass *llvm::createTpcCopyElision() {
-  return new TpcCopyElision();
 }
 
 /// Checks if the given value is a temporary that stores function return value
@@ -199,16 +181,6 @@ static bool isOnlyCopy(const MemCpyInst *MemCopy, Value *&Dest, Value *&Src) {
            DL.getTypeAllocSize(AI->getAllocatedType()) == Size->getZExtValue();
   };
   return IsWholeStruct(Dest) || IsWholeStruct(Src);
-}
-
-bool TpcCopyElision::runOnFunction(Function &F) {
-  if (!EnableCopyElision)
-    return false;
-
-  if (skipFunction(F))
-    return false;
-
-  return runImpl(F);
 }
 
 bool TpcCopyElision::runImpl(Function &F) {

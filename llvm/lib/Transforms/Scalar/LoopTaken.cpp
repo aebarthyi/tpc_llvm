@@ -27,8 +27,6 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
-#include "llvm/InitializePasses.h"
-#include "llvm/Pass.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/LoopPassManager.h"
 #include "llvm/Transforms/Utils.h"
@@ -38,34 +36,6 @@
 using namespace llvm;
 
 #define DEBUG_TYPE "looptaken"
-
-namespace {
-struct LoopTaken : public FunctionPass {
-  static char ID; // Pass identification, replacement for typeid
-  LoopTaken() : FunctionPass(ID) {
-    initializeLoopTakenPass(*PassRegistry::getPassRegistry());
-  }
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<DominatorTreeWrapperPass>();
-    AU.addRequired<LoopInfoWrapperPass>();
-    AU.addRequired<ScalarEvolutionWrapperPass>();
-    AU.addRequired<AssumptionCacheTracker>();
-  }
-
-  bool runOnFunction(Function &F) override;
-};
-} // namespace
-
-char LoopTaken::ID = 0;
-INITIALIZE_PASS_BEGIN(LoopTaken, "looptaken", "honor loop taken pragma", false,
-                      false)
-INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(ScalarEvolutionWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
-INITIALIZE_PASS_END(LoopTaken, "looptaken", "honor loop taken pragma", false,
-                    false)
 
 static bool insertAssume(Loop *const L, ScalarEvolution &SE,
                          Instruction *InsertP) {
@@ -128,8 +98,7 @@ static bool processLoopTaken(Loop *const L, ScalarEvolution &SE,
   return Ret;
 }
 
-// Shared implementation of the legacy and new pass manager passes. Returns true
-// if an assume was inserted. \p SimplifiedLoops is set to true if
+// Returns true if an assume was inserted. \p SimplifiedLoops is set to true if
 // simplifyLoop() changed the IR.
 static bool runImpl(Function &F, LoopInfo &LI, ScalarEvolution &SE,
                     DominatorTree &DT, AssumptionCache &AC,
@@ -153,23 +122,6 @@ static bool runImpl(Function &F, LoopInfo &LI, ScalarEvolution &SE,
   return Ret;
 }
 
-bool LoopTaken::runOnFunction(Function &F) {
-  LLVM_DEBUG(dbgs() << "loop_taken runOnFunction.\n");
-  if (F.isDeclaration() || skipFunction(F))
-    return false;
-  auto &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-  auto &SE = getAnalysis<ScalarEvolutionWrapperPass>().getSE();
-  auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
-  auto &AC = getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
-
-  // The legacy pass reports a change only when an assume was inserted, even if
-  // simplifyLoop() changed the IR. Keep that behaviour.
-  bool SimplifiedLoops = false;
-  return runImpl(F, LI, SE, DT, AC, SimplifiedLoops);
-}
-
-Pass *llvm::createLoopTakenPass(int OptLevel) { return new LoopTaken(); }
-
 PreservedAnalyses LoopTakenPass::run(Function &F, FunctionAnalysisManager &AM) {
   LLVM_DEBUG(dbgs() << "loop_taken runOnFunction.\n");
   if (F.isDeclaration())
@@ -183,6 +135,5 @@ PreservedAnalyses LoopTakenPass::run(Function &F, FunctionAnalysisManager &AM) {
   bool Changed = runImpl(F, LI, SE, DT, AC, SimplifiedLoops);
   if (!Changed && !SimplifiedLoops)
     return PreservedAnalyses::all();
-  // The legacy pass does not declare any preserved analyses.
   return PreservedAnalyses::none();
 }

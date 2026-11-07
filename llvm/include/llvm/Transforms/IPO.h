@@ -213,10 +213,6 @@ ModulePass *createCrossDSOCFIPass();
 /// devirtualization and control-flow integrity.
 ModulePass *createGlobalSplitPass();
 
-#ifndef _WIN32
-Pass *createLinkTPCHeadersLegacyPass();
-#endif
-
 } // End llvm namespace
 
 #endif

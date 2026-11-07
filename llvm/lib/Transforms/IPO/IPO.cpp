@@ -27,9 +27,6 @@ void llvm::initializeIPO(PassRegistry &Registry) {
   initializeCalledValuePropagationLegacyPassPass(Registry);
   initializeConstantMergeLegacyPassPass(Registry);
   initializeCrossDSOCFIPass(Registry);
-#if defined(LLVM_TPC_COMPILER) && !defined(_WIN32)
-  initializeLinkTPCHeadersLegacyPassPass(Registry);
-#endif
   initializeDAEPass(Registry);
   initializeDAHPass(Registry);
   initializeForceFunctionAttrsLegacyPassPass(Registry);

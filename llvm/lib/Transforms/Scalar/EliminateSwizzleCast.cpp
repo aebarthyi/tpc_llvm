@@ -26,8 +26,6 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/IntrinsicsTPC.h"
 #include "llvm/IR/PassManager.h"
-#include "llvm/InitializePasses.h"
-#include "llvm/Pass.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -1029,8 +1027,7 @@ static void printGraph(const DataDependenceGraph &G, bool isPrintUseDef) {
 }
 */
 
-// Shared implementation of the legacy and new pass manager passes. Returns true
-// if the IR was changed.
+// Returns true if the IR was changed.
 static bool runImpl(Function &F, AAResults &AA, ScalarEvolution &SE,
                     LoopInfo &LI) {
   // Construct Data Dependence Graph(DDG)
@@ -1043,50 +1040,7 @@ static bool runImpl(Function &F, AAResults &AA, ScalarEvolution &SE,
   return CS.processDDG(G);
 }
 
-class EliminateSwizzleCastLegacyPass : public FunctionPass {
-public:
-  static char ID; // Pass ID, replacement for typeid
-  EliminateSwizzleCastLegacyPass() : FunctionPass(ID) {
-    initializeEliminateSwizzleCastLegacyPassPass(
-        *PassRegistry::getPassRegistry());
-  }
-
-  bool runOnFunction(Function &F) override;
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<AAResultsWrapperPass>();
-    AU.addRequired<ScalarEvolutionWrapperPass>();
-    AU.addRequired<LoopInfoWrapperPass>();
-  }
-};
-
-bool EliminateSwizzleCastLegacyPass::runOnFunction(Function &F) {
-  if (skipFunction(F))
-    return false;
-
-  auto &AA = getAnalysis<AAResultsWrapperPass>().getAAResults();
-  auto &SE = getAnalysis<ScalarEvolutionWrapperPass>().getSE();
-  auto &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-
-  // The legacy pass has always reported no change, even when the IR was
-  // transformed. Keep that behaviour.
-  runImpl(F, AA, SE, LI);
-  return false;
-}
 } // namespace
-
-char EliminateSwizzleCastLegacyPass::ID = 0;
-INITIALIZE_PASS_BEGIN(EliminateSwizzleCastLegacyPass, "cast-swizzle-opt",
-                      "Eliminate swizzle ops", false, false)
-INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(ScalarEvolutionWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
-INITIALIZE_PASS_END(EliminateSwizzleCastLegacyPass, "cast-swizzle-opt",
-                    "Eliminate swizzle ops", false, false)
-
-FunctionPass *llvm::createEliminateSwizzleCastLegacyPass() {
-  return new EliminateSwizzleCastLegacyPass();
-}
 
 PreservedAnalyses EliminateSwizzleCastPass::run(Function &F,
                                                 FunctionAnalysisManager &AM) {
@@ -1096,6 +1050,5 @@ PreservedAnalyses EliminateSwizzleCastPass::run(Function &F,
 
   if (!runImpl(F, AA, SE, LI))
     return PreservedAnalyses::all();
-  // The legacy pass does not declare any preserved analyses.
   return PreservedAnalyses::none();
 }

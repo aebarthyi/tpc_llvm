@@ -11,13 +11,10 @@
 // ======================================================================== //
 
 #include "llvm/Transforms/Scalar/LoopSWPPass.h"
-#include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/PassManager.h"
-#include "llvm/InitializePasses.h"
-#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
@@ -29,8 +26,6 @@
 using namespace llvm;
 
 #define PassName "loop-swp"
-#define PassDescription                                                        \
-  "Apply Software Pipelining optimization for TPC at LLVM-IR"
 #define DEBUG_TYPE PassName
 
 #define LOOP_SWP_DEBUG(x) LLVM_DEBUG(dbgs() << "[LoopSWPPass] " << x << "\n");
@@ -44,7 +39,6 @@ static cl::opt<unsigned> LoopSWPLoadPrefetchCount("swp-load-prefetch-count",
 #define SUCCESS_TAG "[SUCCESS] "
 
 namespace llvm {
-// Implementation shared by the legacy and the new pass manager passes.
 class LoopSWPImpl {
 public:
   // main function; returns true if the IR was changed
@@ -371,35 +365,6 @@ private:
   bool verifyLCSSAForm();
 };
 } // end namespace llvm
-
-class LoopSWP : public LoopPass {
-public:
-  static char ID;
-  LoopSWP() : LoopPass(ID) {
-    initializeLoopSWPPass(*PassRegistry::getPassRegistry());
-  }
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addPreserved<ScalarEvolutionWrapperPass>();
-    getLoopAnalysisUsage(AU);
-  }
-
-  // main function
-  bool runOnLoop(Loop *Lp, LPPassManager &LPM) override;
-
-private:
-  // The implementation keeps part of its state across loops; keep it alive as
-  // long as the pass object, as before the new pass manager port.
-  LoopSWPImpl Impl;
-};
-
-char LoopSWP::ID = 0;
-
-INITIALIZE_PASS_BEGIN(LoopSWP, PassName, PassDescription, false, false)
-INITIALIZE_PASS_DEPENDENCY(LoopPass)
-INITIALIZE_PASS_END(LoopSWP, PassName, PassDescription, false, false)
-
-Pass *llvm::createLoopSWPPass() { return new LoopSWP(); }
 
 Value *LoopSWPImpl::getConstAddend(Instruction *I) {
   return TPCOptUtils::getAddend(I);
@@ -1510,15 +1475,6 @@ bool LoopSWPImpl::isPipeliningEnabled() {
           isPipelinePragmaDefined(WorkingLoop));
 }
 
-bool LoopSWP::runOnLoop(Loop *L, LPPassManager &LPM) {
-  // The legacy pass has always reported that it did not change the IR, even
-  // when the loop was pipelined; keep that behaviour.
-  Impl.run(L, getAnalysis<ScalarEvolutionWrapperPass>().getSE(),
-           getAnalysis<LoopInfoWrapperPass>().getLoopInfo(),
-           getAnalysis<DominatorTreeWrapperPass>().getDomTree());
-  return false;
-}
-
 bool LoopSWPImpl::run(Loop *L, ScalarEvolution &SE_, LoopInfo &LI_,
                       DominatorTree &DT_) {
   WorkingLoop = L;
@@ -2556,9 +2512,8 @@ PreservedAnalyses LoopSWPPass::run(Loop &L, LoopAnalysisManager &AM,
   if (!Impl->run(&L, AR.SE, AR.LI, AR.DT))
     return PreservedAnalyses::all();
 
-  // updateLoopBounds() makes the preheader branch to the exit block as well.
-  // The legacy pass leaves the dominator tree stale; the new pass manager
-  // requires it to be kept up to date.
+  // updateLoopBounds() makes the preheader branch to the exit block as well,
+  // and the new pass manager requires the dominator tree to be kept up to date.
   if (Preheader && Exit && !HadPreheaderExitEdge &&
       is_contained(successors(Preheader), Exit))
     AR.DT.insertEdge(Preheader, Exit);

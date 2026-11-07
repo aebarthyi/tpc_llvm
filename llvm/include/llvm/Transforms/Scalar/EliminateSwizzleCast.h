@@ -27,9 +27,6 @@ public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 };
 
-/// Create a legacy pass manager instance of the pass
-FunctionPass *createEliminateSwizzleCastLegacyPass();
-
 } // end namespace llvm
 
 #endif

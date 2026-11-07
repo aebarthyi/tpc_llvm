@@ -16,19 +16,11 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/Pass.h"
-#include "llvm/PassRegistry.h"
 
 #define DEBUG_TYPE "TPCTransformIntrin"
 
 using namespace llvm;
 
-namespace llvm {
-  FunctionPass *createTPCTransformIntrinPass();
-  void initializeTPCTransformIntrinPass(PassRegistry&);
-}
-
-static const char PassDescription[] = "TPC intrinsic transformations";
 static const char PassName[] = "tpc-trans-intr";
 
 static cl::opt<bool>
@@ -61,39 +53,11 @@ EnableTPCTransformIntrinMinMax("tpc-trans-intr-minmax",
   cl::init(true));
 
 namespace {
-  class TPCTransformIntrin : public FunctionPass {
+  class TPCTransformIntrin {
   public:
-    static char ID;
-
-    StringRef getPassName() const override { return PassDescription; }
-
-    TPCTransformIntrin() : FunctionPass(ID) {
-      initializeTPCTransformIntrinPass(*PassRegistry::getPassRegistry());
-    }
-    bool runOnFunction(Function &F) override;
-
-    /// Shared by the legacy and new pass manager entry points.
     static bool runImpl(Function &Func);
   };//class
 }//namespace
-
-char TPCTransformIntrin::ID = 0;
-INITIALIZE_PASS(TPCTransformIntrin, PassName, PassDescription, false, false)
-
-FunctionPass *llvm::createTPCTransformIntrinPass() {
-  return new TPCTransformIntrin();
-}
-
-bool TPCTransformIntrin::runOnFunction(Function &Func) {
-
-  if (!EnableTPCTransformIntrin) {
-    return false;
-  }
-
-  if (skipFunction(Func))
-    return false;
-  return runImpl(Func);
-}
 
 bool TPCTransformIntrin::runImpl(Function &Func) {
   Function *F = &Func;

@@ -26,8 +26,6 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PatternMatch.h"
-#include "llvm/Pass.h"
-#include "llvm/PassRegistry.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Scalar.h"
 #include <algorithm>
@@ -43,8 +41,6 @@ using namespace PatternMatch;
 //
 static cl::opt<bool> EnableScalarToIRF("scalar-to-irf",
     cl::ZeroOrMore, cl::init(true));
-
-static bool FoldComparisons = true;
 
 //
 // Returns true if the scalar instruction 'Inst' is an arithmetic instruction,
@@ -559,25 +555,7 @@ static bool runOnBasicBlock(BasicBlock &BB, bool FoldComparisons) {
 }
 
 namespace {
-struct ScalarToIRFPass : public FunctionPass {
-  static char ID; // Pass identification, replacement for typeid
-
-  ScalarToIRFPass()
-    : FunctionPass(ID) {
-    initializeScalarToIRFPassPass(*PassRegistry::getPassRegistry());
-  }
-
-  bool runOnFunction(Function &F) override {
-    if (!EnableScalarToIRF)
-      return false;
-
-    if (skipFunction(F))
-      return false;
-
-    return runImpl(F, FoldComparisons);
-  }
-
-  /// Shared by the legacy and new pass manager entry points.
+struct ScalarToIRFPass {
   static bool runImpl(Function &F, bool FoldComparisons) {
     LLVM_DEBUG(dbgs() << "**** ScalarToIRF Pass\n");
     bool Changed = false;
@@ -587,22 +565,7 @@ struct ScalarToIRFPass : public FunctionPass {
 
     return Changed;
   }
-
-  StringRef getPassName() const override {
-    return "Scalar to IRF";
-  }
 };
-}
-
-char ScalarToIRFPass::ID = 0;
-INITIALIZE_PASS_BEGIN(ScalarToIRFPass, "scalar2irf",
-                      "Scalar to IRF", false, false)
-INITIALIZE_PASS_END(ScalarToIRFPass, "scalar2irf",
-                    "Scalar to IRF", false, false)
-
-FunctionPass *llvm::createScalarToIRFPass(bool FoldCmp) {
-  FoldComparisons = FoldCmp;
-  return new ScalarToIRFPass();
 }
 
 PreservedAnalyses TPCScalarToIRFPass::run(Function &F,

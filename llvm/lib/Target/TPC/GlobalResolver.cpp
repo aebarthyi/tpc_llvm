@@ -14,7 +14,6 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/DebugInfoMetadata.h"
-#include "llvm/Pass.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/Target/TPCKernelInfo.h"
 using namespace llvm;
@@ -37,19 +36,7 @@ static bool mustBeResolved(const GlobalVariable &V) {
 
 
 namespace {
-struct GlobalResolver : public ModulePass {
-  static char ID; // Pass identification, replacement for typeid
-
-  GlobalResolver() : ModulePass(ID) {}
-
-  bool runOnModule(Module &M) override {
-    if (skipModule(M))
-      return false;
-
-    return runImpl(M);
-  }
-
-  /// Shared by the legacy and new pass manager entry points.
+struct GlobalResolver {
   static bool runImpl(Module &M) {
     const int ScalarAddrSpace = 1;
     const int VectorAddrSpace = 2;
@@ -178,19 +165,7 @@ struct GlobalResolver : public ModulePass {
 
     return Changed;
   }
-
-  StringRef getPassName() const override {
-    return "Global Variable Resolver";
-  }
 };
-}
-
-char GlobalResolver::ID = 0;
-INITIALIZE_PASS(GlobalResolver, "glbresolver",
-                "Global Variables Resolver", false, false)
-
-  ModulePass *llvm::createGlobalResolver() {
-  return new GlobalResolver();
 }
 
 PreservedAnalyses GlobalResolverPass::run(Module &M,
