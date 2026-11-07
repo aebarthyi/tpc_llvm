@@ -42,11 +42,16 @@ struct GlobalResolver : public ModulePass {
   GlobalResolver() : ModulePass(ID) {}
 
   bool runOnModule(Module &M) override {
-    const int ScalarAddrSpace = 1;
-    const int VectorAddrSpace = 2;
-
     if (skipModule(M))
       return false;
+
+    return runImpl(M);
+  }
+
+  /// Shared by the legacy and new pass manager entry points.
+  static bool runImpl(Module &M) {
+    const int ScalarAddrSpace = 1;
+    const int VectorAddrSpace = 2;
 
     auto &DL = M.getDataLayout();
     LLVMContext &C = M.getContext();
@@ -184,4 +189,18 @@ INITIALIZE_PASS(GlobalResolver, "glbresolver",
 
   ModulePass *llvm::createGlobalResolver() {
   return new GlobalResolver();
+}
+
+PreservedAnalyses GlobalResolverPass::run(Module &M,
+                                          ModuleAnalysisManager &AM) {
+  // runImpl() reports a change only when it erases unused globals, but it also
+  // rewrites every use of a used global (and inserts initializer stores), so
+  // treat that as a change too.
+  const bool RewritesUses = any_of(M.globals(), [](const GlobalVariable &GV) {
+    return mustBeResolved(GV) && !GV.use_empty();
+  });
+  const bool Changed = GlobalResolver::runImpl(M);
+  if (!Changed && !RewritesUses)
+    return PreservedAnalyses::all();
+  return PreservedAnalyses::none();
 }

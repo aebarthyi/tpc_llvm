@@ -7,24 +7,68 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/Analysis/LoopAnalysisManager.h"
 #include "llvm/Analysis/LoopPass.h"
+#include "llvm/IR/PassManager.h"
+#include <memory>
 
 namespace llvm {
 
+class LPMUpdater;
 class Module;
 
 LoopPass *createTpcLoopOptPass();
 void initializeTpcLoopOptPass(PassRegistry&);
 
+class TpcLoopOptImpl;
+
+/// New PM version of TpcLoopOpt ("tpcopt"). Like the legacy pass, one pass
+/// object keeps its transformation state across all loops it is run on.
+class TpcLoopOptPass : public PassInfoMixin<TpcLoopOptPass> {
+  std::unique_ptr<TpcLoopOptImpl> Impl;
+
+public:
+  TpcLoopOptPass();
+  TpcLoopOptPass(TpcLoopOptPass &&);
+  TpcLoopOptPass &operator=(TpcLoopOptPass &&);
+  ~TpcLoopOptPass();
+
+  PreservedAnalyses run(Loop &L, LoopAnalysisManager &AM,
+                        LoopStandardAnalysisResults &AR, LPMUpdater &U);
+  // The legacy pass does not call skipLoop().
+  static bool isRequired() { return true; }
+};
+
 
 FunctionPass *createScalarToIRFPass(bool FoldCmp);
 void initializeScalarToIRFPassPass(PassRegistry &);
 
+/// New PM version of ScalarToIRFPass ("scalar2irf").
+class TPCScalarToIRFPass : public PassInfoMixin<TPCScalarToIRFPass> {
+  bool FoldCmp;
+
+public:
+  explicit TPCScalarToIRFPass(bool FoldCmp = true) : FoldCmp(FoldCmp) {}
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+};
+
 ModulePass *createGlobalResolver();
 void initializeGlobalResolverPass(PassRegistry&);
 
+/// New PM version of GlobalResolver ("glbresolver").
+class GlobalResolverPass : public PassInfoMixin<GlobalResolverPass> {
+public:
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
+};
+
 ModulePass *createGlobalizer();
 void initializeGlobalizerPass(PassRegistry&);
+
+/// New PM version of Globalizer ("globalizer").
+class GlobalizerPass : public PassInfoMixin<GlobalizerPass> {
+public:
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
+};
 
 FunctionPass *createTPCIndexMap();
 void initializeTPCIndexMapPass(PassRegistry&);
@@ -35,11 +79,35 @@ void initializeTPCIndexGenPass(PassRegistry &);
 FunctionPass *createTPCModuleLegalizer();
 void initializeTPCModuleLegalizerPass(PassRegistry&);
 
+/// New PM version of TPCModuleLegalizer ("tpclegal"). The legacy pass is a
+/// FunctionPass that does all of its work in doInitialization(Module &), so
+/// the new PM version is a module pass.
+class TPCModuleLegalizerPass : public PassInfoMixin<TPCModuleLegalizerPass> {
+public:
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
+  // The legacy pass never skips (it runs at all optimization levels).
+  static bool isRequired() { return true; }
+};
+
 FunctionPass *createTpcCopyElision();
 void initializeTpcCopyElisionPass(PassRegistry&);
 
+/// New PM version of TpcCopyElision ("copyelide").
+class TpcCopyElisionPass : public PassInfoMixin<TpcCopyElisionPass> {
+public:
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+};
+
 FunctionPass *createAttributeAdjuster();
 void initializeAttributeAdjusterPass(PassRegistry&);
+
+/// New PM version of AttributeAdjuster ("adjust-attr").
+class AttributeAdjusterPass : public PassInfoMixin<AttributeAdjusterPass> {
+public:
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+  // Must run on optnone functions: removing optnone is its whole purpose.
+  static bool isRequired() { return true; }
+};
 
 FunctionPass *createPromoteMemoryToRegsPass();
 void initializePromoteMemoryToRegsPass(PassRegistry&);
@@ -55,8 +123,29 @@ FunctionPass *createTPCEliminateRedundantLinearityPass(
     TPCEliminateRedundantLinearityPassConfig Cfg);
 void initializeEliminateRedundantLinearityLegacyPassPass(PassRegistry &);
 
+/// New PM version of EliminateRedundantLinearityLegacyPass
+/// ("tpc-eliminate-redundant-linearity").
+class TPCEliminateRedundantLinearityPass
+    : public PassInfoMixin<TPCEliminateRedundantLinearityPass> {
+  TPCEliminateRedundantLinearityPassConfig Cfg;
+
+public:
+  explicit TPCEliminateRedundantLinearityPass(
+      TPCEliminateRedundantLinearityPassConfig Cfg = {})
+      : Cfg(Cfg) {}
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+};
+
 FunctionPass *createMarkupDirectMMIOAccessPass();
 void initializeMarkupDirectMMIOAccessPassPass(PassRegistry &);
+
+/// New PM version of MarkupDirectMMIOAccessPass
+/// ("tpc-markup-direct-mmio-access").
+class TPCMarkupDirectMMIOAccessPass
+    : public PassInfoMixin<TPCMarkupDirectMMIOAccessPass> {
+public:
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+};
 
 FunctionPass *createTPCPredicateOptimizer();
 void initializeTPCPredicateOptimizerPass(PassRegistry &);
@@ -65,6 +154,13 @@ FunctionPass *createTPCIncMerger();
 void initializeTPCIncMergerPass(PassRegistry &);
 
 FunctionPass *createTPCTransformIntrinPass();
+
+/// New PM version of TPCTransformIntrin ("tpc-trans-intr").
+class TPCTransformIntrinPass : public PassInfoMixin<TPCTransformIntrinPass> {
+public:
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+};
+
 FunctionPass *createTPCHardwareLoops();
 FunctionPass *createTPCPipeliner();
 FunctionPass *createTPCPacketizer();

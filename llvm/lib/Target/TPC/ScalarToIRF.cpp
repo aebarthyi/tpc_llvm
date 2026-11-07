@@ -50,7 +50,7 @@ static bool FoldComparisons = true;
 // Returns true if the scalar instruction 'Inst' is an arithmetic instruction,
 // which can be transformed to IRF arithmetic.
 //
-static bool canBeIRF(Instruction *Inst) {
+static bool canBeIRF(Instruction *Inst, bool FoldComparisons) {
   switch (Inst->getOpcode()) {
   default:
     return false;
@@ -366,7 +366,7 @@ struct WorkItem {
 };
 
 
-static bool runOnBasicBlock(BasicBlock &BB) {
+static bool runOnBasicBlock(BasicBlock &BB, bool FoldComparisons) {
   bool Changed = false;
   SmallVector<TransformItem, 32> ToReplace;
 
@@ -390,7 +390,7 @@ static bool runOnBasicBlock(BasicBlock &BB) {
       // transformation.
       for (auto U : Inst->users())
         if (const auto Operation = dyn_cast<Instruction>(U)) {
-          if (canBeIRF(Operation)) {
+          if (canBeIRF(Operation, FoldComparisons)) {
             if (auto ICmp = dyn_cast<ICmpInst>(Operation)) {
               if (findOperation(Operation))
                 continue;
@@ -574,10 +574,15 @@ struct ScalarToIRFPass : public FunctionPass {
     if (skipFunction(F))
       return false;
 
+    return runImpl(F, FoldComparisons);
+  }
+
+  /// Shared by the legacy and new pass manager entry points.
+  static bool runImpl(Function &F, bool FoldComparisons) {
     LLVM_DEBUG(dbgs() << "**** ScalarToIRF Pass\n");
     bool Changed = false;
     for (BasicBlock &BB : F) {
-      Changed |= runOnBasicBlock(BB);
+      Changed |= runOnBasicBlock(BB, FoldComparisons);
     }
 
     return Changed;
@@ -598,4 +603,14 @@ INITIALIZE_PASS_END(ScalarToIRFPass, "scalar2irf",
 FunctionPass *llvm::createScalarToIRFPass(bool FoldCmp) {
   FoldComparisons = FoldCmp;
   return new ScalarToIRFPass();
+}
+
+PreservedAnalyses TPCScalarToIRFPass::run(Function &F,
+                                           FunctionAnalysisManager &AM) {
+  if (!EnableScalarToIRF)
+    return PreservedAnalyses::all();
+
+  if (!ScalarToIRFPass::runImpl(F, FoldCmp))
+    return PreservedAnalyses::all();
+  return PreservedAnalyses::none();
 }

@@ -4,16 +4,101 @@ Expand special function definition for TPC
 */
 
 #include "llvm/Transforms/Scalar/EvalSpecialFunctionPass.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/Analysis/AssumptionCache.h"
+#include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/VectorUtils.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Dominators.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/InstIterator.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsTPC.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/IR/Type.h"
+#include "llvm/InitializePasses.h"
+#include "llvm/Pass.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/TPCIntrinsicUtils.h"
+#include <unordered_map>
 
-char EvalSpecialFunctionPass::ID = 0;
+using namespace llvm;
+
+namespace {
+// Shared implementation of the legacy and new pass manager passes.
+class EvalSpecialFunctionImpl {
+public:
+  // Returns true if the IR was changed.
+  bool run(Module &M);
+
+private:
+  IntegerType *I32Type, *I1Type, *I8Type, *I16Type;
+  Type *F32Type, *BF16Type;
+  VectorType *Int64Type, *Int128Type, *Float64Type, *Char256Type, *Short128Type,
+      *Bfloat128Type, *Float128Type, *I8256Type, *Short256Type, *Bfloat256Type;
+  void replaceExpWithTPCIntrinsics(Module &M, Instruction *InstrToReplace);
+  void replaceSinCosWithTPCIntrinsics(Module &M, Instruction *InstrToReplace,
+                                      int SinCond);
+  void replaceLogWithTPCIntrinsics(Module &M, Instruction *InstrToReplace);
+  void replaceSqrtWithTPCIntrinsics(Module &M, Instruction *InstrToReplace);
+  void replaceReciprocalSqrtWithTPCIntrinsics(Module &M,
+                                              Instruction *InstrToReplace);
+  void replaceBF16ReciprocalSqrtWithTPCIntrinsics(Module &M,
+                                                  Instruction *InstrToReplace);
+  void replaceTanhWithTPCIntrinsics(Module &M, Instruction *InstrToReplace);
+  void replaceReciprocalWithTPCIntrinsics(Module &M,
+                                          Instruction *InstrToReplace);
+
+  void replaceBF16TanhWithTPCIntrinsics(Module &M, Instruction *InstrToReplace);
+
+  void replaceBF16ReciprocalWithTPCIntrinsics(Module &M,
+                                              Instruction *InstrToReplace);
+
+  void replaceBF16SinWithTPCIntrinsics(Module &M, Instruction *InstrToReplace);
+  void replaceBF16CosWithTPCIntrinsics(Module &M, Instruction *InstrToReplace);
+
+  void replaceBF16LogWithTPCIntrinsics(Module &M, Instruction *InstrToReplace);
+  void replaceBF16SqrtWithTPCIntrinsics(Module &M, Instruction *InstrToReplace);
+  void replaceBF16ExpWithTPCIntrinsics(Module &M, Instruction *InstrToReplace);
+  Constant *getBfloatValue(double V);
+  void expandFDiv(Module &M, Instruction *I);
+  bool expandSpecialCaseLLVMIR(Module &M);
+  bool expandSpecialFunction(Module &M);
+};
+
+class EvalSpecialFunctionLegacyPass : public ModulePass {
+public:
+  static char ID;
+
+  EvalSpecialFunctionLegacyPass() : ModulePass(ID) {}
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addRequired<AssumptionCacheTracker>();
+    AU.addRequired<DominatorTreeWrapperPass>();
+    AU.addPreserved<GlobalsAAWrapperPass>();
+    AU.setPreservesCFG();
+  }
+
+  bool runOnModule(Module &M) override;
+};
+} // end anonymous namespace
+
+char EvalSpecialFunctionLegacyPass::ID = 0;
 static cl::opt<bool> EvalSpclFunc("eval-special-function",
                                   cl::desc("Evaluate Special Funtion IR"),
                                   cl::init(true), cl::ZeroOrMore, cl::Hidden);
 
-Constant *EvalSpecialFunctionPass::getBfloatValue(double V) {
+Constant *EvalSpecialFunctionImpl::getBfloatValue(double V) {
   APFloat APF(V);
   bool unused;
   APF.convert(APFloat::BFloat(), APFloat::rmNearestTiesToEven, &unused);
@@ -21,7 +106,7 @@ Constant *EvalSpecialFunctionPass::getBfloatValue(double V) {
 }
 
 #if 1 // MERGE
-void EvalSpecialFunctionPass::replaceBF16ReciprocalWithTPCIntrinsics(
+void EvalSpecialFunctionImpl::replaceBF16ReciprocalWithTPCIntrinsics(
     Module &M, Instruction *InstrToReplace) {
   IRBuilder<> Builder(InstrToReplace);
   Value *Operand = InstrToReplace->getOperand(0);
@@ -250,7 +335,7 @@ void EvalSpecialFunctionPass::replaceBF16ReciprocalWithTPCIntrinsics(
   InstrToReplace->eraseFromParent();
 }
 
-void EvalSpecialFunctionPass::replaceReciprocalWithTPCIntrinsics(
+void EvalSpecialFunctionImpl::replaceReciprocalWithTPCIntrinsics(
     Module &M, Instruction *InstrToReplace) {
   IRBuilder<> Builder(InstrToReplace);
   Value *Operand = InstrToReplace->getOperand(0);
@@ -456,7 +541,7 @@ void EvalSpecialFunctionPass::replaceReciprocalWithTPCIntrinsics(
   InstrToReplace->eraseFromParent();
 }
 
-void EvalSpecialFunctionPass::replaceTanhWithTPCIntrinsics(
+void EvalSpecialFunctionImpl::replaceTanhWithTPCIntrinsics(
     Module &M, Instruction *InstrToReplace) {
   IRBuilder<> Builder(InstrToReplace);
   Value *Operand = InstrToReplace->getOperand(0);
@@ -680,7 +765,7 @@ void EvalSpecialFunctionPass::replaceTanhWithTPCIntrinsics(
   InstrToReplace->eraseFromParent();
 }
 
-void EvalSpecialFunctionPass::replaceBF16TanhWithTPCIntrinsics(
+void EvalSpecialFunctionImpl::replaceBF16TanhWithTPCIntrinsics(
     Module &M, Instruction *InstrToReplace) {
   IRBuilder<> Builder(InstrToReplace);
   Value *Operand = InstrToReplace->getOperand(0);
@@ -892,7 +977,7 @@ void EvalSpecialFunctionPass::replaceBF16TanhWithTPCIntrinsics(
 }
 #endif // MERGE
 
-void EvalSpecialFunctionPass::replaceExpWithTPCIntrinsics(
+void EvalSpecialFunctionImpl::replaceExpWithTPCIntrinsics(
     Module &M, Instruction *InstrToReplace) {
   IRBuilder<> Builder(InstrToReplace);
   Value *Operand = InstrToReplace->getOperand(0);
@@ -1076,7 +1161,7 @@ void EvalSpecialFunctionPass::replaceExpWithTPCIntrinsics(
 }
 
 #if 1 // MERGE
-void EvalSpecialFunctionPass::replaceBF16SinWithTPCIntrinsics(
+void EvalSpecialFunctionImpl::replaceBF16SinWithTPCIntrinsics(
     Module &M, Instruction *InstrToReplace) {
   IRBuilder<> Builder(InstrToReplace);
   Value *Operand = InstrToReplace->getOperand(0);
@@ -1567,7 +1652,7 @@ void EvalSpecialFunctionPass::replaceBF16SinWithTPCIntrinsics(
   InstrToReplace->eraseFromParent();
 }
 
-void EvalSpecialFunctionPass::replaceBF16CosWithTPCIntrinsics(
+void EvalSpecialFunctionImpl::replaceBF16CosWithTPCIntrinsics(
     Module &M, Instruction *InstrToReplace) {
   IRBuilder<> Builder(InstrToReplace);
   Value *Operand = InstrToReplace->getOperand(0);
@@ -2116,7 +2201,7 @@ void EvalSpecialFunctionPass::replaceBF16CosWithTPCIntrinsics(
 }
 #endif // MERGE
 
-void EvalSpecialFunctionPass::replaceLogWithTPCIntrinsics(
+void EvalSpecialFunctionImpl::replaceLogWithTPCIntrinsics(
     Module &M, Instruction *InstrToReplace) {
 
   IRBuilder<> Builder(InstrToReplace);
@@ -2353,7 +2438,7 @@ void EvalSpecialFunctionPass::replaceLogWithTPCIntrinsics(
 }
 
 #if 1 // MERGE
-void EvalSpecialFunctionPass::replaceReciprocalSqrtWithTPCIntrinsics(
+void EvalSpecialFunctionImpl::replaceReciprocalSqrtWithTPCIntrinsics(
     Module &M, Instruction *InstrToReplace) {
 
   IRBuilder<> Builder(InstrToReplace);
@@ -2528,7 +2613,7 @@ void EvalSpecialFunctionPass::replaceReciprocalSqrtWithTPCIntrinsics(
   InstrToReplace->eraseFromParent();
 }
 
-void EvalSpecialFunctionPass::replaceSqrtWithTPCIntrinsics(
+void EvalSpecialFunctionImpl::replaceSqrtWithTPCIntrinsics(
     Module &M, Instruction *InstrToReplace) {
 
   IRBuilder<> Builder(InstrToReplace);
@@ -2718,7 +2803,7 @@ void EvalSpecialFunctionPass::replaceSqrtWithTPCIntrinsics(
   InstrToReplace->eraseFromParent();
 }
 
-void EvalSpecialFunctionPass::replaceBF16LogWithTPCIntrinsics(
+void EvalSpecialFunctionImpl::replaceBF16LogWithTPCIntrinsics(
     Module &M, Instruction *InstrToReplace) {
 
   IRBuilder<> Builder(InstrToReplace);
@@ -2983,7 +3068,7 @@ void EvalSpecialFunctionPass::replaceBF16LogWithTPCIntrinsics(
   InstrToReplace->eraseFromParent();
 }
 
-void EvalSpecialFunctionPass::replaceBF16ReciprocalSqrtWithTPCIntrinsics(
+void EvalSpecialFunctionImpl::replaceBF16ReciprocalSqrtWithTPCIntrinsics(
     Module &M, Instruction *InstrToReplace) {
 
   IRBuilder<> Builder(InstrToReplace);
@@ -3190,7 +3275,7 @@ void EvalSpecialFunctionPass::replaceBF16ReciprocalSqrtWithTPCIntrinsics(
   InstrToReplace->eraseFromParent();
 }
 
-void EvalSpecialFunctionPass::replaceBF16SqrtWithTPCIntrinsics(
+void EvalSpecialFunctionImpl::replaceBF16SqrtWithTPCIntrinsics(
     Module &M, Instruction *InstrToReplace) {
 
   IRBuilder<> Builder(InstrToReplace);
@@ -3353,7 +3438,7 @@ void EvalSpecialFunctionPass::replaceBF16SqrtWithTPCIntrinsics(
 }
 #endif // MERGE
 
-void EvalSpecialFunctionPass::replaceBF16ExpWithTPCIntrinsics(
+void EvalSpecialFunctionImpl::replaceBF16ExpWithTPCIntrinsics(
     Module &M, Instruction *InstrToReplace) {
 
   IRBuilder<> Builder(InstrToReplace);
@@ -3547,7 +3632,7 @@ void EvalSpecialFunctionPass::replaceBF16ExpWithTPCIntrinsics(
   InstrToReplace->eraseFromParent();
 }
 
-void EvalSpecialFunctionPass::replaceSinCosWithTPCIntrinsics(
+void EvalSpecialFunctionImpl::replaceSinCosWithTPCIntrinsics(
     Module &M, Instruction *InstrToReplace, int SinCond) {
 
   IRBuilder<> Builder(InstrToReplace);
@@ -3989,7 +4074,8 @@ void EvalSpecialFunctionPass::replaceSinCosWithTPCIntrinsics(
   InstrToReplace->eraseFromParent();
 }
 
-void EvalSpecialFunctionPass::expandSpecialFunction(Module &M) {
+bool EvalSpecialFunctionImpl::expandSpecialFunction(Module &M) {
+  bool Modified = false;
   for (auto &FuncIt : M) {
     Function *F = &FuncIt;
     for (inst_iterator It = inst_begin(F), E = inst_end(F); It != E; ++It) {
@@ -4052,6 +4138,7 @@ void EvalSpecialFunctionPass::expandSpecialFunction(Module &M) {
       }
 
       if (Change) {
+        Modified = true;
         if (!bFirst) {
           It = ++PrevIt;
         } else {
@@ -4060,9 +4147,10 @@ void EvalSpecialFunctionPass::expandSpecialFunction(Module &M) {
       }
     }
   }
+  return Modified;
 }
 
-void EvalSpecialFunctionPass::expandFDiv(Module &M, Instruction *I) {
+void EvalSpecialFunctionImpl::expandFDiv(Module &M, Instruction *I) {
   IRBuilder<> Builder(I);
   Type *Ty = I->getType();
   Value *Numerator = I->getOperand(0), *Denominator = I->getOperand(1);
@@ -4077,7 +4165,7 @@ void EvalSpecialFunctionPass::expandFDiv(Module &M, Instruction *I) {
   I->replaceAllUsesWith(FMul);
 }
 
-void EvalSpecialFunctionPass::expandSpecialCaseLLVMIR(Module &M) {
+bool EvalSpecialFunctionImpl::expandSpecialCaseLLVMIR(Module &M) {
   SmallVector<Instruction *, 8> EraseList;
   for (auto &FIt : M)
     for (inst_iterator It = inst_begin(&FIt), E = inst_end(&FIt); It != E;
@@ -4093,9 +4181,10 @@ void EvalSpecialFunctionPass::expandSpecialCaseLLVMIR(Module &M) {
 
   for (Instruction *I : EraseList)
     I->eraseFromParent();
+  return !EraseList.empty();
 }
 
-bool EvalSpecialFunctionPass::runOnModule(Module &M) {
+bool EvalSpecialFunctionImpl::run(Module &M) {
 
   if (!EvalSpclFunc)
     return false;
@@ -4117,11 +4206,29 @@ bool EvalSpecialFunctionPass::runOnModule(Module &M) {
   Char256Type = FixedVectorType::get(I1Type, 256);
   I8256Type = FixedVectorType::get(I8Type, 256);
 
-  expandSpecialCaseLLVMIR(M);
-  expandSpecialFunction(M);
+  bool Changed = expandSpecialCaseLLVMIR(M);
+  Changed |= expandSpecialFunction(M);
+  return Changed;
+}
+
+bool EvalSpecialFunctionLegacyPass::runOnModule(Module &M) {
+  // The legacy pass has always reported no change, even when the IR was
+  // transformed. Keep that behaviour.
+  EvalSpecialFunctionImpl().run(M);
   return false;
 }
 
 ModulePass *llvm::createEvalSpecialFunctionPass() {
-  return new EvalSpecialFunctionPass();
+  return new EvalSpecialFunctionLegacyPass();
+}
+
+PreservedAnalyses EvalSpecialFunctionPass::run(Module &M,
+                                               ModuleAnalysisManager &AM) {
+  if (!EvalSpecialFunctionImpl().run(M))
+    return PreservedAnalyses::all();
+  // Mirror the legacy getAnalysisUsage(): setPreservesCFG() and GlobalsAA.
+  PreservedAnalyses PA;
+  PA.preserveSet<CFGAnalyses>();
+  PA.preserve<GlobalsAA>();
+  return PA;
 }

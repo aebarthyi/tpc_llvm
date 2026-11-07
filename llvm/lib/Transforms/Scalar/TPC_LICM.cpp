@@ -15,7 +15,9 @@
 //   3) Move all listed instruction to the first basic block
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Transforms/Scalar/TPCLICM.h"
 #include "llvm/Analysis/LoopPass.h"
+#include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
@@ -38,12 +40,10 @@ static cl::opt<bool>
                      cl::init(true), cl::Hidden);
 
 namespace {
-class TPCLicmPass : public LoopPass {
+/// Implementation shared by the legacy and the new pass manager passes.
+class TPCLicmImpl {
 public:
-  static char ID;
-  StringRef getPassName() const override { return PassDescription; }
-  TPCLicmPass() : LoopPass(ID) {
-    initializeTPCLicmPassPass(*PassRegistry::getPassRegistry());
+  TPCLicmImpl() {
     LicmIntrinsics.push_back(Intrinsic::tpc_lookup);
     LicmIntrinsics.push_back(Intrinsic::tpc_lookup_1c);
     LicmIntrinsics.push_back(Intrinsic::tpc_lookup_2c);
@@ -51,11 +51,7 @@ public:
     LicmIntrinsics.push_back(Intrinsic::tpc_lookup_c1c2);
     sourceIntrinsics.push_back(Intrinsic::read_register);
   }
-  bool runOnLoop(Loop *Lp, LPPassManager &LPM) override;
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.setPreservesCFG();
-    AU.addRequired<LoopInfoWrapperPass>();
-  }
+  bool run(Loop *Lp);
   void searchSource(Instruction *II, BasicBlock *BB,
                     std::vector<Instruction *> &chin);
 
@@ -63,6 +59,25 @@ private:
   std::vector<Intrinsic::ID> LicmIntrinsics;
   std::vector<Intrinsic::ID> sourceIntrinsics;
   IntrinsicInst *isLICMIntrinsic(Instruction *II);
+};
+
+class TPCLicmPass : public LoopPass {
+public:
+  static char ID;
+  StringRef getPassName() const override { return PassDescription; }
+  TPCLicmPass() : LoopPass(ID) {
+    initializeTPCLicmPassPass(*PassRegistry::getPassRegistry());
+  }
+  bool runOnLoop(Loop *Lp, LPPassManager &LPM) override {
+    return Impl.run(Lp);
+  }
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.setPreservesCFG();
+    AU.addRequired<LoopInfoWrapperPass>();
+  }
+
+private:
+  TPCLicmImpl Impl;
 };
 } // namespace
 
@@ -74,7 +89,7 @@ Pass *llvm::createTPCLICMPass() { return new TPCLicmPass(); }
 /// \param II IR instruction
 /// \return check if LicmIntrinsics contains II, if true return pointer to
 ///         IntrinsicInst else null.
-IntrinsicInst *TPCLicmPass::isLICMIntrinsic(Instruction *II) {
+IntrinsicInst *TPCLicmImpl::isLICMIntrinsic(Instruction *II) {
   if (auto val = dyn_cast<IntrinsicInst>(II)) {
     for (auto element : LicmIntrinsics) {
       if (val->getIntrinsicID() == element)
@@ -89,7 +104,7 @@ IntrinsicInst *TPCLicmPass::isLICMIntrinsic(Instruction *II) {
 /// \param II
 /// \param BB the scope of check
 /// \param chin a reference parameter contain a list of instruction to move.
-void TPCLicmPass::searchSource(Instruction *II, BasicBlock *BB,
+void TPCLicmImpl::searchSource(Instruction *II, BasicBlock *BB,
                                std::vector<Instruction *> &chin) {
   for (unsigned i = 0; i < II->getNumOperands(); i++) {
     if (auto intrin = dyn_cast<IntrinsicInst>(II)) {
@@ -117,9 +132,8 @@ void TPCLicmPass::searchSource(Instruction *II, BasicBlock *BB,
 
 ///
 /// \param Lp Current loop
-/// \param LPM LPM pass manger
 /// \return true if runOnLoop end with transformation or not.
-bool TPCLicmPass::runOnLoop(Loop *Lp, LPPassManager &LPM) {
+bool TPCLicmImpl::run(Loop *Lp) {
 
   if(!TPCLICM)
     return false;
@@ -180,4 +194,20 @@ bool TPCLicmPass::runOnLoop(Loop *Lp, LPPassManager &LPM) {
     movIns.clear();
   }
   return change;
+}
+
+PreservedAnalyses TPCLICMPass::run(Loop &L, LoopAnalysisManager &AM,
+                                   LoopStandardAnalysisResults &AR,
+                                   LPMUpdater &U) {
+  if (!TPCLicmImpl().run(&L))
+    return PreservedAnalyses::all();
+
+  // Instructions were hoisted out of L, so the cached loop dispositions are
+  // stale.
+  AR.SE.forgetLoopDispositions(&L);
+
+  // Like the legacy pass, preserve the CFG (instructions are only moved).
+  PreservedAnalyses PA = getLoopPassPreservedAnalyses();
+  PA.preserveSet<CFGAnalyses>();
+  return PA;
 }

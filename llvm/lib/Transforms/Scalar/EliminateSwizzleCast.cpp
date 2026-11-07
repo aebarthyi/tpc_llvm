@@ -62,8 +62,9 @@ std::unordered_multimap<unsigned, unsigned>
 class EliminateSwizzleCast {
 
 public:
-  // Entry point for analysis and transformation.
-  void processDDG(const DataDependenceGraph &G);
+  // Entry point for analysis and transformation. Returns true if the
+  // transformation was applied.
+  bool processDDG(const DataDependenceGraph &G);
   bool CheckLegal(unsigned int PrevStratCode, unsigned int PrevEndCode,
                   unsigned int StartCode, unsigned int EndCode);
 
@@ -159,7 +160,7 @@ bool EliminateSwizzleCast::CheckLegal(unsigned int PrevStratCode,
 //        t0 --> fpext --> t1 ---> add
 //                                      \
 //                                        fptrunc --> t3
-void EliminateSwizzleCast::processDDG(const DataDependenceGraph &G) {
+bool EliminateSwizzleCast::processDDG(const DataDependenceGraph &G) {
 
   bool flag = false;
   unsigned int PrevStartCode = 0;
@@ -256,7 +257,9 @@ void EliminateSwizzleCast::processDDG(const DataDependenceGraph &G) {
   printPostDomTree(FinalPostDomSet);
 #endif
     applyTransform();
+    return true;
   }
+  return false;
 }
 
 // Returns true if node \p N is already visited.
@@ -1026,6 +1029,20 @@ static void printGraph(const DataDependenceGraph &G, bool isPrintUseDef) {
 }
 */
 
+// Shared implementation of the legacy and new pass manager passes. Returns true
+// if the IR was changed.
+static bool runImpl(Function &F, AAResults &AA, ScalarEvolution &SE,
+                    LoopInfo &LI) {
+  // Construct Data Dependence Graph(DDG)
+  DependenceInfo DI(&F, &AA, &SE, &LI);
+  DataDependenceGraph G(F, DI);
+
+  // Analyze DDG and do the transformation if applicable.
+  EliminateSwizzleCast CS;
+
+  return CS.processDDG(G);
+}
+
 class EliminateSwizzleCastLegacyPass : public FunctionPass {
 public:
   static char ID; // Pass ID, replacement for typeid
@@ -1051,14 +1068,9 @@ bool EliminateSwizzleCastLegacyPass::runOnFunction(Function &F) {
   auto &SE = getAnalysis<ScalarEvolutionWrapperPass>().getSE();
   auto &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
 
-  // Construct Data Dependence Graph(DDG)
-  DependenceInfo DI(&F, &AA, &SE, &LI);
-  DataDependenceGraph G(F, DI);
-
-  // Analyze DDG and do the transformation if applicable.
-  EliminateSwizzleCast CS;
-
-  CS.processDDG(G);
+  // The legacy pass has always reported no change, even when the IR was
+  // transformed. Keep that behaviour.
+  runImpl(F, AA, SE, LI);
   return false;
 }
 } // namespace
@@ -1074,4 +1086,16 @@ INITIALIZE_PASS_END(EliminateSwizzleCastLegacyPass, "cast-swizzle-opt",
 
 FunctionPass *llvm::createEliminateSwizzleCastLegacyPass() {
   return new EliminateSwizzleCastLegacyPass();
+}
+
+PreservedAnalyses EliminateSwizzleCastPass::run(Function &F,
+                                                FunctionAnalysisManager &AM) {
+  auto &AA = AM.getResult<AAManager>(F);
+  auto &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
+  auto &LI = AM.getResult<LoopAnalysis>(F);
+
+  if (!runImpl(F, AA, SE, LI))
+    return PreservedAnalyses::all();
+  // The legacy pass does not declare any preserved analyses.
+  return PreservedAnalyses::none();
 }

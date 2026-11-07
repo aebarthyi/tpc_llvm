@@ -45,7 +45,11 @@ public:
   TPCAAResult(TPCAAResult &&Arg)
       : AAResultBase(std::move(Arg)){}
 
-  bool invalidate(Function &, const PreservedAnalyses &) { return false; }
+  /// Never invalidated: the result has no state that depends on the IR.
+  bool invalidate(Function &, const PreservedAnalyses &,
+                  FunctionAnalysisManager::Invalidator &) {
+    return false;
+  }
 
   AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB, AAQueryInfo &AAQI);
   bool pointsToConstantMemory(const MemoryLocation &Loc, AAQueryInfo &QInfo, bool OrLocal);
@@ -58,7 +62,7 @@ private:
 class TPCAA : public AnalysisInfoMixin<TPCAA> {
   friend AnalysisInfoMixin<TPCAA>;
 
-  static char PassID;
+  static AnalysisKey Key;
 
 public:
   using Result = TPCAAResult;

@@ -23,6 +23,11 @@ struct AttributeAdjuster : public FunctionPass {
   }
 
   bool runOnFunction(Function &F) override {
+    return runImpl(F);
+  }
+
+  /// Shared by the legacy and new pass manager entry points.
+  static bool runImpl(Function &F) {
     if (F.hasFnAttribute(Attribute::OptimizeNone)) {
       F.removeAttribute(AttributeList::FunctionIndex, Attribute::OptimizeNone);
       return true;
@@ -42,5 +47,12 @@ INITIALIZE_PASS(AttributeAdjuster, "adjust-attr",
 
   FunctionPass *llvm::createAttributeAdjuster() {
   return new AttributeAdjuster();
+}
+
+PreservedAnalyses AttributeAdjusterPass::run(Function &F,
+                                             FunctionAnalysisManager &AM) {
+  if (!AttributeAdjuster::runImpl(F))
+    return PreservedAnalyses::all();
+  return PreservedAnalyses::none();
 }
 

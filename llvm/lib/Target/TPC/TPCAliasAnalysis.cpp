@@ -32,6 +32,8 @@ using namespace llvm;
 
 #define DEBUG_TYPE "tpc-aa"
 
+AnalysisKey TPCAA::Key;
+
 // Register this pass...
 char TPCAAWrapperPass::ID = 0;
 

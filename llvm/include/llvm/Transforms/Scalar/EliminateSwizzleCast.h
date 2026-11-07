@@ -19,9 +19,12 @@ namespace llvm {
 
 class FunctionPass;
 
-class EliminateSwizzleCastPass : PassInfoMixin<EliminateSwizzleCastPass> {
+class EliminateSwizzleCastPass
+    : public PassInfoMixin<EliminateSwizzleCastPass> {
 public:
   explicit EliminateSwizzleCastPass() {}
+
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 };
 
 /// Create a legacy pass manager instance of the pass

@@ -14,6 +14,7 @@
 // ways too.
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Transforms/Scalar/LoopTaken.h"
 #include "llvm/ADT/PriorityWorklist.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AssumptionCache.h"
@@ -127,19 +128,16 @@ static bool processLoopTaken(Loop *const L, ScalarEvolution &SE,
   return Ret;
 }
 
-bool LoopTaken::runOnFunction(Function &F) {
-  LLVM_DEBUG(dbgs() << "loop_taken runOnFunction.\n");
-  if (F.isDeclaration() || skipFunction(F))
-    return false;
-  auto &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-  auto &SE = getAnalysis<ScalarEvolutionWrapperPass>().getSE();
-  auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
-  auto &AC = getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
-
+// Shared implementation of the legacy and new pass manager passes. Returns true
+// if an assume was inserted. \p SimplifiedLoops is set to true if
+// simplifyLoop() changed the IR.
+static bool runImpl(Function &F, LoopInfo &LI, ScalarEvolution &SE,
+                    DominatorTree &DT, AssumptionCache &AC,
+                    bool &SimplifiedLoops) {
   BasicBlock &BB = F.getEntryBlock();
   Instruction *InsertP = &(BB.back());
   for (auto &L : LI) {
-    simplifyLoop(L, &DT, &LI, &SE, &AC, nullptr, true);
+    SimplifiedLoops |= simplifyLoop(L, &DT, &LI, &SE, &AC, nullptr, true);
   }
   bool Ret = false;
   SmallPriorityWorklist<Loop *, 4> Worklist;
@@ -155,4 +153,36 @@ bool LoopTaken::runOnFunction(Function &F) {
   return Ret;
 }
 
+bool LoopTaken::runOnFunction(Function &F) {
+  LLVM_DEBUG(dbgs() << "loop_taken runOnFunction.\n");
+  if (F.isDeclaration() || skipFunction(F))
+    return false;
+  auto &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
+  auto &SE = getAnalysis<ScalarEvolutionWrapperPass>().getSE();
+  auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
+  auto &AC = getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
+
+  // The legacy pass reports a change only when an assume was inserted, even if
+  // simplifyLoop() changed the IR. Keep that behaviour.
+  bool SimplifiedLoops = false;
+  return runImpl(F, LI, SE, DT, AC, SimplifiedLoops);
+}
+
 Pass *llvm::createLoopTakenPass(int OptLevel) { return new LoopTaken(); }
+
+PreservedAnalyses LoopTakenPass::run(Function &F, FunctionAnalysisManager &AM) {
+  LLVM_DEBUG(dbgs() << "loop_taken runOnFunction.\n");
+  if (F.isDeclaration())
+    return PreservedAnalyses::all();
+  auto &LI = AM.getResult<LoopAnalysis>(F);
+  auto &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
+  auto &DT = AM.getResult<DominatorTreeAnalysis>(F);
+  auto &AC = AM.getResult<AssumptionAnalysis>(F);
+
+  bool SimplifiedLoops = false;
+  bool Changed = runImpl(F, LI, SE, DT, AC, SimplifiedLoops);
+  if (!Changed && !SimplifiedLoops)
+    return PreservedAnalyses::all();
+  // The legacy pass does not declare any preserved analyses.
+  return PreservedAnalyses::none();
+}

@@ -63,6 +63,9 @@ struct TpcCopyElision : public FunctionPass {
   TpcCopyElision() : FunctionPass(ID) {}
 
   bool runOnFunction(Function &F) override;
+
+  /// Shared by the legacy and new pass manager entry points.
+  static bool runImpl(Function &F);
 };
 }
 
@@ -262,6 +265,10 @@ bool TpcCopyElision::runOnFunction(Function &F) {
   if (skipFunction(F))
     return false;
 
+  return runImpl(F);
+}
+
+bool TpcCopyElision::runImpl(Function &F) {
   bool Changed = false;
 
   for (BasicBlock &BB : F) {
@@ -312,4 +319,14 @@ bool TpcCopyElision::runOnFunction(Function &F) {
   }
 
   return Changed;
+}
+
+PreservedAnalyses TpcCopyElisionPass::run(Function &F,
+                                          FunctionAnalysisManager &AM) {
+  if (!EnableCopyElision)
+    return PreservedAnalyses::all();
+
+  if (!TpcCopyElision::runImpl(F))
+    return PreservedAnalyses::all();
+  return PreservedAnalyses::none();
 }

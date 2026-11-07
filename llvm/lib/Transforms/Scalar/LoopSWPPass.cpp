@@ -43,17 +43,12 @@ static cl::opt<unsigned> LoopSWPLoadPrefetchCount("swp-load-prefetch-count",
 #define DISABLED_TAG "[DISABLED] "
 #define SUCCESS_TAG "[SUCCESS] "
 
-class LoopSWP : public LoopPass {
+namespace llvm {
+// Implementation shared by the legacy and the new pass manager passes.
+class LoopSWPImpl {
 public:
-  static char ID;
-  LoopSWP() : LoopPass(ID) {
-    initializeLoopSWPPass(*PassRegistry::getPassRegistry());
-  }
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addPreserved<ScalarEvolutionWrapperPass>();
-    getLoopAnalysisUsage(AU);
-  }
+  // main function; returns true if the IR was changed
+  bool run(Loop *L, ScalarEvolution &SE_, LoopInfo &LI_, DominatorTree &DT_);
 
 private:
   /* Data */
@@ -142,6 +137,11 @@ private:
 
   InductionDescriptor InductionDesc;
   ScalarEvolution *SE;
+  LoopInfo *LI;
+  DominatorTree *DT;
+
+  // set when the IR is changed by run()
+  bool Changed = false;
 
   /* Util functions */
 
@@ -369,9 +369,28 @@ private:
 
   // verify whether the whole loop nest is in LCSSA form after pipelining
   bool verifyLCSSAForm();
+};
+} // end namespace llvm
+
+class LoopSWP : public LoopPass {
+public:
+  static char ID;
+  LoopSWP() : LoopPass(ID) {
+    initializeLoopSWPPass(*PassRegistry::getPassRegistry());
+  }
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addPreserved<ScalarEvolutionWrapperPass>();
+    getLoopAnalysisUsage(AU);
+  }
 
   // main function
   bool runOnLoop(Loop *Lp, LPPassManager &LPM) override;
+
+private:
+  // The implementation keeps part of its state across loops; keep it alive as
+  // long as the pass object, as before the new pass manager port.
+  LoopSWPImpl Impl;
 };
 
 char LoopSWP::ID = 0;
@@ -382,16 +401,16 @@ INITIALIZE_PASS_END(LoopSWP, PassName, PassDescription, false, false)
 
 Pass *llvm::createLoopSWPPass() { return new LoopSWP(); }
 
-Value *LoopSWP::getConstAddend(Instruction *I) {
+Value *LoopSWPImpl::getConstAddend(Instruction *I) {
   return TPCOptUtils::getAddend(I);
 }
 
-Value *LoopSWP::getNonConstAddend(Instruction *I) {
+Value *LoopSWPImpl::getNonConstAddend(Instruction *I) {
   return TPCOptUtils::getAddend(I, false);
 }
 
 // TODO : cluster info dep
-void LoopSWP::resetInstContainers() {
+void LoopSWPImpl::resetInstContainers() {
   NumClusters = 0;
   IsAccumulationLoop = false;
 
@@ -422,7 +441,7 @@ void LoopSWP::resetInstContainers() {
   InductionInsts.clear();
 }
 
-void LoopSWP::cleanup() {
+void LoopSWPImpl::cleanup() {
   for (unsigned i = 0; i < LoopClusters.size(); i++) {
     // free the load inst sequence objects
     for (auto LoadInst : LoopClusters[i]->HeaderLoadInstsVec) {
@@ -443,7 +462,7 @@ void LoopSWP::cleanup() {
   LoopClusters.clear();
 }
 
-void LoopSWP::setLoadPrefetchCount() {
+void LoopSWPImpl::setLoadPrefetchCount() {
   // use user-defined load count
   if (LoopSWPLoadPrefetchCount)
     LoadPrefetchCount = LoopSWPLoadPrefetchCount;
@@ -465,7 +484,7 @@ void LoopSWP::setLoadPrefetchCount() {
   LOOP_SWP_DEBUG("LoadPrefetchCount set to : " << LoadPrefetchCount)
 }
 
-bool LoopSWP::setBasicBlocks() {
+bool LoopSWPImpl::setBasicBlocks() {
   HeaderBlock = WorkingLoop->getHeader();
 
   PreheaderBlock = WorkingLoop->getLoopPreheader();
@@ -483,8 +502,8 @@ bool LoopSWP::setBasicBlocks() {
   return true;
 }
 
-bool LoopSWP::isSimilarType(Instruction *I1, Instruction *I1Override,
-                            Instruction *I2) {
+bool LoopSWPImpl::isSimilarType(Instruction *I1, Instruction *I1Override,
+                                Instruction *I2) {
   if (I1Override)
     I1 = I1Override;
 
@@ -537,9 +556,9 @@ bool LoopSWP::isSimilarType(Instruction *I1, Instruction *I1Override,
 }
 
 // analyse whether the given user of the instruction is an update instruction
-bool LoopSWP::checkInstUpdate(Instruction *I, Instruction *Usr,
-                              bool &IsInstUpdate, Instruction *RefPhi,
-                              BlockType BT, std::string Indent) {
+bool LoopSWPImpl::checkInstUpdate(Instruction *I, Instruction *Usr,
+                                  bool &IsInstUpdate, Instruction *RefPhi,
+                                  BlockType BT, std::string Indent) {
   IsInstUpdate = false;
 
   std::string DebugTag = "<checkInstUpdate> " + Indent;
@@ -597,7 +616,7 @@ bool LoopSWP::checkInstUpdate(Instruction *I, Instruction *Usr,
   return true;
 }
 
-Instruction *LoopSWP::getLastUpdate(Instruction *I, BlockType BT) {
+Instruction *LoopSWPImpl::getLastUpdate(Instruction *I, BlockType BT) {
   if (isInductionPHI(I)) {
     auto LastIt = PhiLastUpdateMap[BT].find(I);
     assert(LastIt != PhiLastUpdateMap[BT].end() &&
@@ -615,7 +634,8 @@ Instruction *LoopSWP::getLastUpdate(Instruction *I, BlockType BT) {
   return NextUpdate;
 }
 
-Instruction *LoopSWP::getNthUpdate(Instruction *I, unsigned N, BlockType BT) {
+Instruction *LoopSWPImpl::getNthUpdate(Instruction *I, unsigned N,
+                                       BlockType BT) {
   if (N == getNumClusters())
     return getLastUpdate(I, BT);
 
@@ -632,8 +652,8 @@ Instruction *LoopSWP::getNthUpdate(Instruction *I, unsigned N, BlockType BT) {
   return NextUpdate;
 }
 
-bool LoopSWP::insertIntoBlock(BlockType BT, Instruction *I,
-                              std::string DebugTag) {
+bool LoopSWPImpl::insertIntoBlock(BlockType BT, Instruction *I,
+                                  std::string DebugTag) {
   return TPCOptUtils::insertIntoBlock(WorkingLoop, BT, I, InsertedBlockInsts,
                                       BBInsertIt, BBPhiInsertIt, DebugTag);
 }
@@ -666,12 +686,11 @@ static bool isUnrollPragmaDefined(Loop *WorkingLoop) {
 }
 
 // initialize the data needed for Induction Phi check
-void LoopSWP::initAnalysisInfo() {
-  SE = &getAnalysis<ScalarEvolutionWrapperPass>().getSE();
+void LoopSWPImpl::initAnalysisInfo() {
   WorkingLoop->getInductionDescriptor(*SE, InductionDesc);
 }
 
-bool LoopSWP::isInductionPHI(PHINode *PhiNode) {
+bool LoopSWPImpl::isInductionPHI(PHINode *PhiNode) {
   BasicBlock *BB = PhiNode->getParent();
   if (BB == PreheaderBlock)
     PhiNode = cast<PHINode>(PreToHeaderPhiMap[PhiNode]);
@@ -690,13 +709,13 @@ bool LoopSWP::isInductionPHI(PHINode *PhiNode) {
   return IsInductionPhi;
 }
 
-bool LoopSWP::isInductionPHI(Instruction *I) {
+bool LoopSWPImpl::isInductionPHI(Instruction *I) {
   if (auto *PhiNode = dyn_cast<PHINode>(I))
     return isInductionPHI(PhiNode);
   return false;
 }
 
-void LoopSWP::dumpPhiLastUpdateMap(BlockType BT) {
+void LoopSWPImpl::dumpPhiLastUpdateMap(BlockType BT) {
   LLVM_DEBUG(LOOP_SWP_DEBUG(
       "PhiLastUpdateMap : {") for (auto kvp
                                    : PhiLastUpdateMap[BT]){
@@ -705,8 +724,8 @@ void LoopSWP::dumpPhiLastUpdateMap(BlockType BT) {
   return;
 }
 
-void LoopSWP::setPhiInfo(Instruction *I, Instruction *Phi,
-                         InstInstMapType &InstToPhiMap, BlockType BT) {
+void LoopSWPImpl::setPhiInfo(Instruction *I, Instruction *Phi,
+                             InstInstMapType &InstToPhiMap, BlockType BT) {
   if (InstToPhiMap.find(I) == InstToPhiMap.end())
     InstToPhiMap.insert(std::make_pair(I, Phi));
   else
@@ -721,19 +740,19 @@ void LoopSWP::setPhiInfo(Instruction *I, Instruction *Phi,
   return;
 }
 
-void LoopSWP::setIsAccumInst(Instruction *I, Instruction *AccumPhi,
-                             BlockType BT) {
+void LoopSWPImpl::setIsAccumInst(Instruction *I, Instruction *AccumPhi,
+                                 BlockType BT) {
   setPhiInfo(I, AccumPhi, AccumToPhiMap[BT], BT);
   return;
 }
 
-bool LoopSWP::getIsAccumInst(Instruction *I, BlockType BT) {
+bool LoopSWPImpl::getIsAccumInst(Instruction *I, BlockType BT) {
   return (AccumToPhiMap[BT].find(I) != AccumToPhiMap[BT].end() ||
           AccumPhis[BT].find(I) != AccumPhis[BT].end());
 }
 
-bool LoopSWP::collectLoadUpdates(Instruction *I, Instruction *RefPhi,
-                                 BlockType BT, std::string DebugTag) {
+bool LoopSWPImpl::collectLoadUpdates(Instruction *I, Instruction *RefPhi,
+                                     BlockType BT, std::string DebugTag) {
   /*
    * Populate the Update chain of the Alpha 'I' referring the RefPhi updates
    * and their clones.
@@ -796,8 +815,8 @@ bool LoopSWP::collectLoadUpdates(Instruction *I, Instruction *RefPhi,
   return true;
 }
 
-bool LoopSWP::collectLoadUpdates(Instruction *Alpha, Instruction *LastPivot,
-                                 std::string DebugTag) {
+bool LoopSWPImpl::collectLoadUpdates(Instruction *Alpha, Instruction *LastPivot,
+                                     std::string DebugTag) {
   LOOP_SWP_DEBUG(DebugTag << "Collecting Load updates for : ")
   LOOP_SWP_DEBUG(DebugTag << "Alpha = " << *Alpha)
   LOOP_SWP_DEBUG(DebugTag << "LastPivot = " << *LastPivot)
@@ -875,8 +894,8 @@ bool LoopSWP::collectLoadUpdates(Instruction *Alpha, Instruction *LastPivot,
   return true;
 }
 
-bool LoopSWP::collectInstUpdates(Instruction *I, Instruction *RefPhi,
-                                 BlockType BT, std::string Indent) {
+bool LoopSWPImpl::collectInstUpdates(Instruction *I, Instruction *RefPhi,
+                                     BlockType BT, std::string Indent) {
   std::string DebugTag = "<collectInstUpdates> " + Indent;
   LOOP_SWP_DEBUG(DebugTag << "Collecting updates for :")
   LOOP_SWP_DEBUG(DebugTag << "I = " << *I)
@@ -934,7 +953,7 @@ bool LoopSWP::collectInstUpdates(Instruction *I, Instruction *RefPhi,
   return true;
 }
 
-bool LoopSWP::collectAlphaUpdates(BlockType BT, std::string Indent) {
+bool LoopSWPImpl::collectAlphaUpdates(BlockType BT, std::string Indent) {
   std::string DebugTag = "<collectAlphaUpdates> " + Indent;
 
   assert(BT < BlockType::NumBlocks && "Invalid BlockType");
@@ -1014,14 +1033,14 @@ bool LoopSWP::collectAlphaUpdates(BlockType BT, std::string Indent) {
   return true;
 }
 
-void LoopSWP::dumpLoopBlocks(std::string HeaderNote) {
+void LoopSWPImpl::dumpLoopBlocks(std::string HeaderNote) {
   LLVM_DEBUG(LOOP_SWP_DEBUG("Loop Blocks : " << HeaderNote)
                  LOOP_SWP_DEBUG(*PreheaderBlock << "\n----");
              LOOP_SWP_DEBUG(*HeaderBlock << "\n----");
              LOOP_SWP_DEBUG(*ExitBlock << "\n----"););
 }
 
-bool LoopSWP::isPrologueOrEpilogueLoop() {
+bool LoopSWPImpl::isPrologueOrEpilogueLoop() {
   std::string DebugTag = "<isPrologueOrEpilogueLoop> ";
   std::string NotPELoopStr = DebugTag + "Not a prologue/epilogue loop : ";
 
@@ -1087,7 +1106,6 @@ bool LoopSWP::isPrologueOrEpilogueLoop() {
                           << (HasEpilSubstr ? "present" : "not present"))
 
   // 4. Does the Loop have constant non-zero Max Trip Count?
-  auto *SE = &getAnalysis<ScalarEvolutionWrapperPass>().getSE();
   int MaxTripCount = SE->getSmallConstantMaxTripCount(WorkingLoop);
   LOOP_SWP_DEBUG(DebugTag << "MaxTripCount = " << MaxTripCount)
   bool HasFiniteNonZeroTripCount = (MaxTripCount != 0);
@@ -1111,7 +1129,7 @@ bool LoopSWP::isPrologueOrEpilogueLoop() {
 //   value type (all ConstantInt or all ConstantDataVector)
 // - all add.mask instructions in the block do not have the same constant step
 //   value
-bool LoopSWP::checkUniformCoordUpdates(std::string Indent) {
+bool LoopSWPImpl::checkUniformCoordUpdates(std::string Indent) {
   std::string DebugTag = BAIL_OUT_TAG + Indent;
   Type *T5xi32 =
       FixedVectorType::get(Type::getInt32Ty(HeaderBlock->getContext()), 5);
@@ -1202,7 +1220,7 @@ bool LoopSWP::checkUniformCoordUpdates(std::string Indent) {
 
 // check if there are any compute instructions outside the clusters and
 // InstSequences
-bool LoopSWP::hasUnclusteredCompute(std::string Indent) {
+bool LoopSWPImpl::hasUnclusteredCompute(std::string Indent) {
   std::string DebugTag = BAIL_OUT_TAG + Indent;
 
   for (auto I : UnclusteredInstructions) {
@@ -1238,7 +1256,7 @@ bool LoopSWP::hasUnclusteredCompute(std::string Indent) {
 // This function checks for misc. bail out requirements like :
 // - the loop is not manually pipelined
 // - the loop does not contain both an accumulator and an st_tnsr
-bool LoopSWP::checkRequirements(std::string Indent) {
+bool LoopSWPImpl::checkRequirements(std::string Indent) {
   std::string DebugTag = BAIL_OUT_TAG + Indent;
   Type *T5xi32 =
       FixedVectorType::get(Type::getInt32Ty(HeaderBlock->getContext()), 5);
@@ -1290,7 +1308,7 @@ bool LoopSWP::checkRequirements(std::string Indent) {
   return true;
 }
 
-bool LoopSWP::isPipeliningPossible() {
+bool LoopSWPImpl::isPipeliningPossible() {
   std::string DebugTag = BAIL_OUT_TAG;
   // The loop should be the innermost loop.
   if (WorkingLoop->getSubLoops().size()) {
@@ -1398,7 +1416,8 @@ bool LoopSWP::isPipeliningPossible() {
 
   if (HeaderStoreList.size()) {
     // check if the load coord and store coords collide, if yes split all of
-    // them
+    // them (this may change the IR even if pipelining is abandoned later)
+    Changed = true;
     if (!splitLoadStoreCoords(HeaderStoreList)) {
       LOOP_SWP_DEBUG(DebugTag
                      << "Splitting Load/Store Coords failed, exiting ...")
@@ -1441,9 +1460,9 @@ bool LoopSWP::isPipeliningPossible() {
 }
 
 // TODO
-bool LoopSWP::isPipeliningProfitable() { return true; }
+bool LoopSWPImpl::isPipeliningProfitable() { return true; }
 
-void LoopSWP::applySoftwarePipelining() {
+void LoopSWPImpl::applySoftwarePipelining() {
   // edit preheader
   modifyPreheader();
   dumpLoopBlocks("(After Preheader Block Modification)");
@@ -1461,7 +1480,7 @@ void LoopSWP::applySoftwarePipelining() {
   dumpLoopBlocks("(After Exit Block Modification)");
 }
 
-void LoopSWP::dumpInputLoop() {
+void LoopSWPImpl::dumpInputLoop() {
   LOOP_SWP_DEBUG("\n========\nPipelining for input loop : "
                  << WorkingLoop->getName() << "\n========\n")
   LLVM_DEBUG({
@@ -1475,10 +1494,7 @@ void LoopSWP::dumpInputLoop() {
   LOOP_SWP_DEBUG("\n========\n")
 }
 
-bool LoopSWP::verifyLCSSAForm() {
-  auto *LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-  auto *DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
-
+bool LoopSWPImpl::verifyLCSSAForm() {
   Loop *OutermostLoop = WorkingLoop;
   while (OutermostLoop->getParentLoop())
     OutermostLoop = OutermostLoop->getParentLoop();
@@ -1486,7 +1502,7 @@ bool LoopSWP::verifyLCSSAForm() {
   return OutermostLoop->isRecursivelyLCSSAForm(*DT, *LI);
 }
 
-bool LoopSWP::isPipeliningEnabled() {
+bool LoopSWPImpl::isPipeliningEnabled() {
   // if (!(flag && unroll_pragma) && !(pipeline_pragma))
   //   exit
   LOOP_SWP_DEBUG("SWP Enable Flag = " << LoopSWPFlag)
@@ -1495,7 +1511,21 @@ bool LoopSWP::isPipeliningEnabled() {
 }
 
 bool LoopSWP::runOnLoop(Loop *L, LPPassManager &LPM) {
+  // The legacy pass has always reported that it did not change the IR, even
+  // when the loop was pipelined; keep that behaviour.
+  Impl.run(L, getAnalysis<ScalarEvolutionWrapperPass>().getSE(),
+           getAnalysis<LoopInfoWrapperPass>().getLoopInfo(),
+           getAnalysis<DominatorTreeWrapperPass>().getDomTree());
+  return false;
+}
+
+bool LoopSWPImpl::run(Loop *L, ScalarEvolution &SE_, LoopInfo &LI_,
+                      DominatorTree &DT_) {
   WorkingLoop = L;
+  SE = &SE_;
+  LI = &LI_;
+  DT = &DT_;
+  Changed = false;
 
   if (!isPipeliningEnabled()) {
     std::string DebugTag = DISABLED_TAG;
@@ -1514,15 +1544,16 @@ bool LoopSWP::runOnLoop(Loop *L, LPPassManager &LPM) {
 
   if (!isPipeliningPossible()) {
     cleanup();
-    return false;
+    return Changed;
   }
 
   if (!isPipeliningProfitable()) {
     cleanup();
-    return false;
+    return Changed;
   }
 
   applySoftwarePipelining();
+  Changed = true;
 
   assert(verifyLCSSAForm() && "LCSSA Form is broken!");
 
@@ -1533,10 +1564,10 @@ bool LoopSWP::runOnLoop(Loop *L, LPPassManager &LPM) {
 
   cleanup();
 
-  return false;
+  return Changed;
 }
 
-bool LoopSWP::splitLoadStoreCoords(InstructionVecType &HeaderStoreList) {
+bool LoopSWPImpl::splitLoadStoreCoords(InstructionVecType &HeaderStoreList) {
   std::string DebugTag = "<splitLoadStoreCoords> ";
   LOOP_SWP_DEBUG(DebugTag << "Splitting Store Coord sequences")
 
@@ -1660,8 +1691,8 @@ bool LoopSWP::splitLoadStoreCoords(InstructionVecType &HeaderStoreList) {
   return true;
 }
 
-bool LoopSWP::createLoadStoreSequences(InstructionVecType &HeaderStoreList,
-                                       InstructionVecType &HeaderLoadList) {
+bool LoopSWPImpl::createLoadStoreSequences(InstructionVecType &HeaderStoreList,
+                                           InstructionVecType &HeaderLoadList) {
   std::string DebugTag = "<createLoadStoreSequences> ";
   LOOP_SWP_DEBUG(DebugTag << "Initializing Pre-Load Sequences ...")
   for (auto I : HeaderLoadList) {
@@ -1712,7 +1743,7 @@ bool LoopSWP::createLoadStoreSequences(InstructionVecType &HeaderStoreList,
   return true;
 }
 
-Instruction *LoopSWP::getClone(Instruction *I, BlockType BT) {
+Instruction *LoopSWPImpl::getClone(Instruction *I, BlockType BT) {
   assert((BT == BlockType::Preheader || BT == BlockType::Exit) &&
          "Invalid BlockType");
 
@@ -1726,8 +1757,8 @@ Instruction *LoopSWP::getClone(Instruction *I, BlockType BT) {
   };
 }
 
-void LoopSWP::replaceDefsWithClones(Instruction *I, BlockType BT,
-                                    std::string DebugTag) {
+void LoopSWPImpl::replaceDefsWithClones(Instruction *I, BlockType BT,
+                                        std::string DebugTag) {
   if (isa<PHINode>(I))
     return;
   LOOP_SWP_DEBUG(DebugTag << "Replacing with clones of operands in :")
@@ -1748,10 +1779,10 @@ void LoopSWP::replaceDefsWithClones(Instruction *I, BlockType BT,
   return;
 }
 
-Instruction *LoopSWP::createPreheaderCloneBase(Instruction *I,
-                                               InstCloneMapType &CloneMap,
-                                               bool BlockInsertFlag,
-                                               std::string DebugTag) {
+Instruction *LoopSWPImpl::createPreheaderCloneBase(Instruction *I,
+                                                   InstCloneMapType &CloneMap,
+                                                   bool BlockInsertFlag,
+                                                   std::string DebugTag) {
   assert(!isa<PHINode>(I) && "Phi cloning must not be done here");
   Instruction *PreheaderClone = I->clone();
   CloneMap.insert(std::make_pair(I, PreheaderClone));
@@ -1764,8 +1795,8 @@ Instruction *LoopSWP::createPreheaderCloneBase(Instruction *I,
   return PreheaderClone;
 }
 
-Instruction *LoopSWP::createPreheaderLoadClone(Instruction *LoadInst,
-                                               std::string DebugTag) {
+Instruction *LoopSWPImpl::createPreheaderLoadClone(Instruction *LoadInst,
+                                                   std::string DebugTag) {
   auto *LoadInstClone = createPreheaderCloneBase(
       LoadInst, InstCloneMap[BlockType::Preheader], false, DebugTag);
 
@@ -1792,8 +1823,8 @@ Instruction *LoopSWP::createPreheaderLoadClone(Instruction *LoadInst,
   return LoadInstClone;
 }
 
-Instruction *LoopSWP::createPreheaderClone(Instruction *I,
-                                           std::string DebugTag) {
+Instruction *LoopSWPImpl::createPreheaderClone(Instruction *I,
+                                               std::string DebugTag) {
   LOOP_SWP_DEBUG(DebugTag << "----")
   LOOP_SWP_DEBUG(DebugTag << "Cloning Instruction : " << *I)
   Instruction *Clone = nullptr;
@@ -1810,13 +1841,13 @@ Instruction *LoopSWP::createPreheaderClone(Instruction *I,
   return Clone;
 }
 
-Instruction *LoopSWP::getPreheaderClone(Instruction *I) {
+Instruction *LoopSWPImpl::getPreheaderClone(Instruction *I) {
   auto It = InstCloneMap[BlockType::Preheader].find(I);
   return ((It != InstCloneMap[BlockType::Preheader].end()) ? It->second
                                                            : nullptr);
 }
 
-void LoopSWP::createPreheaderClones(std::string DebugTag) {
+void LoopSWPImpl::createPreheaderClones(std::string DebugTag) {
   auto InsertIt = PreheaderBlock->end();
   InsertIt--;
 
@@ -1890,7 +1921,7 @@ void LoopSWP::createPreheaderClones(std::string DebugTag) {
   return;
 }
 
-void LoopSWP::patchHeaderPhisWithPreheaderIncome(std::string DebugTag) {
+void LoopSWPImpl::patchHeaderPhisWithPreheaderIncome(std::string DebugTag) {
   LOOP_SWP_DEBUG(
       DebugTag << "Patching the header phis with preheader income ...")
   for (auto &PhiNode : HeaderBlock->phis()) {
@@ -1921,7 +1952,7 @@ void LoopSWP::patchHeaderPhisWithPreheaderIncome(std::string DebugTag) {
 
 // TODO: strategy needs to be changed based on the unroll factor, the number of
 // loads, stores, compute etc.
-void LoopSWP::modifyPreheader() {
+void LoopSWPImpl::modifyPreheader() {
   std::string DebugTag = "<modifyPreheader> ";
 
   LOOP_SWP_DEBUG(DebugTag << "==== Modifying PreheaderBlock ====")
@@ -1940,8 +1971,9 @@ void LoopSWP::modifyPreheader() {
   return;
 }
 
-Instruction *LoopSWP::createHeaderLoadPhi(Instruction *LoadInst, int ClusterIdx,
-                                          int LoadIdx, std::string DebugTag) {
+Instruction *LoopSWPImpl::createHeaderLoadPhi(Instruction *LoadInst,
+                                              int ClusterIdx, int LoadIdx,
+                                              std::string DebugTag) {
   LOOP_SWP_DEBUG(DebugTag << "Creating Header Load Phi ...")
 
   auto PhiInsertIt = HeaderBlock->begin();
@@ -1988,7 +2020,7 @@ Instruction *LoopSWP::createHeaderLoadPhi(Instruction *LoadInst, int ClusterIdx,
   return LoadPhiInst;
 }
 
-void LoopSWP::modifyHeaderBlock() {
+void LoopSWPImpl::modifyHeaderBlock() {
   std::string DebugTag = "<modifyHeaderBlock> ";
   LOOP_SWP_DEBUG(DebugTag << "==== Modifying HeaderBlock ====")
 
@@ -2056,8 +2088,8 @@ void LoopSWP::modifyHeaderBlock() {
   return;
 }
 
-void LoopSWP::collectExitLCSSAPhis(InstructionSetType &LcssaPhis,
-                                   std::string DebugTag) {
+void LoopSWPImpl::collectExitLCSSAPhis(InstructionSetType &LcssaPhis,
+                                       std::string DebugTag) {
   LOOP_SWP_DEBUG(DebugTag << "Collecting Exit LCSSA Phis ...")
 
   for (auto &PhiNode : ExitBlock->phis()) {
@@ -2120,8 +2152,8 @@ void LoopSWP::collectExitLCSSAPhis(InstructionSetType &LcssaPhis,
   return;
 }
 
-void LoopSWP::updateLcssaPhiUsers(InstructionSetType &LcssaPhis,
-                                  std::string DebugTag) {
+void LoopSWPImpl::updateLcssaPhiUsers(InstructionSetType &LcssaPhis,
+                                      std::string DebugTag) {
   LOOP_SWP_DEBUG(DebugTag << "Updating Exit LCSSA Phi Users")
 
   for (auto PhiInst : LcssaPhis) {
@@ -2162,10 +2194,10 @@ void LoopSWP::updateLcssaPhiUsers(InstructionSetType &LcssaPhis,
   return;
 }
 
-Instruction *LoopSWP::createExitCloneBase(Instruction *I,
-                                          InstCloneMapType &CloneMap,
-                                          bool BlockInsertFlag,
-                                          std::string DebugTag) {
+Instruction *LoopSWPImpl::createExitCloneBase(Instruction *I,
+                                              InstCloneMapType &CloneMap,
+                                              bool BlockInsertFlag,
+                                              std::string DebugTag) {
   Instruction *ExitClone = I->clone();
   CloneMap.insert(std::make_pair(I, ExitClone));
   if (BlockInsertFlag) {
@@ -2180,8 +2212,8 @@ Instruction *LoopSWP::createExitCloneBase(Instruction *I,
   return ExitClone;
 }
 
-Instruction *LoopSWP::createExitLoadStoreInstClone(Instruction *I,
-                                                   std::string DebugTag) {
+Instruction *LoopSWPImpl::createExitLoadStoreInstClone(Instruction *I,
+                                                       std::string DebugTag) {
   auto *InstClone = createExitCloneBase(I, InstCloneMap[BlockType::Preheader],
                                         false, DebugTag);
 
@@ -2211,8 +2243,8 @@ Instruction *LoopSWP::createExitLoadStoreInstClone(Instruction *I,
   return InstClone;
 }
 
-Instruction *LoopSWP::createExitAccumClone(Instruction *I,
-                                           std::string DebugTag) {
+Instruction *LoopSWPImpl::createExitAccumClone(Instruction *I,
+                                               std::string DebugTag) {
   Instruction *ExitAccumInst =
       createExitCloneBase(I, InstCloneMap[BlockType::Exit], true, DebugTag);
   // mark as accum inst
@@ -2223,7 +2255,8 @@ Instruction *LoopSWP::createExitAccumClone(Instruction *I,
   return ExitAccumInst;
 }
 
-Instruction *LoopSWP::createExitClone(Instruction *I, std::string DebugTag) {
+Instruction *LoopSWPImpl::createExitClone(Instruction *I,
+                                          std::string DebugTag) {
   LOOP_SWP_DEBUG(DebugTag << "----")
   LOOP_SWP_DEBUG(DebugTag << "Cloning Instruction : " << *I)
   Instruction *Clone = nullptr;
@@ -2247,7 +2280,7 @@ Instruction *LoopSWP::createExitClone(Instruction *I, std::string DebugTag) {
   return Clone;
 }
 
-Instruction *LoopSWP::getExitClone(Instruction *I) {
+Instruction *LoopSWPImpl::getExitClone(Instruction *I) {
   InstCloneMapType ExitCloneMap;
   ExitCloneMap = InstCloneMap[BlockType::Exit];
 
@@ -2255,7 +2288,8 @@ Instruction *LoopSWP::getExitClone(Instruction *I) {
   return ((It != ExitCloneMap.end()) ? It->second : nullptr);
 }
 
-void LoopSWP::createExitLoadInsts(unsigned ClusterIdx, std::string DebugTag) {
+void LoopSWPImpl::createExitLoadInsts(unsigned ClusterIdx,
+                                      std::string DebugTag) {
   LOOP_SWP_DEBUG(DebugTag << "Create Load Clones")
   for (unsigned l = 0; l < LoopClusters[ClusterIdx]->HeaderLoadInstsVec.size();
        l++) {
@@ -2274,7 +2308,8 @@ void LoopSWP::createExitLoadInsts(unsigned ClusterIdx, std::string DebugTag) {
   return;
 }
 
-void LoopSWP::createExitOutInsts(unsigned ClusterIdx, std::string DebugTag) {
+void LoopSWPImpl::createExitOutInsts(unsigned ClusterIdx,
+                                     std::string DebugTag) {
   LOOP_SWP_DEBUG(DebugTag << (getIsAccumulationLoop() ? "Create Accum Clones"
                                                       : "Create Store Clones"))
 
@@ -2308,8 +2343,8 @@ void LoopSWP::createExitOutInsts(unsigned ClusterIdx, std::string DebugTag) {
   return;
 }
 
-void LoopSWP::createExitComputeInsts(unsigned ClusterIdx,
-                                     std::string DebugTag) {
+void LoopSWPImpl::createExitComputeInsts(unsigned ClusterIdx,
+                                         std::string DebugTag) {
   LOOP_SWP_DEBUG(DebugTag << "Create compute Clones")
   for (unsigned c = 0;
        c < LoopClusters[ClusterIdx]->HeaderComputeInstsVec.size(); c++) {
@@ -2323,7 +2358,7 @@ void LoopSWP::createExitComputeInsts(unsigned ClusterIdx,
   return;
 }
 
-void LoopSWP::modifyExitBlock() {
+void LoopSWPImpl::modifyExitBlock() {
   std::string DebugTag = "<modifyExitBlock> ";
 
   LOOP_SWP_DEBUG(DebugTag << "==== Modifying ExitBlock ====")
@@ -2410,7 +2445,7 @@ void LoopSWP::modifyExitBlock() {
   return;
 }
 
-void LoopSWP::updateLoopBounds() {
+void LoopSWPImpl::updateLoopBounds() {
   std::string DebugTag = "<updateLoopBounds> ";
 
   BBPhiInsertIt = PreheaderBlock->begin();
@@ -2504,6 +2539,35 @@ void LoopSWP::updateLoopBounds() {
                                 PreheaderBlock);
 
   return;
+}
+
+LoopSWPPass::LoopSWPPass() : Impl(std::make_unique<LoopSWPImpl>()) {}
+LoopSWPPass::LoopSWPPass(LoopSWPPass &&) = default;
+LoopSWPPass &LoopSWPPass::operator=(LoopSWPPass &&) = default;
+LoopSWPPass::~LoopSWPPass() = default;
+
+PreservedAnalyses LoopSWPPass::run(Loop &L, LoopAnalysisManager &AM,
+                                   LoopStandardAnalysisResults &AR,
+                                   LPMUpdater &U) {
+  BasicBlock *Preheader = L.getLoopPreheader();
+  BasicBlock *Exit = L.getExitBlock();
+  bool HadPreheaderExitEdge =
+      Preheader && Exit && is_contained(successors(Preheader), Exit);
+
+  if (!Impl->run(&L, AR.SE, AR.LI, AR.DT))
+    return PreservedAnalyses::all();
+
+  // updateLoopBounds() makes the preheader branch to the exit block as well.
+  // The legacy pass leaves the dominator tree stale; the new pass manager
+  // requires it to be kept up to date.
+  if (Preheader && Exit && !HadPreheaderExitEdge &&
+      is_contained(successors(Preheader), Exit))
+    AR.DT.insertEdge(Preheader, Exit);
+  // The trip count of L changed.
+  AR.SE.forgetLoop(&L);
+
+  // The CFG changed, so CFG analyses are not preserved.
+  return getLoopPassPreservedAnalyses();
 }
 
 #undef DEBUG_TYPE

@@ -65,17 +65,14 @@ static cl::opt<bool> tpcoptDebug("TPCOPT_DEBUG",cl::init(false), cl::Hidden);
 
 
 using namespace std;
-class TpcLoopOpt : public LoopPass {
-public:
-    static char ID;
-    TpcLoopOpt() : LoopPass(ID) {
-      initializeTpcLoopOptPass(*PassRegistry::getPassRegistry());
-    }
 
-    void getAnalysisUsage(AnalysisUsage &AU) const override {
-      AU.addPreserved<ScalarEvolutionWrapperPass>();
-      getLoopAnalysisUsage(AU);
-    }
+namespace llvm {
+/// Transformation state and logic shared by the legacy (TpcLoopOpt) and new PM
+/// (TpcLoopOptPass) passes. One object is used for all loops the pass runs on,
+/// and most of the state below is not reset between loops.
+class TpcLoopOptImpl {
+public:
+    bool run(Loop *Lp, ScalarEvolution *SE);
 
 private:
     Loop *WorkingLoop = nullptr;
@@ -95,7 +92,6 @@ private:
     llvm::ConstantInt *InductionSize = nullptr;
     llvm::ConstantInt *IRFLocation = nullptr;
     // Pass condition functions
-    bool runOnLoop(Loop *Lp, LPPassManager &LPM) override;
     bool loadAndSet(Intrinsic::ID intrinId);
     bool unrollPragmaValue(const Loop *L);
     bool createCopyInstruction();
@@ -117,6 +113,24 @@ private:
 
     void fixPhiInstruction(BasicBlock *BB);
 };
+} // namespace llvm
+
+class TpcLoopOpt : public LoopPass {
+public:
+    static char ID;
+    TpcLoopOpt() : LoopPass(ID) {
+      initializeTpcLoopOptPass(*PassRegistry::getPassRegistry());
+    }
+
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
+      AU.addPreserved<ScalarEvolutionWrapperPass>();
+      getLoopAnalysisUsage(AU);
+    }
+
+private:
+    TpcLoopOptImpl Impl;
+    bool runOnLoop(Loop *Lp, LPPassManager &LPM) override;
+};
 
 INITIALIZE_PASS_BEGIN(TpcLoopOpt, PassName, PassDescription, false, false)
   INITIALIZE_PASS_DEPENDENCY(LoopPass)
@@ -126,13 +140,30 @@ char TpcLoopOpt::ID = 0;
 
 LoopPass *llvm::createTpcLoopOptPass() { return new TpcLoopOpt(); }
 
+bool TpcLoopOpt::runOnLoop(Loop *Lp, LPPassManager &LPM) {
+  return Impl.run(Lp, &getAnalysis<ScalarEvolutionWrapperPass>().getSE());
+}
+
+TpcLoopOptPass::TpcLoopOptPass() : Impl(std::make_unique<TpcLoopOptImpl>()) {}
+TpcLoopOptPass::TpcLoopOptPass(TpcLoopOptPass &&) = default;
+TpcLoopOptPass &TpcLoopOptPass::operator=(TpcLoopOptPass &&) = default;
+TpcLoopOptPass::~TpcLoopOptPass() = default;
+
+PreservedAnalyses TpcLoopOptPass::run(Loop &L, LoopAnalysisManager &AM,
+                                      LoopStandardAnalysisResults &AR,
+                                      LPMUpdater &U) {
+  if (!Impl->run(&L, &AR.SE))
+    return PreservedAnalyses::all();
+  return getLoopPassPreservedAnalyses();
+}
+
 static MDNode *GetUnrollMetadataForLoop(const Loop *L, StringRef Name) {
   if (MDNode *LoopID = L->getLoopID())
     return GetUnrollMetadata(LoopID, Name);
   return nullptr;
 }
 
-bool TpcLoopOpt::unrollPragmaValue(const Loop *L) {
+bool TpcLoopOptImpl::unrollPragmaValue(const Loop *L) {
   // Function check if the pragam unroll was deploy in the code before the loop.
   // unroll > 1 || unroll == 1
   // TODO: In the future we can add new pragam "piplined"
@@ -161,7 +192,7 @@ static bool check_if_debug(Loop *lp)
   return CUs != nullptr;
 }
 
-bool TpcLoopOpt::runOnLoop(Loop *lp, LPPassManager &LPM) {
+bool TpcLoopOptImpl::run(Loop *lp, ScalarEvolution *SE) {
   // Virtual function: RunOnLoop function checks if the condiatios are stasfied
   // If yes continu to reorder.
   // Else return false.
@@ -190,7 +221,6 @@ bool TpcLoopOpt::runOnLoop(Loop *lp, LPPassManager &LPM) {
     InductionDescriptor ID;
     vector<BasicBlock *> basicBlockVec = WorkingLoop->getBlocksVector();
     SmallVector<PHINode *, 8> phi = get_list_of<PHINode, 8>(&basicBlockVec[0]);
-    auto *SE = &getAnalysis<ScalarEvolutionWrapperPass>().getSE();
 
     if (InductionDescriptor::isInductionPHI(phi[0], WorkingLoop, SE, ID)) {
       InductionSize = ConstantInt::get(
@@ -222,7 +252,7 @@ bool TpcLoopOpt::runOnLoop(Loop *lp, LPPassManager &LPM) {
   return false;
 }
 
-bool TpcLoopOpt::loadAndSet(Intrinsic::ID intrinId) {
+bool TpcLoopOptImpl::loadAndSet(Intrinsic::ID intrinId) {
   // todo: it not necessary that load and store will equal to each other
   switch (intrinId) {
     default:
@@ -249,7 +279,7 @@ extractIntrinFromList(SmallVector<IntrinsicInst *, 16> intrinsicList,
   return selectInst;
 }
 
-bool TpcLoopOpt::createCopyInstruction() {
+bool TpcLoopOptImpl::createCopyInstruction() {
   // The function prepares a list of instruction between load and store.
   // The count indicate the number of instruction between the load and store.
   unsigned count = 0;
@@ -272,7 +302,7 @@ bool TpcLoopOpt::createCopyInstruction() {
   return true;
 }
 
-bool TpcLoopOpt::patternCheck(Loop *L) {
+bool TpcLoopOptImpl::patternCheck(Loop *L) {
   auto *BB = L->block_begin();
   SmallVector<IntrinsicInst *, 16> intrinList =
           get_list_of<IntrinsicInst, 16>(BB);
@@ -333,11 +363,11 @@ extractIntrinFromList(SmallVector<Instruction *, 16> instList,
   return selectInst;
 }
 
-Instruction *TpcLoopOpt::incInstruction(BasicBlock *to, BasicBlock *from,
-                                        Intrinsic::ID idIntrin,
-                                        Instruction *input,
-                                        Instruction *firstElment,
-                                        Instruction *moveAfter) {
+Instruction *TpcLoopOptImpl::incInstruction(BasicBlock *to, BasicBlock *from,
+                                            Intrinsic::ID idIntrin,
+                                            Instruction *input,
+                                            Instruction *firstElment,
+                                            Instruction *moveAfter) {
   // incInstruction creates add instruction for each use of the load and store.
   // The function return the last load's/store's ADD.
   IRBuilder<> builder(to);
@@ -382,7 +412,8 @@ Instruction *TpcLoopOpt::incInstruction(BasicBlock *to, BasicBlock *from,
   return add;
 }
 
-Instruction *TpcLoopOpt::prologue(BasicBlock *outerBB, BasicBlock *innerBB) {
+Instruction *TpcLoopOptImpl::prologue(BasicBlock *outerBB,
+                                      BasicBlock *innerBB) {
   // The prologue function extracts the inner loop's load to the outer loop.
   // Return the last add.
 
@@ -422,9 +453,9 @@ Instruction *TpcLoopOpt::prologue(BasicBlock *outerBB, BasicBlock *innerBB) {
   return lastAdd;
 }
 
-Instruction *TpcLoopOpt::creatCloneIntrinsics(Instruction *after,
-                                              Instruction *pointer,
-                                              bool dontUpdate = true) {
+Instruction *TpcLoopOptImpl::creatCloneIntrinsics(Instruction *after,
+                                                  Instruction *pointer,
+                                                  bool dontUpdate = true) {
   pointer->clone()->insertAfter(after);
   if (dontUpdate)
     CloneInstruction.push_back(pointer);
@@ -493,7 +524,7 @@ phiFromTwoBasicBlock(Intrinsic::ID intrinId, Instruction *after,
                               after);
 }
 
-void TpcLoopOpt::fixPhiInstruction(BasicBlock *BB) {
+void TpcLoopOptImpl::fixPhiInstruction(BasicBlock *BB) {
   SmallVector<Instruction *, 16> instrucitonList =
           get_list_of<Instruction, 16>(&BB);
   SmallVector<PHINode *, 4> PhiInst = get_list_of<PHINode, 4>(&BB);
@@ -532,9 +563,9 @@ void splitCoordinate(vector<Instruction *> load, vector<Instruction *> store) {
   }
 }
 
-SmallVector<Instruction *, 4> TpcLoopOpt::inner(BasicBlock *BB0,
-                                                BasicBlock *BB1,
-                                                Instruction *lastAddLoadBB0) {
+SmallVector<Instruction *, 4>
+TpcLoopOptImpl::inner(BasicBlock *BB0, BasicBlock *BB1,
+                      Instruction *lastAddLoadBB0) {
   //      LOOP1.2:                LOOP1.2: *inner loop*
   //        in = load_type            Inst1(in0)
   //        Inst1(in)                 inst2,inst3
@@ -610,8 +641,8 @@ SmallVector<Instruction *, 4> TpcLoopOpt::inner(BasicBlock *BB0,
   return phiInst;
 }
 
-void TpcLoopOpt::cleanUp(BasicBlock *BB2,
-                         SmallVector<Instruction *, 4> PhiInst) {
+void TpcLoopOptImpl::cleanUp(BasicBlock *BB2,
+                             SmallVector<Instruction *, 4> PhiInst) {
   //  LOOP1.EXIT               in = load_type
   //  ##end                    LOOP1.EXIT:     *epilog*
   //                  =>       Inst1(in)
@@ -662,7 +693,7 @@ void TpcLoopOpt::cleanUp(BasicBlock *BB2,
   incInstruction(BB2, BB2, StoreId, intrinListBB2[0], nullptr, after);
 }
 
-bool TpcLoopOpt::reorder() {
+bool TpcLoopOptImpl::reorder() {
   if(tpcoptDebug)
     llvm::dbgs() << "kernel pipelined \n";
 

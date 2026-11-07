@@ -44,6 +44,11 @@ struct Globalizer : public ModulePass {
     if (skipModule(M))
       return false;
 
+    return runImpl(M);
+  }
+
+  /// Shared by the legacy and new pass manager entry points.
+  static bool runImpl(Module &M) {
     bool Changed = false;
     ValueReplacer Replacer;
     DIBuilder DIB(M, /*AllowUnresolved*/ false);
@@ -146,5 +151,11 @@ INITIALIZE_PASS(Globalizer, "globalizer", "Alloca Globalizer", false, false)
 
 ModulePass *llvm::createGlobalizer() {
   return new Globalizer();
+}
+
+PreservedAnalyses GlobalizerPass::run(Module &M, ModuleAnalysisManager &AM) {
+  if (!Globalizer::runImpl(M))
+    return PreservedAnalyses::all();
+  return PreservedAnalyses::none();
 }
 

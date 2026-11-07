@@ -51,6 +51,7 @@
 //
 // ===== CoordUpdateSimplify.cpp : TPC IR Coord update simplification ===== //
 
+#include "llvm/Transforms/Scalar/CoordUpdateSimplifyPass.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolution.h"
@@ -98,20 +99,12 @@ static cl::opt<unsigned> MaxNumComputes("csp-max-num-computes", cl::init(4),
 static cl::opt<double> LiveRangeToleranceFactor("csp-live-range-tolerance",
                                                 cl::init(0.2), cl::Hidden);
 
-class CoordUpdateSimplify : public LoopPass {
+namespace llvm {
+// Implementation shared by the legacy and the new pass manager passes.
+class CoordUpdateSimplifyImpl {
 public:
-  static char ID;
-  CoordUpdateSimplify() : LoopPass(ID) {
-    initializeCoordUpdateSimplifyPass(*PassRegistry::getPassRegistry());
-  }
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addPreserved<ScalarEvolutionWrapperPass>();
-    getLoopAnalysisUsage(AU);
-  }
-
-  // entry
-  bool runOnLoop(Loop *Lp, LPPassManager &LPM) override;
+  // entry; returns true if the IR was changed
+  bool run(Loop *L, ScalarEvolution &SE_);
 
 private:
   Loop *WorkingLoop;
@@ -206,6 +199,28 @@ private:
   // check if the Coords can be simplified
   bool isSimplifyPossible(std::string Indent = "\t");
 };
+} // end namespace llvm
+
+class CoordUpdateSimplify : public LoopPass {
+public:
+  static char ID;
+  CoordUpdateSimplify() : LoopPass(ID) {
+    initializeCoordUpdateSimplifyPass(*PassRegistry::getPassRegistry());
+  }
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addPreserved<ScalarEvolutionWrapperPass>();
+    getLoopAnalysisUsage(AU);
+  }
+
+  // entry
+  bool runOnLoop(Loop *Lp, LPPassManager &LPM) override;
+
+private:
+  // The implementation keeps part of its state across loops; keep it alive as
+  // long as the pass object, as before the new pass manager port.
+  CoordUpdateSimplifyImpl Impl;
+};
 
 char CoordUpdateSimplify::ID = 0;
 
@@ -219,14 +234,14 @@ Pass *llvm::createCoordUpdateSimplifyPass() {
   return new CoordUpdateSimplify();
 }
 
-void CoordUpdateSimplify::dumpLoopBlocks(std::string HeaderNote) {
+void CoordUpdateSimplifyImpl::dumpLoopBlocks(std::string HeaderNote) {
   LLVM_DEBUG(CSP_DEBUG("Loop Blocks : " << HeaderNote);
              CSP_DEBUG(*PreheaderBlock << "\n----");
              CSP_DEBUG(*HeaderBlock << "\n----");
              CSP_DEBUG(*ExitBlock << "\n----"););
 }
 
-void CoordUpdateSimplify::resetContainers() {
+void CoordUpdateSimplifyImpl::resetContainers() {
   TargetInsts.clear();
   LoopStructureInsts.clear();
   NonComputeIntrinIDs.clear();
@@ -240,7 +255,7 @@ void CoordUpdateSimplify::resetContainers() {
 // For now this Set of non-compute Intrinsics serves the purpose of being
 // conservative while bailing-out on cases with compute Inst count higher than
 // a tolerable limit.
-void CoordUpdateSimplify::populateNonComputeIntrinIDs() {
+void CoordUpdateSimplifyImpl::populateNonComputeIntrinIDs() {
   NonComputeIntrinIDs.insert(Intrinsic::tpc_ld_tnsr);
   NonComputeIntrinIDs.insert(Intrinsic::tpc_ld_g);
   NonComputeIntrinIDs.insert(Intrinsic::tpc_st_tnsr);
@@ -251,7 +266,7 @@ void CoordUpdateSimplify::populateNonComputeIntrinIDs() {
 
 // get the users of the given Instruction within the Instruction's parent
 // block, which are not PHI nodes and not of InsertElementInst type
-InstructionSetType CoordUpdateSimplify::getInductionUses(Instruction *I) {
+InstructionSetType CoordUpdateSimplifyImpl::getInductionUses(Instruction *I) {
   InstructionSetType BlockUsers;
   for (auto User : I->users()) {
     Instruction *UserInst = cast<Instruction>(User);
@@ -268,17 +283,16 @@ InstructionSetType CoordUpdateSimplify::getInductionUses(Instruction *I) {
 }
 
 // initialize the data needed for Induction Phi check
-void CoordUpdateSimplify::initAnalysisInfo() {
-  SE = &getAnalysis<ScalarEvolutionWrapperPass>().getSE();
+void CoordUpdateSimplifyImpl::initAnalysisInfo() {
   WorkingLoop->getInductionDescriptor(*SE, InductionDesc);
 }
 
-bool CoordUpdateSimplify::isInductionPHI(PHINode *PhiNode) {
+bool CoordUpdateSimplifyImpl::isInductionPHI(PHINode *PhiNode) {
   return InductionDescriptor::isInductionPHI(PhiNode, WorkingLoop, SE,
                                              InductionDesc);
 }
 
-bool CoordUpdateSimplify::hasProfitablePattern(std::string Indent) {
+bool CoordUpdateSimplifyImpl::hasProfitablePattern(std::string Indent) {
   // populate useful info to detect profitable pattern
   populateNonComputeIntrinIDs();
   TPCOptUtils::populateLoopStructInsts(WorkingLoop, LoopStructureInsts);
@@ -308,7 +322,7 @@ bool CoordUpdateSimplify::hasProfitablePattern(std::string Indent) {
   return (NumLoads == MaxNumLoads && NumComputes <= MaxNumComputes);
 }
 
-bool CoordUpdateSimplify::isSimplifyProfitable(std::string Indent) {
+bool CoordUpdateSimplifyImpl::isSimplifyProfitable(std::string Indent) {
   // NOTE : for profitability (based on the observation of performance
   // improvements/regressions), the coord update simplify in it's current form
   // is limited to elementwise unary kernels and those with similar pattern.
@@ -389,8 +403,8 @@ bool CoordUpdateSimplify::isSimplifyProfitable(std::string Indent) {
   return TargetInsts.size();
 }
 
-bool CoordUpdateSimplify::isSafeToSimplifyInst(Instruction *I,
-                                               std::string Indent) {
+bool CoordUpdateSimplifyImpl::isSafeToSimplifyInst(Instruction *I,
+                                                   std::string Indent) {
   // check-1 : get the base
   auto *BasePHI = getBaseVal(I);
   if (!BasePHI) {
@@ -487,7 +501,7 @@ bool CoordUpdateSimplify::isSafeToSimplifyInst(Instruction *I,
   return true;
 }
 
-bool CoordUpdateSimplify::isSimplifyPossible(std::string Indent) {
+bool CoordUpdateSimplifyImpl::isSimplifyPossible(std::string Indent) {
   // check if the loop is the innermost
   if (WorkingLoop->getSubLoops().size()) {
     CSP_DEBUG(Indent << "Not an innerloop, exiting ...")
@@ -545,8 +559,8 @@ bool CoordUpdateSimplify::isSimplifyPossible(std::string Indent) {
   return TargetInsts.size();
 }
 
-Value *CoordUpdateSimplify::getPreheaderVersion(PHINode *PhiNode,
-                                                std::string DebugTag) {
+Value *CoordUpdateSimplifyImpl::getPreheaderVersion(PHINode *PhiNode,
+                                                    std::string DebugTag) {
   Instruction *I = cast<Instruction>(PhiNode);
   auto It = InstCloneMap.find(I);
   if (It != InstCloneMap.end())
@@ -575,7 +589,7 @@ Value *CoordUpdateSimplify::getPreheaderVersion(PHINode *PhiNode,
   return PreIncomingValue;
 }
 
-void CoordUpdateSimplify::preInitCoords(std::string Indent) {
+void CoordUpdateSimplifyImpl::preInitCoords(std::string Indent) {
   std::string DebugTag = "<preInitCoords> " + Indent;
   CSP_DEBUG(DebugTag << "[Begin]")
 
@@ -624,7 +638,7 @@ void CoordUpdateSimplify::preInitCoords(std::string Indent) {
   return;
 }
 
-Instruction *CoordUpdateSimplify::createAddMaskInst(Instruction *I) {
+Instruction *CoordUpdateSimplifyImpl::createAddMaskInst(Instruction *I) {
   // 'I' should be an insertelement instruction
   assert(isa<InsertElementInst>(I) &&
          "Invalid Target instruction - not an InsertElementInst");
@@ -654,9 +668,9 @@ Instruction *CoordUpdateSimplify::createAddMaskInst(Instruction *I) {
   return AddMask;
 }
 
-void CoordUpdateSimplify::patchLcssaPHINodes(Instruction *I,
-                                             Instruction *AddMaskInst,
-                                             std::string Indent) {
+void CoordUpdateSimplifyImpl::patchLcssaPHINodes(Instruction *I,
+                                                 Instruction *AddMaskInst,
+                                                 std::string Indent) {
   auto It = ExitLcssaPhiMap.find(I);
   if (It == ExitLcssaPhiMap.end()) {
     CSP_DEBUG(Indent << "No lcssa phi node to fix, exiting ...")
@@ -688,7 +702,7 @@ void CoordUpdateSimplify::patchLcssaPHINodes(Instruction *I,
   return;
 }
 
-void CoordUpdateSimplify::replaceHeaderUpdates(std::string Indent) {
+void CoordUpdateSimplifyImpl::replaceHeaderUpdates(std::string Indent) {
   std::string DebugTag = "<replaceHeaderUpdates> " + Indent;
 
   CSP_DEBUG(DebugTag << "[Begin]")
@@ -733,7 +747,7 @@ void CoordUpdateSimplify::replaceHeaderUpdates(std::string Indent) {
   return;
 }
 
-void CoordUpdateSimplify::computeAddMaskStep() {
+void CoordUpdateSimplifyImpl::computeAddMaskStep() {
   Instruction *I = *(TargetInsts.begin());
   auto *InsertValPHI = getInsertVal(I);
   Instruction *InsertValIncoming =
@@ -746,7 +760,7 @@ void CoordUpdateSimplify::computeAddMaskStep() {
   return;
 }
 
-void CoordUpdateSimplify::simplifyCoordUpdates() {
+void CoordUpdateSimplifyImpl::simplifyCoordUpdates() {
   // init step value
   computeAddMaskStep();
 
@@ -760,13 +774,14 @@ void CoordUpdateSimplify::simplifyCoordUpdates() {
   return;
 }
 
-bool CoordUpdateSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
+bool CoordUpdateSimplifyImpl::run(Loop *L, ScalarEvolution &SE_) {
   if (!CoordUpdateFlag) {
     CSP_DEBUG("Coordinate Simplify Pass disabled for this loop; not applied")
     return false;
   }
 
   WorkingLoop = L;
+  SE = &SE_;
   initAnalysisInfo();
 
   if (!isSimplifyPossible()) {
@@ -785,4 +800,24 @@ bool CoordUpdateSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
   resetContainers();
 
   return true;
+}
+
+bool CoordUpdateSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
+  return Impl.run(L, getAnalysis<ScalarEvolutionWrapperPass>().getSE());
+}
+
+CoordUpdateSimplifyPass::CoordUpdateSimplifyPass()
+    : Impl(std::make_unique<CoordUpdateSimplifyImpl>()) {}
+CoordUpdateSimplifyPass::CoordUpdateSimplifyPass(CoordUpdateSimplifyPass &&) =
+    default;
+CoordUpdateSimplifyPass &
+CoordUpdateSimplifyPass::operator=(CoordUpdateSimplifyPass &&) = default;
+CoordUpdateSimplifyPass::~CoordUpdateSimplifyPass() = default;
+
+PreservedAnalyses CoordUpdateSimplifyPass::run(Loop &L, LoopAnalysisManager &AM,
+                                               LoopStandardAnalysisResults &AR,
+                                               LPMUpdater &U) {
+  if (!Impl->run(&L, AR.SE))
+    return PreservedAnalyses::all();
+  return getLoopPassPreservedAnalyses();
 }

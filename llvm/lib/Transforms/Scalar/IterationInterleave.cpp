@@ -61,6 +61,7 @@
 //   TPC (like TPC/TPCoptimization, Scalar/LoopSWP etc.)
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Transforms/Scalar/IterationInterleave.h"
 #include "TPCIterationClusterizer.h"
 #include "TPCOptUtils.h"
 #include "llvm/ADT/SmallSet.h"
@@ -1310,4 +1311,18 @@ INITIALIZE_PASS_END(IterationInterleaveLegacy, "iter-ilv",
 
 Pass *llvm::createIterationInterleavePass() {
   return new IterationInterleaveLegacy();
+}
+
+PreservedAnalyses IterationInterleavePass::run(Loop &L, LoopAnalysisManager &AM,
+                                               LoopStandardAnalysisResults &AR,
+                                               LPMUpdater &U) {
+  IterationInterleaver II(&AR.SE, &AR.TTI, &L);
+  if (!II.run())
+    return PreservedAnalyses::all();
+
+  // Like the legacy pass, preserve the CFG (instructions are only reordered
+  // within the loop header).
+  PreservedAnalyses PA = getLoopPassPreservedAnalyses();
+  PA.preserveSet<CFGAnalyses>();
+  return PA;
 }

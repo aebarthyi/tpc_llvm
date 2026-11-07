@@ -62,8 +62,6 @@ EnableTPCTransformIntrinMinMax("tpc-trans-intr-minmax",
 
 namespace {
   class TPCTransformIntrin : public FunctionPass {
-    Function *F = nullptr;
-    unsigned NumTransformed = 0;
   public:
     static char ID;
 
@@ -73,6 +71,9 @@ namespace {
       initializeTPCTransformIntrinPass(*PassRegistry::getPassRegistry());
     }
     bool runOnFunction(Function &F) override;
+
+    /// Shared by the legacy and new pass manager entry points.
+    static bool runImpl(Function &Func);
   };//class
 }//namespace
 
@@ -91,9 +92,13 @@ bool TPCTransformIntrin::runOnFunction(Function &Func) {
 
   if (skipFunction(Func))
     return false;
-  F = &Func;
+  return runImpl(Func);
+}
+
+bool TPCTransformIntrin::runImpl(Function &Func) {
+  Function *F = &Func;
   LLVMContext &Ctx = Func.getContext();
-  NumTransformed = 0;
+  unsigned NumTransformed = 0;
   IntegerType *I32Type = Type::getInt32Ty(Ctx);
   IntegerType *I1Type = Type::getInt1Ty(Ctx);
   IntegerType *I8Type = Type::getInt8Ty(Ctx);
@@ -1326,5 +1331,15 @@ bool TPCTransformIntrin::runOnFunction(Function &Func) {
     } //Instruction loop
   } // BB loop
   return NumTransformed > 0;
+}
+
+PreservedAnalyses TPCTransformIntrinPass::run(Function &F,
+                                              FunctionAnalysisManager &AM) {
+  if (!EnableTPCTransformIntrin)
+    return PreservedAnalyses::all();
+
+  if (!TPCTransformIntrin::runImpl(F))
+    return PreservedAnalyses::all();
+  return PreservedAnalyses::none();
 }
 #endif // LLVM_TPC_COMPILER

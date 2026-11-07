@@ -47,6 +47,11 @@ public:
     if (skipFunction(F))
       return false;
 
+    return runImpl(F);
+  }
+
+  /// Shared by the legacy and new pass manager entry points.
+  static bool runImpl(Function &F) {
     const bool HasMMIOAccess = any_of(
         F, [](BasicBlock &BB) { return any_of(BB, isDirectMMIOAccess); });
 
@@ -68,6 +73,13 @@ namespace llvm {
 
 FunctionPass *createMarkupDirectMMIOAccessPass() {
   return new MarkupDirectMMIOAccessPass;
+}
+
+PreservedAnalyses
+TPCMarkupDirectMMIOAccessPass::run(Function &F, FunctionAnalysisManager &AM) {
+  if (!MarkupDirectMMIOAccessPass::runImpl(F))
+    return PreservedAnalyses::all();
+  return PreservedAnalyses::none();
 }
 
 } // namespace llvm

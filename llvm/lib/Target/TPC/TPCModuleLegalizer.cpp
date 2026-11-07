@@ -40,6 +40,12 @@ struct TPCModuleLegalizer : public FunctionPass {
   TPCModuleLegalizer() : FunctionPass(ID) {}
 
   bool doInitialization(Module &M) override {
+    return runImpl(M, Kernel, UsedFunctions);
+  }
+
+  /// Shared by the legacy and new pass manager entry points.
+  static bool runImpl(Module &M, Function *&Kernel,
+                      std::set<Function *> &UsedFunctions) {
     bool Changed = false;
     // All functions except main function must get `always_inline` attribute and
     // `available_externaly` linkage.
@@ -197,5 +203,19 @@ INITIALIZE_PASS(TPCModuleLegalizer, "tpclegal",
 
 FunctionPass *llvm::createTPCModuleLegalizer() {
   return new TPCModuleLegalizer();
+}
+
+PreservedAnalyses TPCModuleLegalizerPass::run(Module &M,
+                                              ModuleAnalysisManager &AM) {
+  Function *Kernel = nullptr;
+  std::set<Function *> UsedFunctions;
+  const size_t NumFunctions = M.size();
+  const bool Changed = TPCModuleLegalizer::runImpl(M, Kernel, UsedFunctions);
+  // runImpl() does not count erased functions as a change (the legacy
+  // doInitialization() result never triggers invalidation), but analyses
+  // cached for erased functions must be dropped here.
+  if (!Changed && M.size() == NumFunctions)
+    return PreservedAnalyses::all();
+  return PreservedAnalyses::none();
 }
 

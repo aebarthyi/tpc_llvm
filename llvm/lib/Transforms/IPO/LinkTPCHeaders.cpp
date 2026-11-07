@@ -231,7 +231,8 @@ static IntrinsicKey fun_of_SI32_SI32_SI32(const unsigned ID,
 }
 
 namespace {
-class LinkTPCHeadersLegacyPass : public ModulePass {
+// Shared implementation of the legacy and new pass manager passes.
+class LinkTPCHeadersImpl {
 private:
   std::unordered_map<IntrinsicKey, LinkInfo> KeyToInfo;
 
@@ -255,10 +256,7 @@ private:
   SmallVector<Instruction *, 8> ReplacementList;
 
 public:
-  static char ID; // Pass identification, replacement for typeid
-  LinkTPCHeadersLegacyPass() : ModulePass(ID) {
-    initializeLinkTPCHeadersLegacyPassPass(*PassRegistry::getPassRegistry());
-
+  LinkTPCHeadersImpl() {
     // Initializing the Dense Map for Arch values.
     ArchMap["goya"] = ArchTy::Goya;
     ArchMap["gaudi"] = ArchTy::Gaudi;
@@ -660,15 +658,17 @@ public:
     }
   }
 
-  virtual ~LinkTPCHeadersLegacyPass() {}
-  void getAnalysisUsage(AnalysisUsage &AU) const override {}
   Optional<IntrinsicKey> getIntrinsicKey(const IntrinsicInst &II);
   bool instructionNeedsLinking(const Instruction &I, StringRef &IRStr);
   bool replaceWithCall(Instruction *I);
   bool replaceWithCallDynamic(Instruction *I);
 
   bool callInstructionToSearch(const Instruction &I, StringRef &IRStr);
-  bool runOnModule(Module &M) override;
+
+  // Returns true if calls were replaced with linked functions (the legacy
+  // pass's return value). \p ExpandedFDiv is set to true if vector fdiv
+  // instructions in main were expanded.
+  bool run(Module &M, bool &ExpandedFDiv);
 };
 } // namespace
 
@@ -681,7 +681,7 @@ static inline unsigned getTypeVal(Type *Ty) {
 }
 
 Optional<IntrinsicKey>
-LinkTPCHeadersLegacyPass::getIntrinsicKey(const IntrinsicInst &II) {
+LinkTPCHeadersImpl::getIntrinsicKey(const IntrinsicInst &II) {
   auto It = ArchMap.find(SubArchName);
   if (It == ArchMap.end())
     return None; // Unsupported.
@@ -738,8 +738,8 @@ static bool IsReduction(Instruction *I) {
  * @return true find a match
  * @return false other wise
  */
-bool LinkTPCHeadersLegacyPass::callInstructionToSearch(const Instruction &I,
-                                                       StringRef &IRStr) {
+bool LinkTPCHeadersImpl::callInstructionToSearch(const Instruction &I,
+                                                 StringRef &IRStr) {
   // IF user didn't pass any file in the driver.
   if (!Query)
     return false;
@@ -767,8 +767,8 @@ bool LinkTPCHeadersLegacyPass::callInstructionToSearch(const Instruction &I,
   return false;
 }
 
-bool LinkTPCHeadersLegacyPass::instructionNeedsLinking(const Instruction &I,
-                                                       StringRef &IRStr) {
+bool LinkTPCHeadersImpl::instructionNeedsLinking(const Instruction &I,
+                                                 StringRef &IRStr) {
   if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(&I)) {
     const Optional<IntrinsicKey> Key = getIntrinsicKey(*II);
     if (!Key.hasValue())
@@ -798,7 +798,7 @@ bool LinkTPCHeadersLegacyPass::instructionNeedsLinking(const Instruction &I,
  * @return true find a match and replace was done
  * @return false other wise
  */
-bool LinkTPCHeadersLegacyPass::replaceWithCallDynamic(Instruction *I) {
+bool LinkTPCHeadersImpl::replaceWithCallDynamic(Instruction *I) {
   Module *M = I->getModule();
   if (CallInst *II = dyn_cast<CallInst>(I)) {
     std::string callName = std::string(II->getCalledFunction()->getName());
@@ -825,7 +825,7 @@ bool LinkTPCHeadersLegacyPass::replaceWithCallDynamic(Instruction *I) {
   return false;
 }
 
-bool LinkTPCHeadersLegacyPass::replaceWithCall(Instruction *I) {
+bool LinkTPCHeadersImpl::replaceWithCall(Instruction *I) {
   Module *M = I->getModule();
   if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(I)) {
     const Optional<IntrinsicKey> Key = getIntrinsicKey(*II);
@@ -894,7 +894,7 @@ static void expandFDiv(Instruction *I) {
   I->replaceAllUsesWith(FMul);
 }
 
-static void expandSpecialCaseLLVMIR(Function *Main, ArchTy Arch) {
+static bool expandSpecialCaseLLVMIR(Function *Main, ArchTy Arch) {
   SmallVector<Instruction *, 8> EraseList;
   for (auto &BB : *Main) {
     for (auto &I : BB) {
@@ -907,6 +907,7 @@ static void expandSpecialCaseLLVMIR(Function *Main, ArchTy Arch) {
   }
   for (Instruction *I : EraseList)
     I->eraseFromParent();
+  return !EraseList.empty();
 }
 
 /**
@@ -916,7 +917,7 @@ static void expandSpecialCaseLLVMIR(Function *Main, ArchTy Arch) {
  * @param IRStr reference to IRString contain a copy of the target function.
  * @return true if function linked successfully, false otherwise.
  */
-bool LinkTPCHeadersLegacyPass::linkStage(Module &M, StringRef IRStr) {
+bool LinkTPCHeadersImpl::linkStage(Module &M, StringRef IRStr) {
   LLVMContext &Ctx = M.getContext();
   SMDiagnostic Err;
 
@@ -939,10 +940,7 @@ bool LinkTPCHeadersLegacyPass::linkStage(Module &M, StringRef IRStr) {
   return !linkFailed;
 }
 
-bool LinkTPCHeadersLegacyPass::runOnModule(Module &M) {
-  if (skipModule(M))
-    return false;
-
+bool LinkTPCHeadersImpl::run(Module &M, bool &ExpandedFDiv) {
   llvm::StringRef IRStr;
   Function *Main = M.getFunction("main");
   if (!Main)
@@ -957,7 +955,7 @@ bool LinkTPCHeadersLegacyPass::runOnModule(Module &M) {
   ArchTy Arch = It->second;
 
   // Expand the IR to appropriate form.
-  expandSpecialCaseLLVMIR(Main, Arch);
+  ExpandedFDiv = expandSpecialCaseLLVMIR(Main, Arch);
 
   // Identify the modules that need to be linked.
   SmallVector<Instruction *, 8> ReplacementListSO;
@@ -992,12 +990,50 @@ bool LinkTPCHeadersLegacyPass::runOnModule(Module &M) {
   return true;
 }
 
+namespace {
+class LinkTPCHeadersLegacyPass : public ModulePass {
+  // Owned for the lifetime of the pass object, as before the new pass manager
+  // port, so state such as LinkedIRs persists across runOnModule() calls.
+  LinkTPCHeadersImpl Impl;
+
+public:
+  static char ID; // Pass identification, replacement for typeid
+  LinkTPCHeadersLegacyPass() : ModulePass(ID) {
+    initializeLinkTPCHeadersLegacyPassPass(*PassRegistry::getPassRegistry());
+  }
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override {}
+
+  bool runOnModule(Module &M) override {
+    if (skipModule(M))
+      return false;
+    // The legacy pass does not report the vector fdiv expansion as a change.
+    // Keep that behaviour.
+    bool ExpandedFDiv = false;
+    return Impl.run(M, ExpandedFDiv);
+  }
+};
+} // namespace
+
 char LinkTPCHeadersLegacyPass::ID = 0;
 INITIALIZE_PASS(LinkTPCHeadersLegacyPass, "link-tpc-headers",
                 "Link TPC Headers", false, false)
 
 Pass *llvm::createLinkTPCHeadersLegacyPass() {
   return new LinkTPCHeadersLegacyPass();
+}
+
+PreservedAnalyses LinkTPCHeadersPass::run(Module &M,
+                                          ModuleAnalysisManager &AM) {
+  // The pass state (LinkedIRs, ReplacementList, SubArchName, the -ILTO
+  // library handle) is created fresh for every run.
+  LinkTPCHeadersImpl Impl;
+  bool ExpandedFDiv = false;
+  bool Changed = Impl.run(M, ExpandedFDiv);
+  if (!Changed && !ExpandedFDiv)
+    return PreservedAnalyses::all();
+  // The legacy pass does not declare any preserved analyses.
+  return PreservedAnalyses::none();
 }
 
 /**

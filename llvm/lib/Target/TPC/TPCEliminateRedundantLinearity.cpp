@@ -2381,11 +2381,18 @@ public:
     auto &SE = getAnalysis<ScalarEvolutionWrapperPass>().getSE();
     auto &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
 
+    return runImpl(F, AA, SE, LI, Cfg);
+  }
+
+  /// Shared by the legacy and new pass manager entry points.
+  static bool runImpl(Function &F, AAResults &AA, ScalarEvolution &SE,
+                      LoopInfo &LI,
+                      const TPCEliminateRedundantLinearityPassConfig &Cfg) {
     // Construct Data Dependence Graph(DDG)
     DependenceInfo DI(&F, &AA, &SE, &LI);
     DataDependenceGraph G(F, DI);
 
-    const bool Changed = runOnDDG(G);
+    const bool Changed = runOnDDG(G, Cfg);
 
     LLVM_DEBUG(if (Changed) dbgs() << "\nPass output:\n" << F;);
 
@@ -2399,7 +2406,8 @@ public:
   }
 
 private:
-  bool runOnDDG(const DataDependenceGraph &DDG) {
+  static bool runOnDDG(const DataDependenceGraph &DDG,
+                       const TPCEliminateRedundantLinearityPassConfig &Cfg) {
     const InstructionsToTransform Instructions = getInstructionsToTransform(
         DDG,
         EnableTensorStPack && EnableTensorStPack32To16 &&
@@ -2446,6 +2454,29 @@ namespace llvm {
 FunctionPass *createTPCEliminateRedundantLinearityPass(
     const TPCEliminateRedundantLinearityPassConfig Cfg) {
   return new EliminateRedundantLinearityLegacyPass(Cfg);
+}
+
+PreservedAnalyses
+TPCEliminateRedundantLinearityPass::run(Function &F,
+                                        FunctionAnalysisManager &AM) {
+  // Same early exits as the legacy pass, taken before any analysis is
+  // requested.
+  if (!EnableEliminateRedundantLinearity)
+    return PreservedAnalyses::all();
+
+  // Avoid heavy analysis if nothing to optimize here.
+  if (!containsInstructionsToOptimize(F))
+    return PreservedAnalyses::all();
+
+  LLVM_DEBUG(dbgs() << "Pass input:\n" << F << "\n");
+
+  auto &AA = AM.getResult<AAManager>(F);
+  auto &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
+  auto &LI = AM.getResult<LoopAnalysis>(F);
+
+  if (!EliminateRedundantLinearityLegacyPass::runImpl(F, AA, SE, LI, Cfg))
+    return PreservedAnalyses::all();
+  return PreservedAnalyses::none();
 }
 
 } // namespace llvm
