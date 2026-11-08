@@ -29,11 +29,14 @@ namespace llvm {
       FSRL, FSHL, FSRA,
       HALT,
       COND_MOV, COND_MOV_INVERT,
-      LD_G = ISD::FIRST_TARGET_MEMORY_OPCODE,
+      // Nodes with a memory operand (see TPCSelectionDAGInfo).
+      FIRST_MEMORY_OPCODE,
+      LD_G = FIRST_MEMORY_OPCODE,
       LD_GI,
       LD_G_INC, //TODO: remove this
       ST_G,
-      ST_G_INC
+      ST_G_INC,
+      LAST_MEMORY_OPCODE = ST_G_INC
     };
   } // namespace TPCISD
 

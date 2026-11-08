@@ -224,6 +224,11 @@ bool TPCInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
     if (!isUnpredicatedTerminator(*I))
       break;
 
+    // Packetized code (DwarfDebug analyzes branches at emission): a bundle
+    // that holds a terminator cannot be analyzed here.
+    if (I->isBundle())
+      return true;
+
     switch (I->getOpcode()) {
     case TPC::HALTs:
     case TPC::HALTv:
@@ -333,7 +338,7 @@ bool TPCInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
   }
 
   // Delete the branch if it's equivalent to a fall-through.
-  if (MBB.isLayoutSuccessor(getBranchTarget(*LastTerminator))) {
+  if (AllowModify && MBB.isLayoutSuccessor(getBranchTarget(*LastTerminator))) {
     LastTerminator->eraseFromParent();
     assert(!TrueBB && !FalseBB);
     return false;
@@ -469,7 +474,8 @@ unsigned TPCInstrInfo::convertHWRegToMemAddress(unsigned HWReg) const {
 void TPCInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                MachineBasicBlock::iterator I,
                                const DebugLoc &DL, MCRegister DestReg,
-                               MCRegister SrcReg, bool KillSrc) const {
+                               MCRegister SrcReg, bool KillSrc,
+                               bool RenamableDest, bool RenamableSrc) const {
   const TargetRegisterInfo &TRI = getRegisterInfo();
 
   const auto CopyRegWithDataType = [&](unsigned Opc) {
@@ -756,7 +762,8 @@ void TPCInstrInfo::
 storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                     Register SrcReg, bool isKill, int FrameIndex,
                     const TargetRegisterClass *RC,
-                    const TargetRegisterInfo *TRI, Register VReg) const {
+                    const TargetRegisterInfo *TRI, Register VReg,
+                    MachineInstr::MIFlag Flags) const {
   DebugLoc DL = MBB.findDebugLoc(I);
   MachineFunction *MF = MBB.getParent();
   MachineFrameInfo &FrameInfo = MF->getFrameInfo();
@@ -811,7 +818,8 @@ void TPCInstrInfo::
 loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                      Register DestReg, int FrameIndex,
                      const TargetRegisterClass *RC,
-                     const TargetRegisterInfo *TRI, Register VReg) const {
+                     const TargetRegisterInfo *TRI, Register VReg,
+                     MachineInstr::MIFlag Flags) const {
   DebugLoc DL = MBB.findDebugLoc(I);
   MachineFunction *MF = MBB.getParent();
   MachineFrameInfo &FrameInfo = MF->getFrameInfo();

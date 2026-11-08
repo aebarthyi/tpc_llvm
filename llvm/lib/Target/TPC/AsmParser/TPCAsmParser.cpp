@@ -1261,10 +1261,10 @@ public:
   bool parseRegister(MCRegister &Reg, SMLoc &StartLoc, SMLoc &EndLoc) override;
   ParseStatus tryParseRegister(MCRegister &Reg, SMLoc &StartLoc, SMLoc &EndLoc) override;
   bool ParseImmediate(const MCExpr *&Val, SMLoc &StartLoc, SMLoc &EndLoc);
-  bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
+  bool parseInstruction(ParseInstructionInfo &Info, StringRef Name,
                         SMLoc NameLoc, OperandVector &Operands) override;
   bool ParseDirective(AsmToken DirectiveID) override;
-  bool MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
+  bool matchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
                                OperandVector &Operands, MCStreamer &Out,
                                uint64_t &ErrorInfo,
                                bool MatchingInlineAsm) override;
@@ -2071,7 +2071,7 @@ static bool isSoloInstruction(StringRef Mnemonic) {
     .Default(false);
 }
 
-bool TPCAsmParser::ParseInstruction(ParseInstructionInfo &Info,
+bool TPCAsmParser::parseInstruction(ParseInstructionInfo &Info,
                                     StringRef Mnemonic, SMLoc MnemonicLoc,
                                     OperandVector &Operands) {
   if (Mnemonic == "{" || Mnemonic == "}") {
@@ -2941,7 +2941,7 @@ static bool checkHALT(OperandVector &Operands) {
 }
 
 
-bool TPCAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
+bool TPCAsmParser::matchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
                                            OperandVector &Operands,
                                            MCStreamer &Out,
                                            uint64_t &ErrorInfo,

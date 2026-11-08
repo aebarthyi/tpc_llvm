@@ -40,7 +40,7 @@ def int_tpc_read_lfsrnc            : Intrinsic<[llvm_v256i8_ty],
                                                  llvm_any_ty,        // Predicate (i1/v256i1)
                                                  llvm_i1_ty          // Polarity
                                                ],
-                                               [IntrReadMem, IntrInaccessibleMemOnly]>;
+                                               [IntrReadMem, IntrWillReturn, IntrInaccessibleMemOnly]>;
 
 def int_tpc_s_read_lfsr              : Intrinsic<[llvm_i32_ty],
                                                  [ llvm_i32_ty,        // Income
@@ -59,7 +59,7 @@ def int_tpc_s_read_lfsrnc            : Intrinsic<[llvm_i32_ty],
                                                    llvm_i1_ty,         // Predicate
                                                    llvm_i1_ty          // Polarity
                                                  ],
-                                                 [IntrReadMem, IntrInaccessibleMemOnly]>;
+                                                 [IntrReadMem, IntrWillReturn, IntrInaccessibleMemOnly]>;
 
 
 def int_tpc_read_lane_id             : Intrinsic<[llvm_any_ty],
@@ -106,7 +106,7 @@ def int_tpc_get_addr      : Intrinsic<[llvm_v2i32_ty],
                                         llvm_i1_ty,         // Predicate
                                         llvm_i1_ty          // Polarity
                                       ],
-                                      [IntrReadMem]>;
+                                      [IntrReadMem, IntrWillReturn]>;
 
 def int_tpc_update_addr   : Intrinsic<[tpc_global_ptr_ty],
                                       [ tpc_global_ptr_ty,      // Ptr
@@ -133,25 +133,25 @@ def int_tpc_set_indx      : Intrinsic<[llvm_v5i32_ty],
                                       [IntrNoMem]>;
 def int_tpc_ld_l          : Intrinsic<[llvm_any_ty],
                                       [llvm_i32_ty, llvm_i32_ty, LLVMMatchType<0>, llvm_i1_ty, llvm_i1_ty],
-                                      [IntrReadMem]>;
+                                      [IntrReadMem, IntrWillReturn]>;
 def int_tpc_ld_g          : Intrinsic<[llvm_any_ty],
                                       [tpc_global_ptr_ty, llvm_i32_ty, LLVMMatchType<0>, llvm_any_ty, llvm_i1_ty],
-                                      [IntrReadMem]>;
+                                      [IntrReadMem, IntrWillReturn]>;
 def int_tpc_ld_g_inc      : Intrinsic<[llvm_any_ty, llvm_any_ty],
                                       [LLVMMatchType<1>, llvm_i32_ty, llvm_i32_ty, LLVMMatchType<0>, llvm_i1_ty, llvm_i1_ty],
-                                      [IntrReadMem, IntrArgMemOnly]>;
+                                      [IntrReadMem, IntrWillReturn, IntrArgMemOnly]>;
 def int_tpc_ld_g_int5     : Intrinsic<[llvm_v5i32_ty],
                                       [tpc_global_ptr_ty, llvm_i32_ty, llvm_i32_ty, llvm_v5i32_ty, llvm_i1_ty, llvm_i1_ty],
-                                      [IntrReadMem]>;
+                                      [IntrReadMem, IntrWillReturn]>;
 def int_tpc_ld_g_int5_inc : Intrinsic<[llvm_v5i32_ty, tpc_global_ptr_ty],
                                       [tpc_global_ptr_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_v5i32_ty, llvm_i1_ty, llvm_i1_ty],
-                                      [IntrReadMem, IntrArgMemOnly]>;
+                                      [IntrReadMem, IntrWillReturn, IntrArgMemOnly]>;
 def int_tpc_ld_g_partial  : Intrinsic<[llvm_anyvector_ty],
                                       [tpc_global_ptr_ty, llvm_i32_ty, llvm_i32_ty, LLVMMatchType<0>, llvm_any_ty, llvm_i1_ty],
                                       [IntrNoMem]>;
 def int_tpc_ld_g_partial_inc : Intrinsic<[llvm_any_ty, llvm_any_ty],
                                          [LLVMMatchType<1>, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, LLVMMatchType<0>, llvm_any_ty, llvm_i1_ty],
-                                         [IntrReadMem, IntrArgMemOnly]>;
+                                         [IntrReadMem, IntrWillReturn, IntrArgMemOnly]>;
 def int_tpc_prefetch      : Intrinsic<[],
                                       [ tpc_global_ptr_ty,      // Address
                                         llvm_i32_ty,        // Switches
@@ -166,7 +166,7 @@ def int_tpc_ld_l_v        : Intrinsic<[llvm_anyvector_ty],
                                         llvm_any_ty,        // Predicate
                                         llvm_i1_ty          // Polarity
                                       ],
-                                      [IntrReadMem]>;
+                                      [IntrReadMem, IntrWillReturn]>;
 def int_tpc_ld_l_v_low    : Intrinsic<[llvm_anyvector_ty],
                                       [ llvm_i32_ty,        // Address
                                         llvm_i32_ty,        // Switches
@@ -174,7 +174,7 @@ def int_tpc_ld_l_v_low    : Intrinsic<[llvm_anyvector_ty],
                                         llvm_any_ty,        // Predicate
                                         llvm_i1_ty          // Polarity
                                       ],
-                                      [IntrReadMem]>;
+                                      [IntrReadMem, IntrWillReturn]>;
 def int_tpc_ld_l_v_high   : Intrinsic<[llvm_anyvector_ty],
                                       [ llvm_i32_ty,        // Address
                                         llvm_i32_ty,        // Switches
@@ -182,7 +182,7 @@ def int_tpc_ld_l_v_high   : Intrinsic<[llvm_anyvector_ty],
                                         llvm_any_ty,        // Predicate
                                         llvm_i1_ty          // Polarity
                                       ],
-                                      [IntrReadMem]>;
+                                      [IntrReadMem, IntrWillReturn]>;
 def int_tpc_ld_tnsr       : Intrinsic<[llvm_anyvector_ty],
                                       [llvm_v5i32_ty, llvm_i8_ty, llvm_i32_ty, LLVMMatchType<0>, llvm_any_ty, llvm_i1_ty],
                                       [IntrNoMem]>;

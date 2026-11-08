@@ -1316,7 +1316,7 @@ void TargetPassConfig::addMachineSSAOptimization() {
 
 #ifdef LLVM_TPC_COMPILER
   if (getTM<TargetMachine>().getTargetTriple().getArch() == Triple::tpc) {
-    addPass(&PeepholeOptimizerID);
+    addPass(&PeepholeOptimizerLegacyID);
   }
 #endif
   addPass(&EarlyMachineLICMID);

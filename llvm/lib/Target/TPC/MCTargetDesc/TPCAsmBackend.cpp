@@ -91,7 +91,7 @@ void TPCAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
 
     assert(InstrSize % 64 == 0 && "Instruction is not aligned to 64 bits anymore, fix relocations");
     APInt Instruction(InstrSize, ArrayRef<uint64_t>((uint64_t*)(&Data[Offset]), InstrSize / 64));
-    APInt ImmSlot(TPCII::ImmSize, RelOffset);
+    APInt ImmSlot(TPCII::ImmSize, RelOffset, /*isSigned=*/true);
     Instruction |= ImmSlot.zext(InstrSize).shl(
       STI->getFeatureBits()[TPC::FeatureCompress] ? TPCII::Gen3ImmStart : TPCII::ImmStart);
 
@@ -112,7 +112,7 @@ void TPCAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
     LLVM_DEBUG( fprintf(stderr, "applyFixup LOOP addr=%d reloc=%d offset=%d\n", Offset, RelOffset, LoopOffsetStart); );
 
     APInt Instruction(TPCII::InstructionSize, ArrayRef<uint64_t>((uint64_t*)(&Data[Offset]), TPCII::InstructionSize / 64));
-    APInt ImmSlot(TPCII::ImmSize, RelOffset);
+    APInt ImmSlot(TPCII::ImmSize, RelOffset, /*isSigned=*/true);
     Instruction |= ImmSlot.zext(TPCII::InstructionSize).shl(LoopOffsetStart);
 
     const char* RawInstrucion = (const char*) Instruction.getRawData();

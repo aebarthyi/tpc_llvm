@@ -1261,7 +1261,7 @@ bool MachineLICMImpl::CanCauseHighRegPressure(
     // will be cloned and we will get unavoidable spills inside the loop.
     // So we try to hoist the instruction before unrolling disregarding register pressure.
     // Even if it'll create spills at least they're gonna be outside the loop
-    const Module* M = CurLoop->getHeader()->getParent()->getMMI().getModule();
+    const Module* M = CurLoop->getHeader()->getParent()->getFunction().getParent();
     Triple TargetTriple(M->getTargetTriple());
     if (Limit <= 2 && TargetTriple.getArch() == Triple::tpc) {
       // The search for the unroll metadata is awkward and not precise since

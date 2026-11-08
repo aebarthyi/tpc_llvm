@@ -74,9 +74,11 @@ TPCTargetMachine::TPCTargetMachine(const Target &T, const Triple &TT, StringRef 
                                    StringRef FS, const TargetOptions &Options,
                                    std::optional<Reloc::Model> RM, std::optional<CodeModel::Model> CM,
                                    CodeGenOptLevel OL, bool JIT)
-  :  LLVMTargetMachine(T, DataLayoutStringTPC, TT, normalizeCPUName(CPU), FS,
-                       Options, getEffectiveRelocModel(RM), getEffectiveCodeModel(CM, CodeModel::Kernel), OL),
-                       TLOF(std::make_unique<TPCTargetObjectFile>()) {
+    : CodeGenTargetMachineImpl(T, DataLayoutStringTPC, TT,
+                               normalizeCPUName(CPU), FS, Options,
+                               getEffectiveRelocModel(RM),
+                               getEffectiveCodeModel(CM, CodeModel::Kernel), OL),
+      TLOF(std::make_unique<TPCTargetObjectFile>()) {
   setRequiresStructuredCFG(true);
   initAsmInfo();
 
@@ -319,7 +321,8 @@ void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
   // Legacy EP_CGSCCOptimizerLate (GlobalOpt, ADCE, SROA) followed by
   // EP_ModuleOptimizerEarly (redundant linearity elimination).
   PB.registerOptimizerEarlyEPCallback(
-      [this](ModulePassManager &MPM, OptimizationLevel Level) {
+      [this](ModulePassManager &MPM, OptimizationLevel Level,
+             ThinOrFullLTOPhase) {
         if (Level == OptimizationLevel::O0)
           return;
         MPM.addPass(GlobalOptPass());
@@ -333,7 +336,8 @@ void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
 
   // Legacy EP_EnabledOnOptLevel0 (at -O0) and EP_OptimizerLast (otherwise).
   PB.registerOptimizerLastEPCallback(
-      [this](ModulePassManager &MPM, OptimizationLevel Level) {
+      [this](ModulePassManager &MPM, OptimizationLevel Level,
+             ThinOrFullLTOPhase) {
         FunctionPassManager FPM;
         if (Level == OptimizationLevel::O0) {
           // We cannot keep global pointers in memory, so promote them to

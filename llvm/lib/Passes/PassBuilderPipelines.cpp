@@ -1732,8 +1732,7 @@ PassBuilder::buildModuleOptimizationPipeline(OptimizationLevel Level,
 
 #ifdef LLVM_TPC_COMPILER
   if (isTPCTarget(TM))
-    for (auto &C : OptimizerLastEPCallbacks)
-      C(MPM, Level);
+    invokeOptimizerLastEPCallbacks(MPM, Level, LTOPhase);
 #endif
 
   // Merge functions if requested. It has a better chance to merge functions

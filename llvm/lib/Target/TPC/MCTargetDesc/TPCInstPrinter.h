@@ -37,7 +37,7 @@ public:
   void printCustomAliasOperand(const MCInst *MI, unsigned OpIdx,
                                unsigned PrintMethodIdx, raw_ostream &O);
   static const char *getRegisterName(MCRegister Reg);
-  void printRegName(raw_ostream &OS, MCRegister Reg) const override;
+  void printRegName(raw_ostream &OS, MCRegister Reg) override;
 
   void printAddrOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printSPredicate(const MCInst *MI, unsigned OpNum, raw_ostream &O);
@@ -57,7 +57,7 @@ public:
   void printMovDGUnpack(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printJmpLoopTarget(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printLoopImm(const MCInst *MI, unsigned OpNum, raw_ostream &O);
-  std::pair<const char *, uint64_t> getMnemonic(const MCInst *MI) override;
+  std::pair<const char *, uint64_t> getMnemonic(const MCInst &MI) const override;
 
   int getFormat() const { return Format; }
   void setFormat(int X) { Format = X; }

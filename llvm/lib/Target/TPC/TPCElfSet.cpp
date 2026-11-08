@@ -267,7 +267,7 @@ void TPCElfSpecSet::searchInstruction(MachineFunction &Func) {
 }
 
 void TPCElfSpecSet::searchPrintF(MachineFunction &Func) {
-  const Module *MM = Func.getMMI().getModule();
+  const Module *MM = Func.getFunction().getParent();
   Metadata *PrintfModule = MM->getModuleFlag("tpc-printf");
   if (!PrintfModule)
     return;
@@ -335,7 +335,7 @@ static std::vector<Constant *> createAString(std::string input, Type *&Int8Ty) {
 */
 
 void TPCElfSpecSet::createElfSection(MachineFunction &Func) {
-  llvm::Module *M = const_cast<llvm::Module*>(Func.getMMI().getModule());
+  llvm::Module *M = Func.getFunction().getParent();
   Type *Int8Ty = llvm::Type::getInt8Ty(Func.getFunction().getContext());
 
   std::vector<Constant *> TPCMetadataData;

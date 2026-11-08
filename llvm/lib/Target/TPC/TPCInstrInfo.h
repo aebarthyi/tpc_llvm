@@ -92,21 +92,24 @@ public:
 
   void copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
                    const DebugLoc &DL, MCRegister DestReg, MCRegister SrcReg,
-                   bool KillSrc) const override;
+                   bool KillSrc, bool RenamableDest = false,
+                   bool RenamableSrc = false) const override;
 
   void storeRegToStackSlot(MachineBasicBlock &MBB,
                            MachineBasicBlock::iterator MBBI,
                            Register SrcReg, bool isKill, int FrameIndex,
                            const TargetRegisterClass *RC,
-                           const TargetRegisterInfo *TRI,
-                           Register VReg) const override;
+                           const TargetRegisterInfo *TRI, Register VReg,
+                           MachineInstr::MIFlag Flags =
+                               MachineInstr::NoFlags) const override;
 
   void loadRegFromStackSlot(MachineBasicBlock &MBB,
                             MachineBasicBlock::iterator MBBI,
                             Register DestReg, int FrameIndex,
                             const TargetRegisterClass *RC,
-                            const TargetRegisterInfo *TRI,
-                            Register VReg) const override;
+                            const TargetRegisterInfo *TRI, Register VReg,
+                            MachineInstr::MIFlag Flags =
+                                MachineInstr::NoFlags) const override;
 
   /// Target-dependent implementation for foldMemoryOperand.
   /// Target-independent code in foldMemoryOperand will

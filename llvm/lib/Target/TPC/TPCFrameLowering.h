@@ -77,7 +77,7 @@ public:
                                 MachineBasicBlock::iterator I) const override;
 
   bool hasReservedCallFrame(const MachineFunction &MF) const override;
-  bool hasFP(const MachineFunction &MF) const override;
+  bool hasFPImpl(const MachineFunction &MF) const override;
   void determineCalleeSaves(MachineFunction &MF, BitVector &SavedRegs,
                             RegScavenger *RS = nullptr) const override;
 

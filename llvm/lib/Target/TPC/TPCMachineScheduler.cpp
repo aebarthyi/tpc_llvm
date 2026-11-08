@@ -37,6 +37,12 @@ static cl::opt<bool> TPCIgnoreBBRegPressure("tpc-ignore-bb-reg-pressure",
 static cl::opt<bool> TPCUseFullSched("tpc-use-full-sched",
     cl::Hidden, cl::ZeroOrMore, cl::init(false));
 
+namespace llvm {
+// -misched-postra-direction (MachineScheduler.cpp); only the pre-RA one is
+// declared in MachineScheduler.h.
+extern cl::opt<MISched::Direction> PostRADirection;
+} // namespace llvm
+
 static cl::opt<float> RPThreshold("tpc-reg-pressure", cl::Hidden,
     cl::init(0.65f), cl::desc("High register pressure threhold."));
 
@@ -280,6 +286,9 @@ class TPCSchedStrategy : public MachineSchedStrategy {
   int liveInsADRF;
 public:
   bool isPostRA;
+  // Direction set in initialize(); bidirectional when both are false.
+  bool OnlyTopDown = false;
+  bool OnlyBottomUp = false;
   enum {
     TopQID = 1,
     BotQID = 2,
@@ -843,9 +852,11 @@ void TPCSchedStrategy::initialize(ScheduleDAGMI *dag) {
   const TargetSubtargetInfo &STI = DAG->MF.getSubtarget();
   const TargetInstrInfo *TII = STI.getInstrInfo();
 
-  if (!TPCUseFullSched) {
-    llvm::ForceTopDown = true;
-  }
+  // Without -tpc-use-full-sched, TPC schedules top-down only. Otherwise the
+  // -misched-prera/postra-direction options can force a direction.
+  MISched::Direction Dir = isPostRA ? PostRADirection : PreRADirection;
+  OnlyTopDown = !TPCUseFullSched || Dir == MISched::TopDown;
+  OnlyBottomUp = !OnlyTopDown && Dir == MISched::BottomUp;
 
   delete Top.HazardRec;
   delete Bot.HazardRec;
@@ -953,7 +964,7 @@ SUnit *TPCSchedStrategy::pickNode(bool &IsTopNode) {
     return nullptr;
   }
 
-  if (llvm::ForceTopDown) {
+  if (OnlyTopDown) {
     SU = Top.pickOnlyChoice();
     if (!SU) {
       SchedCandidate TopCand;
@@ -965,7 +976,7 @@ SUnit *TPCSchedStrategy::pickNode(bool &IsTopNode) {
     }
     IsTopNode = true;
   }
-  else if (llvm::ForceBottomUp) {
+  else if (OnlyBottomUp) {
     SU = Bot.pickOnlyChoice();
     if (!SU) {
       SchedCandidate BotCand;

@@ -1260,8 +1260,8 @@ static unsigned int getSwitchByDestDataType(EVT DestEltVT, bool isUnsigned) {
 
 SDValue TPCTargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) const {
   SDNode* Node = Op.getNode();
-  for (SDNode::use_iterator U = Node->use_begin(),
-                            UE=Node->use_end();
+  for (SDNode::user_iterator U = Node->user_begin(),
+                            UE=Node->user_end();
                              U != UE; ++U) {
     SDValue V = SDValue(*U, 0);
     if (V.getOpcode() == ISD::VSELECT) {
@@ -3746,7 +3746,7 @@ TPCTargetLowering::extend_8_to_32(SDValue Op, SelectionDAG &DAG,
     // mov-dual-group
     SmallVector<SDValue, 8> Ops5(7);
     Ops5[0] = BitCastUnpack2;                          // Source.
-    Ops5[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops5[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     // y.v1 = v_i32_mov_dual_group_all_v(y.v2, 0xFFFFFFFF, y.v1, 1, 0, 3, 2,
     // 0b00, 0b11, 0b00, 0b11);
     Ops5[2] = DAG.getTargetConstant(
@@ -3767,7 +3767,7 @@ TPCTargetLowering::extend_8_to_32(SDValue Op, SelectionDAG &DAG,
     // mov-dual-group
     SmallVector<SDValue, 8> Ops6(7);
     Ops6[0] = Temp0;                                   // Source.
-    Ops6[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops6[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     // y.v2 = v_i32_mov_dual_group_all_v(t0, 0xFFFFFFFF, y.v2, 1, 0, 3, 2, 0b11,
     // 0b00, 0b11, 0b00);
     Ops6[2] = DAG.getTargetConstant(
@@ -3789,7 +3789,7 @@ TPCTargetLowering::extend_8_to_32(SDValue Op, SelectionDAG &DAG,
     // mov-dual-group
     SmallVector<SDValue, 8> Ops7(7);
     Ops7[0] = BitCastUnpack4;                          // Source.
-    Ops7[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops7[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     // y.v3 = v_i32_mov_dual_group_all_v(y.v4, 0xFFFFFFFF, y.v3, 1, 0, 3, 2,
     // 0b00, 0b11, 0b00, 0b11);
     Ops7[2] = DAG.getTargetConstant(
@@ -3810,7 +3810,7 @@ TPCTargetLowering::extend_8_to_32(SDValue Op, SelectionDAG &DAG,
     // mov-dual-group
     SmallVector<SDValue, 8> Ops8(7);
     Ops8[0] = Temp1;                                   // Source.
-    Ops8[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops8[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     // y.v4 = v_i32_mov_dual_group_all_v(t1, 0xFFFFFFFF, y.v4, 1, 0, 3, 2, 0b11,
     // 0b00, 0b11, 0b00);
     Ops8[2] = DAG.getTargetConstant(
@@ -3833,7 +3833,7 @@ TPCTargetLowering::extend_8_to_32(SDValue Op, SelectionDAG &DAG,
     // mov-dual-group
     SmallVector<SDValue, 8> Ops9(7);
     Ops9[0] = mdg3;                                    // Source.
-    Ops9[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops9[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     // y.v1 = v_i32_mov_dual_group_all_v(y.v3, 0xFFFFFFFF, y.v1, 2, 3, 0, 1,
     // 0b00, 0b00, 0b11, 0b11);
     Ops9[2] = DAG.getTargetConstant(
@@ -3854,7 +3854,7 @@ TPCTargetLowering::extend_8_to_32(SDValue Op, SelectionDAG &DAG,
     // mov-dual-group
     SmallVector<SDValue, 8> Ops10(7);
     Ops10[0] = mdg4;                                    // Source.
-    Ops10[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops10[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     // y.v2 = v_i32_mov_dual_group_all_v(y.v4, 0xFFFFFFFF, y.v2, 2, 3, 0, 1,
     // 0b00, 0b00, 0b11, 0b11);
     Ops10[2] = DAG.getTargetConstant(
@@ -3875,7 +3875,7 @@ TPCTargetLowering::extend_8_to_32(SDValue Op, SelectionDAG &DAG,
     // mov-dual-group
     SmallVector<SDValue, 8> Ops11(7);
     Ops11[0] = Temp0;                                   // Source.
-    Ops11[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops11[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     // y.v3 = v_i32_mov_dual_group_all_v(t0, 0xFFFFFFFF, y.v3, 2, 3, 0, 1, 0b11,
     // 0b11, 0b00, 0b00);
     Ops11[2] = DAG.getTargetConstant(
@@ -3896,7 +3896,7 @@ TPCTargetLowering::extend_8_to_32(SDValue Op, SelectionDAG &DAG,
     // mov-dual-group
     SmallVector<SDValue, 8> Ops12(7);
     Ops12[0] = Temp1;                                   // Source.
-    Ops12[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops12[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     // y.v4 = v_i32_mov_dual_group_all_v(t1, 0xFFFFFFFF, y.v4, 2, 3, 0, 1, 0b11,
     // 0b11, 0b00, 0b00);
     Ops12[2] = DAG.getTargetConstant(
@@ -4310,7 +4310,7 @@ TPCTargetLowering::Extend_8_to_32(EVT ResultVT, SDValue Src, SelectionDAG &DAG,
     // mov-dual-group
     SmallVector<SDValue, 8> Ops5(7);
     Ops5[0] = BitCastUnpack2;                          // Source.
-    Ops5[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops5[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     // y.v1 = v_i32_mov_dual_group_all_v(y.v2, 0xFFFFFFFF, y.v1, 1, 0, 3, 2,
     // 0b00, 0b11, 0b00, 0b11);
     Ops5[2] = DAG.getTargetConstant(
@@ -4331,7 +4331,7 @@ TPCTargetLowering::Extend_8_to_32(EVT ResultVT, SDValue Src, SelectionDAG &DAG,
     // mov-dual-group
     SmallVector<SDValue, 8> Ops6(7);
     Ops6[0] = Temp0;                                   // Source.
-    Ops6[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops6[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     // y.v2 = v_i32_mov_dual_group_all_v(t0, 0xFFFFFFFF, y.v2, 1, 0, 3, 2, 0b11,
     // 0b00, 0b11, 0b00);
     Ops6[2] = DAG.getTargetConstant(
@@ -4353,7 +4353,7 @@ TPCTargetLowering::Extend_8_to_32(EVT ResultVT, SDValue Src, SelectionDAG &DAG,
     // mov-dual-group
     SmallVector<SDValue, 8> Ops7(7);
     Ops7[0] = BitCastUnpack4;                          // Source.
-    Ops7[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops7[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     // y.v3 = v_i32_mov_dual_group_all_v(y.v4, 0xFFFFFFFF, y.v3, 1, 0, 3, 2,
     // 0b00, 0b11, 0b00, 0b11);
     Ops7[2] = DAG.getTargetConstant(
@@ -4374,7 +4374,7 @@ TPCTargetLowering::Extend_8_to_32(EVT ResultVT, SDValue Src, SelectionDAG &DAG,
     // mov-dual-group
     SmallVector<SDValue, 8> Ops8(7);
     Ops8[0] = Temp1;                                   // Source.
-    Ops8[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops8[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     // y.v4 = v_i32_mov_dual_group_all_v(t1, 0xFFFFFFFF, y.v4, 1, 0, 3, 2, 0b11,
     // 0b00, 0b11, 0b00);
     Ops8[2] = DAG.getTargetConstant(
@@ -4397,7 +4397,7 @@ TPCTargetLowering::Extend_8_to_32(EVT ResultVT, SDValue Src, SelectionDAG &DAG,
     // mov-dual-group
     SmallVector<SDValue, 8> Ops9(7);
     Ops9[0] = mdg3;                                    // Source.
-    Ops9[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops9[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     // y.v1 = v_i32_mov_dual_group_all_v(y.v3, 0xFFFFFFFF, y.v1, 2, 3, 0, 1,
     // 0b00, 0b00, 0b11, 0b11);
     Ops9[2] = DAG.getTargetConstant(
@@ -4418,7 +4418,7 @@ TPCTargetLowering::Extend_8_to_32(EVT ResultVT, SDValue Src, SelectionDAG &DAG,
     // mov-dual-group
     SmallVector<SDValue, 8> Ops10(7);
     Ops10[0] = mdg4;                                    // Source.
-    Ops10[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops10[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     // y.v2 = v_i32_mov_dual_group_all_v(y.v4, 0xFFFFFFFF, y.v2, 2, 3, 0, 1,
     // 0b00, 0b00, 0b11, 0b11);
     Ops10[2] = DAG.getTargetConstant(
@@ -4439,7 +4439,7 @@ TPCTargetLowering::Extend_8_to_32(EVT ResultVT, SDValue Src, SelectionDAG &DAG,
     // mov-dual-group
     SmallVector<SDValue, 8> Ops11(7);
     Ops11[0] = Temp0;                                   // Source.
-    Ops11[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops11[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     // y.v3 = v_i32_mov_dual_group_all_v(t0, 0xFFFFFFFF, y.v3, 2, 3, 0, 1, 0b11,
     // 0b11, 0b00, 0b00);
     Ops11[2] = DAG.getTargetConstant(
@@ -4460,7 +4460,7 @@ TPCTargetLowering::Extend_8_to_32(EVT ResultVT, SDValue Src, SelectionDAG &DAG,
     // mov-dual-group
     SmallVector<SDValue, 8> Ops12(7);
     Ops12[0] = Temp1;                                   // Source.
-    Ops12[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops12[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     // y.v4 = v_i32_mov_dual_group_all_v(t1, 0xFFFFFFFF, y.v4, 2, 3, 0, 1, 0b11,
     // 0b11, 0b00, 0b00);
     Ops12[2] = DAG.getTargetConstant(
@@ -4831,7 +4831,7 @@ TPCTargetLowering::Extend_8_to_16(EVT ResultVT, SDValue Src, SelectionDAG &DAG,
   // mov-dual-group
   SmallVector<SDValue, 8> Ops5(6);
   Ops5[0] = unpack2;                                      // Source.
-  Ops5[1] = DAG.getTargetConstant(-1, DL, MVT::i32);       // DataType.
+  Ops5[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32);       // DataType.
   // y.v1 = v_i16_mov_dual_group_v(y.v2, 0xFFFFFFFF, y.v1, 0, 1, 1, 1);
   Ops5[2] = DAG.getTargetConstant((0 << TPCII::SW_SRC_DUAL_GROUP_SHIFT |
                                    1 << TPCII::SW_DST_DUAL_GROUP_SHIFT |
@@ -4848,7 +4848,7 @@ TPCTargetLowering::Extend_8_to_16(EVT ResultVT, SDValue Src, SelectionDAG &DAG,
   // mov-dual-group
   SmallVector<SDValue, 8> Ops6(6);
   Ops6[0] = unpack1;                                      // Source.
-  Ops6[1] = DAG.getTargetConstant(-1, DL, MVT::i32);       // DataType.
+  Ops6[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32);       // DataType.
   // y.v1 = v_i16_mov_dual_group_v(vec0, 0xFFFFFFFF, y.v1, 1, 2, 1, 1);
   Ops6[2] = DAG.getTargetConstant((1 << TPCII::SW_SRC_DUAL_GROUP_SHIFT |
                                    2 << TPCII::SW_DST_DUAL_GROUP_SHIFT |
@@ -4865,7 +4865,7 @@ TPCTargetLowering::Extend_8_to_16(EVT ResultVT, SDValue Src, SelectionDAG &DAG,
   // mov-dual-group
   SmallVector<SDValue, 8> Ops7(6);
   Ops7[0] = unpack2;                                      // Source.
-  Ops7[1] = DAG.getTargetConstant(-1, DL, MVT::i32);       // DataType.
+  Ops7[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32);       // DataType.
   // y.v1 = v_i16_mov_dual_group_v(y.v2, 0xFFFFFFFF, y.v1, 1, 3, 1, 1);
   Ops7[2] = DAG.getTargetConstant((1 << TPCII::SW_SRC_DUAL_GROUP_SHIFT |
                                    3 << TPCII::SW_DST_DUAL_GROUP_SHIFT |
@@ -4882,7 +4882,7 @@ TPCTargetLowering::Extend_8_to_16(EVT ResultVT, SDValue Src, SelectionDAG &DAG,
   // mov-dual-group
   SmallVector<SDValue, 8> Ops8(6);
   Ops8[0] = unpack1;                                      // Source.
-  Ops8[1] = DAG.getTargetConstant(-1, DL, MVT::i32);       // DataType.
+  Ops8[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32);       // DataType.
   // y.v2 = v_i16_mov_dual_group_v(vec0, 0xFFFFFFFF, y.v2, 2, 0, 1, 1);
   Ops8[2] = DAG.getTargetConstant((2 << TPCII::SW_SRC_DUAL_GROUP_SHIFT |
                                    0 << TPCII::SW_DST_DUAL_GROUP_SHIFT |
@@ -4899,7 +4899,7 @@ TPCTargetLowering::Extend_8_to_16(EVT ResultVT, SDValue Src, SelectionDAG &DAG,
   // mov-dual-group
   SmallVector<SDValue, 8> Ops9(6);
   Ops9[0] = mdg4;                                          // Source.
-  Ops9[1] = DAG.getTargetConstant(-1, DL, MVT::i32);       // DataType.
+  Ops9[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32);       // DataType.
   // y.v2 = v_i16_mov_dual_group_v(y.v2, 0xFFFFFFFF, y.v2, 2, 1, 1, 1);
   Ops9[2] = DAG.getTargetConstant((2 << TPCII::SW_SRC_DUAL_GROUP_SHIFT |
                                    1 << TPCII::SW_DST_DUAL_GROUP_SHIFT |
@@ -4916,7 +4916,7 @@ TPCTargetLowering::Extend_8_to_16(EVT ResultVT, SDValue Src, SelectionDAG &DAG,
   // mov-dual-group
   SmallVector<SDValue, 8> Ops10(6);
   Ops10[0] = unpack1;                                      // Source.
-  Ops10[1] = DAG.getTargetConstant(-1, DL, MVT::i32);       // DataType.
+  Ops10[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32);       // DataType.
   // y.v2 = v_i16_mov_dual_group_v(vec0, 0xFFFFFFFF, y.v2, 3, 2, 1, 1);
   Ops10[2] = DAG.getTargetConstant((3 << TPCII::SW_SRC_DUAL_GROUP_SHIFT |
                                     2 << TPCII::SW_DST_DUAL_GROUP_SHIFT |
@@ -5005,7 +5005,7 @@ TPCTargetLowering::extend_8_to_16(SDValue Op, SelectionDAG &DAG,
   // mov-dual-group
   SmallVector<SDValue, 8> Ops5(6);
   Ops5[0] = convert2;                                // Source.
-  Ops5[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+  Ops5[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
   // y.v1 = v_i16_mov_dual_group_v(y.v2, 0xFFFFFFFF, y.v1, 0, 1, 1, 1);
   Ops5[2] = DAG.getTargetConstant((0 << TPCII::SW_SRC_DUAL_GROUP_SHIFT |
                                    1 << TPCII::SW_DST_DUAL_GROUP_SHIFT |
@@ -5022,7 +5022,7 @@ TPCTargetLowering::extend_8_to_16(SDValue Op, SelectionDAG &DAG,
   // mov-dual-group
   SmallVector<SDValue, 8> Ops6(6);
   Ops6[0] = convert1;                                // Source.
-  Ops6[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+  Ops6[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
   // y.v1 = v_i16_mov_dual_group_v(vec0, 0xFFFFFFFF, y.v1, 1, 2, 1, 1);
   Ops6[2] = DAG.getTargetConstant((1 << TPCII::SW_SRC_DUAL_GROUP_SHIFT |
                                    2 << TPCII::SW_DST_DUAL_GROUP_SHIFT |
@@ -5039,7 +5039,7 @@ TPCTargetLowering::extend_8_to_16(SDValue Op, SelectionDAG &DAG,
   // mov-dual-group
   SmallVector<SDValue, 8> Ops7(6);
   Ops7[0] = convert2;                                // Source.
-  Ops7[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+  Ops7[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
   // y.v1 = v_i16_mov_dual_group_v(y.v2, 0xFFFFFFFF, y.v1, 1, 3, 1, 1);
   Ops7[2] = DAG.getTargetConstant((1 << TPCII::SW_SRC_DUAL_GROUP_SHIFT |
                                    3 << TPCII::SW_DST_DUAL_GROUP_SHIFT |
@@ -5056,7 +5056,7 @@ TPCTargetLowering::extend_8_to_16(SDValue Op, SelectionDAG &DAG,
   // mov-dual-group
   SmallVector<SDValue, 8> Ops8(6);
   Ops8[0] = convert1;                                // Source.
-  Ops8[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+  Ops8[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
   // y.v2 = v_i16_mov_dual_group_v(vec0, 0xFFFFFFFF, y.v2, 2, 0, 1, 1);
   Ops8[2] = DAG.getTargetConstant((2 << TPCII::SW_SRC_DUAL_GROUP_SHIFT |
                                    0 << TPCII::SW_DST_DUAL_GROUP_SHIFT |
@@ -5073,7 +5073,7 @@ TPCTargetLowering::extend_8_to_16(SDValue Op, SelectionDAG &DAG,
   // mov-dual-group
   SmallVector<SDValue, 8> Ops9(6);
   Ops9[0] = mdg4;                                    // Source.
-  Ops9[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+  Ops9[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
   // y.v2 = v_i16_mov_dual_group_v(y.v2, 0xFFFFFFFF, y.v2, 2, 1, 1, 1);
   Ops9[2] = DAG.getTargetConstant((2 << TPCII::SW_SRC_DUAL_GROUP_SHIFT |
                                    1 << TPCII::SW_DST_DUAL_GROUP_SHIFT |
@@ -5090,7 +5090,7 @@ TPCTargetLowering::extend_8_to_16(SDValue Op, SelectionDAG &DAG,
   // mov-dual-group
   SmallVector<SDValue, 8> Ops10(6);
   Ops10[0] = convert1;                                // Source.
-  Ops10[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+  Ops10[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
   // y.v2 = v_i16_mov_dual_group_v(vec0, 0xFFFFFFFF, y.v2, 3, 2, 1, 1);
   Ops10[2] = DAG.getTargetConstant((3 << TPCII::SW_SRC_DUAL_GROUP_SHIFT |
                                     2 << TPCII::SW_DST_DUAL_GROUP_SHIFT |
@@ -5132,7 +5132,7 @@ TPCTargetLowering::extend_16_to_32(SDValue Op, SelectionDAG &DAG,
     // mov-group
     SmallVector<SDValue, 8> Ops(6);
     Ops[0] = Temp;                                    // Source.
-    Ops[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     Ops[2] =
         DAG.getTargetConstant((TPCII::SW_GROUP_EN | TPCII::SW_DUAL_GROUP_EN),
                               DL, MVT::i32);        // Switch.
@@ -5148,7 +5148,7 @@ TPCTargetLowering::extend_16_to_32(SDValue Op, SelectionDAG &DAG,
     // %V1, -0x1, %SP0;
     SmallVector<SDValue, 8> Ops1(7);
     Ops1[0] = Temp;                                    // Source.
-    Ops1[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops1[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     Ops1[2] = DAG.getTargetConstant(
         (((0 << TPCII::SW_SDG0_SHIFT) | (2 << TPCII::SW_SDG1_SHIFT) |
           (1 << TPCII::SW_SDG2_SHIFT) | (3 << TPCII::SW_SDG3_SHIFT) |
@@ -5169,7 +5169,7 @@ TPCTargetLowering::extend_16_to_32(SDValue Op, SelectionDAG &DAG,
     // %V4, -0x1, %SP0;
     SmallVector<SDValue, 8> Ops2(7);
     Ops2[0] = mdg;                                     // Source.
-    Ops2[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops2[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     Ops2[2] = DAG.getTargetConstant(                   // 0,
         (((2 << TPCII::SW_SDG0_SHIFT) | (0 << TPCII::SW_SDG1_SHIFT) |
           (3 << TPCII::SW_SDG2_SHIFT) | (1 << TPCII::SW_SDG3_SHIFT) |
@@ -6881,7 +6881,7 @@ static SmallVector<SDValue, 2>
     // mov-group
     SmallVector<SDValue, 8> Ops(6);
     Ops[0] = Src; // Source.
-    Ops[1] = DAG.getTargetConstant(-1, DL, MVT::i32);
+    Ops[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32);
     Ops[2] =
         DAG.getTargetConstant((TPCII::SW_GROUP_EN | TPCII::SW_DUAL_GROUP_EN),
                               DL, MVT::i32);        // Switch.
@@ -6897,7 +6897,7 @@ static SmallVector<SDValue, 2>
     // %V1, -0x1, %SP0;
     SmallVector<SDValue, 8> Ops1(7);
     Ops1[0] = Src;                                     // Source.
-    Ops1[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops1[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     Ops1[2] = DAG.getTargetConstant(
         (((0 << TPCII::SW_SDG0_SHIFT) | (2 << TPCII::SW_SDG1_SHIFT) |
           (1 << TPCII::SW_SDG2_SHIFT) | (3 << TPCII::SW_SDG3_SHIFT) |
@@ -6918,7 +6918,7 @@ static SmallVector<SDValue, 2>
     // %V4, -0x1, %SP0;
     SmallVector<SDValue, 8> Ops2(7);
     Ops2[0] = mdg;                                     // Source.
-    Ops2[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+    Ops2[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
     Ops2[2] = DAG.getTargetConstant(                   // 0,
         (((2 << TPCII::SW_SDG0_SHIFT) | (0 << TPCII::SW_SDG1_SHIFT) |
           (3 << TPCII::SW_SDG2_SHIFT) | (1 << TPCII::SW_SDG3_SHIFT) |
@@ -9318,7 +9318,7 @@ SDValue TPCTargetLowering::truncate_32_to_16(SelectionDAG &DAG, SDValue Src0,
   // 0b00, 0b00);
   SmallVector<SDValue, 8> Ops13(7);
   Ops13[0] = val12;                                   // Source.
-  Ops13[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+  Ops13[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
   Ops13[2] = DAG.getTargetConstant(
       (((1 << TPCII::SW_SDG0_SHIFT) | (2 << TPCII::SW_SDG1_SHIFT) |
         (3 << TPCII::SW_SDG2_SHIFT) | (0 << TPCII::SW_SDG3_SHIFT)) |
@@ -9337,7 +9337,7 @@ SDValue TPCTargetLowering::truncate_32_to_16(SelectionDAG &DAG, SDValue Src0,
   // y = v_i16_mov_dual_group_v(y, 0xFFFFFFFF, y, 3, 1, 0, 1);
   SmallVector<SDValue, 8> Ops14(6);
   Ops14[0] = val13;                                         // Source.
-  Ops14[1] = DAG.getTargetConstant(-1, DL, MVT::i32);       // DataType.
+  Ops14[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32);       // DataType.
   Ops14[2] = DAG.getTargetConstant((3 << TPCII::SW_SRC_DUAL_GROUP_SHIFT |
                                     1 << TPCII::SW_DST_DUAL_GROUP_SHIFT |
                                     TPCII::SW_WR_UPPER_GROUP),
@@ -9376,7 +9376,7 @@ SDValue TPCTargetLowering::truncate_32_to_16(SelectionDAG &DAG, SDValue Src0,
   // 0b01, 0b01);
   SmallVector<SDValue, 8> Ops23(7);
   Ops23[0] = val22;                                   // Source.
-  Ops23[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+  Ops23[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
   Ops23[2] = DAG.getTargetConstant(
       (((1 << TPCII::SW_SDG0_SHIFT) | (3 << TPCII::SW_SDG1_SHIFT) |
         (0 << TPCII::SW_SDG2_SHIFT) | (2 << TPCII::SW_SDG3_SHIFT)) |
@@ -9396,7 +9396,7 @@ SDValue TPCTargetLowering::truncate_32_to_16(SelectionDAG &DAG, SDValue Src0,
   // 0b10, 0b10);
   SmallVector<SDValue, 8> Ops24(7);
   Ops24[0] = val22;                                   // Source.
-  Ops24[1] = DAG.getTargetConstant(-1, DL, MVT::i32); // DataType.
+  Ops24[1] = DAG.getSignedTargetConstant(-1, DL, MVT::i32); // DataType.
   Ops24[2] = DAG.getTargetConstant(
       (((0 << TPCII::SW_SDG0_SHIFT) | (2 << TPCII::SW_SDG1_SHIFT) |
         (1 << TPCII::SW_SDG2_SHIFT) | (3 << TPCII::SW_SDG3_SHIFT)) |
@@ -10570,7 +10570,7 @@ SDValue TPCTargetLowering::lowerMULHS(SDValue Op, SelectionDAG &DAG) const {
     MachineSDNode *Shifted = DAG.getMachineNode(
       TPC::ASHsip, DL, MVT::i32,
       { SDValue(Quotinent, 0),
-        DAG.getTargetConstant(-16, DL, MVT::i32),
+        DAG.getSignedTargetConstant(-16, DL, MVT::i32),
         DAG.getTargetConstant(TPCII::UINT32, DL, MVT::i8),
         DAG.getTargetConstant(0, DL, MVT::i32),
         DAG.getUNDEF(ResTy) /*Income*/,
@@ -10594,7 +10594,7 @@ SDValue TPCTargetLowering::lowerMULHS(SDValue Op, SelectionDAG &DAG) const {
     MachineSDNode *Shifted = DAG.getMachineNode(
       TPC::ASHsip, DL, MVT::i32,
       { SDValue(Quotinent, 0),
-        DAG.getTargetConstant(-8, DL, MVT::i32),
+        DAG.getSignedTargetConstant(-8, DL, MVT::i32),
         DAG.getTargetConstant(TPCII::UINT32, DL, MVT::i8),
         DAG.getTargetConstant(0, DL, MVT::i32),
         DAG.getUNDEF(ResTy) /*Income*/,
@@ -10704,7 +10704,7 @@ static SDValue performIncGPtrCombine(SDNode *N, SelectionDAG &DAG,
     MemSDNode *Last = nullptr;
     {
       SmallVector<MemSDNode *, 8> LoadsAndStores;
-      for (auto U : BasePointer.getNode()->uses()) {
+      for (auto U : BasePointer.getNode()->users()) {
         if (U->getOpcode() == ISD::TokenFactor)
           continue;
         if (auto Ld = dyn_cast<LoadSDNode>(U)) {
@@ -10757,7 +10757,7 @@ static SDValue performIncGPtrCombine(SDNode *N, SelectionDAG &DAG,
       return SDValue();
 
     // Collect all increment nodes.
-    for (auto U : BasePointer.getNode()->uses())
+    for (auto U : BasePointer.getNode()->users())
       if (U->getOpcode() == ISD::ADD) {
         uint64_t CInc;
         if (auto CIncVal = dyn_cast<ConstantSDNode>(U->getOperand(1)))

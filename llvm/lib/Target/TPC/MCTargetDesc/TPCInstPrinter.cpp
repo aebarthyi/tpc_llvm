@@ -46,7 +46,7 @@ const int TPCInstPrinter::TpcAsmParseCompatible = 3;
 static bool FirstOperandPrinded = false;
 
 
-void TPCInstPrinter::printRegName(raw_ostream &OS, MCRegister Reg) const {
+void TPCInstPrinter::printRegName(raw_ostream &OS, MCRegister Reg) {
   OS << StringRef(getRegisterName(Reg)).lower();
 
   FirstOperandPrinded = true;

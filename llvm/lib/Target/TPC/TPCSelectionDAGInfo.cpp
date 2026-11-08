@@ -13,6 +13,11 @@
 #include "llvm/CodeGen/SelectionDAG.h"
 using namespace llvm;
 
+bool TPCSelectionDAGInfo::isTargetMemoryOpcode(unsigned Opcode) const {
+  return Opcode >= TPCISD::FIRST_MEMORY_OPCODE &&
+         Opcode <= TPCISD::LAST_MEMORY_OPCODE;
+}
+
 #define DEBUG_TYPE "tpc-selectiondag-info"
 
 SDValue TPCSelectionDAGInfo::EmitTargetCodeForMemset(

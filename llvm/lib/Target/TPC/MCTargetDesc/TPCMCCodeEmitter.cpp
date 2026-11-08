@@ -1198,19 +1198,23 @@ void TPCMCCodeEmitter::encodeLoop(const MCInst &Inst, raw_ostream& OS, uint64_t 
 
   // Start immediate
   if (Inst.getOperand(0).isImm()) {
-    APInt ImmValue(TPCII::ImmSize, Inst.getOperand(0).getImm());
+    // The field holds the low 32 bits; the operand may be signed or not.
+    APInt ImmValue(TPCII::ImmSize, Inst.getOperand(0).getImm(),
+                   /*isSigned=*/false, /*implicitTrunc=*/true);
     Instruction |= ImmValue.zext(TPCII::InstructionSize).shl(loop_start_imm_start);
   }
 
   // Boundary immediate
   if (Inst.getOperand(1).isImm()) {
-    APInt ImmValue(TPCII::ImmSize, Inst.getOperand(1).getImm());
+    APInt ImmValue(TPCII::ImmSize, Inst.getOperand(1).getImm(),
+                   /*isSigned=*/false, /*implicitTrunc=*/true);
     Instruction |= ImmValue.zext(TPCII::InstructionSize).shl(loop_bound_imm_start);
   }
 
   // Step immediate
   if (Inst.getOperand(2).isImm()) {
-    APInt ImmValue(TPCII::ImmSize, Inst.getOperand(2).getImm());
+    APInt ImmValue(TPCII::ImmSize, Inst.getOperand(2).getImm(),
+                   /*isSigned=*/false, /*implicitTrunc=*/true);
     Instruction |= ImmValue.zext(TPCII::InstructionSize).shl(loop_step_imm_start);
   }
 

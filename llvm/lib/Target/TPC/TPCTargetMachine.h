@@ -4,6 +4,7 @@
 #include "TPCInstrInfo.h"
 #include "TPCSubtarget.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/CodeGen/CodeGenTargetMachineImpl.h"
 #include "llvm/Target/TargetMachine.h"
 #include <optional>
 #include "llvm/ADT/StringMap.h"
@@ -158,7 +159,7 @@ FunctionPass *createTPCImmToReg();
 FunctionPass *createTPCScalarSink();
 FunctionPass *createTPCSwapFakePredicate();
 
-class TPCTargetMachine : public LLVMTargetMachine {
+class TPCTargetMachine : public CodeGenTargetMachineImpl {
   std::unique_ptr<TargetLoweringObjectFile> TLOF;
   TPCSubtarget *Subtarget = nullptr;
   mutable StringMap<std::unique_ptr<TPCSubtarget>> SubtargetMap;

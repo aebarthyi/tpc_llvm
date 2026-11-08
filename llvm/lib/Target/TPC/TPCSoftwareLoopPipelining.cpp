@@ -407,7 +407,7 @@ bool TPCPipeliner::feedsPhi(MachineInstr *MI) {
 }
 
 void TPCPipeliner::recalculateAnalysis() {
-  MDT->calculate(*CurrMF);
+  MDT->recalculate(*CurrMF);
 }
 
 // For effective pipelining we need not to just unroll, but make
