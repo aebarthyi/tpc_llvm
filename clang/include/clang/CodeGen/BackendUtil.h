@@ -53,7 +53,7 @@ void EmbedText   (llvm::Module *M, const CodeGenOptions &CGOpts,
 #endif
 
 void EmbedObject(llvm::Module *M, const CodeGenOptions &CGOpts,
-                 DiagnosticsEngine &Diags);
+                 llvm::vfs::FileSystem &VFS, DiagnosticsEngine &Diags);
 } // namespace clang
 
 #endif

@@ -25,6 +25,7 @@ set(LLVM_LINK_COMPONENTS
   ObjCARCOpts
   Object
   Passes
+  Plugins
   ProfileData
   ScalarOpts
   Support
@@ -149,7 +150,6 @@ add_clang_library(clangCodeGen
   Targets/MSP430.cpp
   Targets/Mips.cpp
   Targets/NVPTX.cpp
-  Targets/PNaCl.cpp
   Targets/PPC.cpp
   Targets/RISCV.cpp
   Targets/SPIR.cpp
@@ -161,6 +161,7 @@ add_clang_library(clangCodeGen
   Targets/WebAssembly.cpp
   Targets/X86.cpp
   Targets/XCore.cpp
+  TrapReasonBuilder.cpp
   VarBypassDetector.cpp
 
   DEPENDS

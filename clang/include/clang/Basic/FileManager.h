@@ -237,11 +237,6 @@ public:
   FileEntryRef getVirtualFileRef(StringRef Filename, off_t Size,
                                  time_t ModificationTime);
 
-  LLVM_DEPRECATED("Functions returning FileEntry are deprecated.",
-                  "getVirtualFileRef()")
-  const FileEntry *getVirtualFile(StringRef Filename, off_t Size,
-                                  time_t ModificationTime);
-
 #ifdef LLVM_TPC_COMPILER
   FileEntryRef addVirtualFile(StringRef Filename, llvm::MemoryBuffer &Buff);
 #endif
@@ -296,8 +291,12 @@ public:
   /// If path is not absolute and FileSystemOptions set the working
   /// directory, the path is modified to be relative to the given
   /// working directory.
-  /// \returns true if \c path changed.
-  bool FixupRelativePath(SmallVectorImpl<char> &path) const;
+  /// \returns true if \c Path changed.
+  bool FixupRelativePath(SmallVectorImpl<char> &Path) const {
+    return fixupRelativePath(FileSystemOpts, Path);
+  }
+  static bool fixupRelativePath(const FileSystemOptions &FileSystemOpts,
+                                SmallVectorImpl<char> &Path);
 
   /// Makes \c Path absolute taking into account FileSystemOptions and the
   /// working directory option.

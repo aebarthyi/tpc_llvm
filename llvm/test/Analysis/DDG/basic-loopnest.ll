@@ -1,5 +1,8 @@
 ; RUN: opt < %s -disable-output -ddg-simplify -ddg-pi-blocks -has-usedef-edge=false "-passes=print<ddg>" 2>&1 | FileCheck %s
 
+; XFAIL: *
+; At the moment, DependenceAnalysis cannot infer `n` to be positive.
+
 
 ; CHECK-LABEL: 'DDG' for loop 'test1.for.cond1.preheader':
 
