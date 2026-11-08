@@ -320,8 +320,8 @@ public:
   StringRef getPassName() const override { return "TPC Hardware Loops"; }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<MachineDominatorTree>();
-    AU.addRequired<MachineLoopInfo>();
+    AU.addRequired<MachineDominatorTreeWrapperPass>();
+    AU.addRequired<MachineLoopInfoWrapperPass>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 
@@ -340,8 +340,8 @@ private:
 
 INITIALIZE_PASS_BEGIN(TPCHardwareLoops, PassName,
                       PassDescription, false, false)
-INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
-INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+INITIALIZE_PASS_DEPENDENCY(MachineDominatorTreeWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(MachineLoopInfoWrapperPass)
 INITIALIZE_PASS_END(TPCHardwareLoops, PassName,
                     PassDescription, false, false)
 
@@ -1102,9 +1102,9 @@ bool TPCHardwareLoops::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(MF.dump());
   bool Changed = false;
 
-  MLI = &getAnalysis<MachineLoopInfo>();
+  MLI = &getAnalysis<MachineLoopInfoWrapperPass>().getLI();
   MRI = &MF.getRegInfo();
-  MDT = &getAnalysis<MachineDominatorTree>();
+  MDT = &getAnalysis<MachineDominatorTreeWrapperPass>().getDomTree();
   TST = &MF.getSubtarget<TPCSubtarget>();
   TII = TST->getInstrInfo();
 
@@ -1353,7 +1353,7 @@ bool TPCHardwareLoops::convertToHardwareLoop(MachineLoop *L,
     Prolog->addSuccessor(Header, BranchProbability::getOne());
     MachineLoop *ParentLoop = L->getParentLoop();
     if (ParentLoop && !MLI->getLoopFor(Prolog)) {
-      ParentLoop->addBasicBlockToLoop(Prolog, MLI->getBase());
+      ParentLoop->addBasicBlockToLoop(Prolog, *MLI);
     }
 
     InsertPos = Prolog->end();

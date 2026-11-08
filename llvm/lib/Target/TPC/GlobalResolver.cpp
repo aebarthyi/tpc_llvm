@@ -8,6 +8,7 @@
 #include <iostream>
 #include "TPCTargetMachine.h"
 #include "TPCTools.h"
+#include "llvm/IR/Module.h"
 #include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Dominators.h"
@@ -23,11 +24,11 @@ static bool mustBeResolved(const GlobalVariable &V) {
   if (V.getName().starts_with("llvm."))
     return false;
 #ifdef LLVM_TPC_COMPILER
-  else if (V.getSection().equals(".source"))
+  else if (V.getSection() == ".source")
     return false;
-  else if (V.getSection().equals(KernelInfoSectionName))
+  else if (V.getSection() == KernelInfoSectionName)
     return false;
-  else if (V.getSection().equals(".tpc_compiler"))
+  else if (V.getSection() == ".tpc_compiler")
     return false;
 #endif
   else

@@ -69,13 +69,13 @@ createTPCMCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
   else if (CPU == "goya2")
     CPU = "greco";
 
-  if (CPU.equals("goya") ||
-      CPU.equals("gaudi") ||
-      CPU.equals("gaudib") ||
-      CPU.equals("goya2") ||
-      CPU.equals("greco") ||
-      CPU.equals("gaudi2") ||
-      CPU.equals("doron1"))
+  if (CPU == "goya" ||
+      CPU == "gaudi" ||
+      CPU == "gaudib" ||
+      CPU == "goya2" ||
+      CPU == "greco" ||
+      CPU == "gaudi2" ||
+      CPU == "doron1")
     return createTPCMCSubtargetInfoImpl(TT, CPU, CPU, FS);
   return nullptr;
 }
@@ -98,8 +98,7 @@ static cl::opt<int> TPCAsmFormat(
 
 static MCTargetStreamer *createTargetAsmStreamer(MCStreamer &S,
                                                  formatted_raw_ostream &OS,
-                                                 MCInstPrinter *InstPrint,
-                                                 bool isVerboseAsm) {
+                                                 MCInstPrinter *InstPrint) {
   // Use this callback to tune TPCInstPrinter differently for Assembler
   // and Disassembler.
   auto TPCPrinter = static_cast<TPCInstPrinter *>(InstPrint);

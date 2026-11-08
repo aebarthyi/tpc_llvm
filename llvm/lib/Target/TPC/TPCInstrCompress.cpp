@@ -68,9 +68,9 @@ private:
 char TPCInstrCompress::ID = 0;
 
 INITIALIZE_PASS_BEGIN(TPCInstrCompress, "tpcinstcompress", "TPC Inst Compression", false, false)
-  INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
-  INITIALIZE_PASS_DEPENDENCY(MachineBranchProbabilityInfo)
-  INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+  INITIALIZE_PASS_DEPENDENCY(MachineDominatorTreeWrapperPass)
+  INITIALIZE_PASS_DEPENDENCY(MachineBranchProbabilityInfoWrapperPass)
+  INITIALIZE_PASS_DEPENDENCY(MachineLoopInfoWrapperPass)
   INITIALIZE_PASS_DEPENDENCY(MachineScheduler)
 INITIALIZE_PASS_END(TPCInstrCompress, "tpcinstcompress", "TPC Inst Compression", false, false)
 
@@ -83,7 +83,7 @@ FunctionPass* createTPCInstrCompress() {
 
 void TPCInstrCompress::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesCFG();
-  AU.addRequired<MachineLoopInfo>();
+  AU.addRequired<MachineLoopInfoWrapperPass>();
   MachineFunctionPass::getAnalysisUsage(AU);
 }
 
@@ -93,7 +93,7 @@ bool TPCInstrCompress::runOnMachineFunction(MachineFunction &Fn) {
   TII = Subtarget->getInstrInfo();
   ItinData = Subtarget->getInstrItineraryData();
   TRI = Subtarget->getRegisterInfo();
-  MLI = &getAnalysis<MachineLoopInfo>();
+  MLI = &getAnalysis<MachineLoopInfoWrapperPass>().getLI();
   TRI = Subtarget->getRegisterInfo();
 
   if (!TPCInstCompress ||

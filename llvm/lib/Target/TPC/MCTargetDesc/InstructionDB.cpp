@@ -2330,7 +2330,7 @@ buildSwitchSetString(const unsigned SwitchSet, const std::string &Mnemonic, Slot
   std::vector<const SwitchInfo *> Switches = getApplicableSwitches(IInfo, Features, Type);
 
   Switches.erase(std::remove_if(Switches.begin(), Switches.end(), [&](const SwitchInfo *E) -> bool {
-    if (IsIRFOp && (E->Value & SW_DIMMASK) && !E->Name.equals("dimmask")) {
+    if (IsIRFOp && (E->Value & SW_DIMMASK) && E->Name != "dimmask") {
       DISASM_DEBUG(dbgs() << "Filtered out " << E->Name << " since it overlaps with dimmask\n");
       return true;
     }
@@ -2382,7 +2382,7 @@ buildSwitchSetString(const unsigned SwitchSet, const std::string &Mnemonic, Slot
         SwSet &= ~SwInfo->Value;
       } else {
         // This is multibit switch.
-        if (SwInfo->Name.equals("dimmask")) {
+        if (SwInfo->Name == "dimmask") {
           Result += 'b';
           Result += std::bitset<5>((SwSet >> 2) & 0x1f).to_string();
         } else {
@@ -2522,7 +2522,7 @@ bool TPCII::doesInstructionHasASwitch(StringRef Mnemonic, SlotParser Slot) {
   if (IPtr == SOI.end() || IPtr->second.Switches.empty())
     return false;
   // If the only switch is dimmask, report as if the instruction does not have switches.
-  if (IPtr->second.Switches.size() == 1 && (*IPtr->second.Switches.begin())->Name.equals("dimmask"))
+  if (IPtr->second.Switches.size() == 1 && (*IPtr->second.Switches.begin())->Name == "dimmask")
     return false;
   return true;
 }

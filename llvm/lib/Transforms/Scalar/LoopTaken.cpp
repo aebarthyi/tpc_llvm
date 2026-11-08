@@ -86,7 +86,7 @@ static bool processLoopTaken(Loop *const L, ScalarEvolution &SE,
     if (!S)
       continue;
 
-    if (S->getString().equals("llvm.loop.taken")) {
+    if (S->getString() == "llvm.loop.taken") {
       assert(MD->getNumOperands() == 2 &&
              "Taken hint metadata should have two operands.");
 

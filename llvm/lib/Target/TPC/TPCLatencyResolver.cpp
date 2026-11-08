@@ -119,9 +119,9 @@ private:
 char TPCLatencyResolver::ID = 0;
 
 INITIALIZE_PASS_BEGIN(TPCLatencyResolver, "tpclatresolver", "TPC Latency Resolver", false, false)
-  INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
-  INITIALIZE_PASS_DEPENDENCY(MachineBranchProbabilityInfo)
-  INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+  INITIALIZE_PASS_DEPENDENCY(MachineDominatorTreeWrapperPass)
+  INITIALIZE_PASS_DEPENDENCY(MachineBranchProbabilityInfoWrapperPass)
+  INITIALIZE_PASS_DEPENDENCY(MachineLoopInfoWrapperPass)
   INITIALIZE_PASS_DEPENDENCY(MachineScheduler)
 INITIALIZE_PASS_END(TPCLatencyResolver, "tpclatresolver", "TPC Latency Resolver", false, false)
 
@@ -264,7 +264,7 @@ static bool isUsingSrcD(const MachineInstr *MI, const InstrItineraryData * ItinD
 
 void TPCLatencyResolver::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesCFG();
-  AU.addRequired<MachineLoopInfo>();
+  AU.addRequired<MachineLoopInfoWrapperPass>();
   MachineFunctionPass::getAnalysisUsage(AU);
 }
 
@@ -274,7 +274,7 @@ bool TPCLatencyResolver::runOnMachineFunction(MachineFunction &Fn) {
   TII = Fn.getSubtarget().getInstrInfo();
   ItinData = Fn.getSubtarget().getInstrItineraryData();
   TRI = Fn.getSubtarget().getRegisterInfo();
-  MLI = &getAnalysis<MachineLoopInfo>();
+  MLI = &getAnalysis<MachineLoopInfoWrapperPass>().getLI();
   TRI = Fn.getSubtarget().getRegisterInfo();
   
 

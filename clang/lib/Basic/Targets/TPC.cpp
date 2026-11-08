@@ -243,21 +243,21 @@ bool TPCTargetInfo::initFeatureMap(llvm::StringMap<bool> &Features,
                                    DiagnosticsEngine &Diags,
                                    StringRef CPU,
                    const std::vector<std::string> &FeaturesVec) const {
-  if (CPU.equals("goya"))
+  if (CPU == "goya")
     Features["goya"] = true;
-  else if (CPU.equals("dali"))
+  else if (CPU == "dali")
     Features["goya"] = true;
-  else if (CPU.equals("gaudi"))
+  else if (CPU == "gaudi")
     Features["gaudi"] = true;
-  else if (CPU.equals("gaudib"))
+  else if (CPU == "gaudib")
     Features["gaudib"] = true;
-  else if (CPU.equals("greco"))
+  else if (CPU == "greco")
     Features["greco"] = true;
-  else if (CPU.equals("goya2"))
+  else if (CPU == "goya2")
     Features["greco"] = true;
-  else if (CPU.equals("gaudi2"))
+  else if (CPU == "gaudi2")
     Features["gaudi2"] = true;
-  else if (CPU.equals("doron1"))
+  else if (CPU == "doron1")
     Features["doron1"] = true;
 
   return TargetInfo::initFeatureMap(Features, Diags, CPU, FeaturesVec);
@@ -305,12 +305,12 @@ bool TPCTargetInfo::validateAsmConstraint(const char *&Name,
 }
 
 ArrayRef<Builtin::Info> TPCTargetInfo::getTargetBuiltins() const {
-  return llvm::makeArrayRef(BuiltinInfo,
+  return llvm::ArrayRef(BuiltinInfo,
                             clang::TPC::LastTSBuiltin - Builtin::FirstTSBuiltin);
 }
 
 ArrayRef<const char *> TPCTargetInfo::getGCCRegNames() const {
-  return llvm::makeArrayRef(GCCRegNames);
+  return llvm::ArrayRef(GCCRegNames);
 }
 
 TargetInfo::BuiltinVaListKind TPCTargetInfo::getBuiltinVaListKind() const {

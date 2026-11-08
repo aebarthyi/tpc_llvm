@@ -15,6 +15,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/IR/Module.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Transforms/Utils/TPCIntrinsicUtils.h"
 #include "llvm/IR/Instructions.h"

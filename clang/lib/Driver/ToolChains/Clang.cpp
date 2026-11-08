@@ -6405,8 +6405,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (Std) {
 #ifdef LLVM_TPC_COMPILER
     if ((Triple.getArch() == llvm::Triple::tpc) &&
-        !StringRef(Std->getValue()).startswith("rc99") &&
-        !StringRef(Std->getValue()).startswith("rc++")) {
+        !StringRef(Std->getValue()).starts_with("rc99") &&
+        !StringRef(Std->getValue()).starts_with("rc++")) {
       D.Diag(diag::err_drv_clang_unsupported)
         << (std::string(Std->getSpelling()) + " on " + Triple.str());
       CmdArgs.push_back("-std=rc99");

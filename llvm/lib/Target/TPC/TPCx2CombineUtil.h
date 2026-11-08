@@ -28,7 +28,7 @@ public:
   void resetMBBRegPressure(const MachineBasicBlock *MBB,
                            const RegisterClassInfo *RegClassInfo) const;
   bool findMACX2Pattern(MachineInstr &Root,
-                        SmallVectorImpl<MachineCombinerPattern> &Patterns,
+                        SmallVectorImpl<unsigned> &Patterns,
                         bool CheckVRegsPartOfOneDRFX2, bool CheckRegPressureX2,
                         bool AllowReorderForX2) const;
   void getMACX2Sequence(MachineInstr &Root,

@@ -24,9 +24,9 @@ const char *tpc::getTPCTargetCPU(const ArgList &Args) {
   else if (const Arg *A = Args.getLastArg(options::OPT_mcpu_EQ))
     CPU = A->getValue();
 
-  if (CPU.equals("dali"))
+  if (CPU == "dali")
     return "goya";
-  if (CPU.equals("goya2"))
+  if (CPU == "goya2")
     return "greco";
   if (!CPU.empty())
     return CPU.data();

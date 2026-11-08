@@ -91,7 +91,7 @@ bool TPCSubregInitElimination::hasUses(MachineInstr *FirstInstr, unsigned DefReg
       if(!MO.isReg() || MO.getReg() != DefRegNo) continue;
       if (Instr->getOpcode() == FirstInstr->getOpcode()) {
         SubregCount--;
-    	unsigned UseOpIdx = Instr->findRegisterUseOperandIdx(MO.getReg());
+    	unsigned UseOpIdx = Instr->findRegisterUseOperandIdx(MO.getReg(), /*TRI=*/nullptr);
         DefRegNo = Instr->getOperand(Instr->findTiedOperandIdx(UseOpIdx)).getReg();
         SubregInstrs.insert(Instr);
       } else {

@@ -4844,7 +4844,7 @@ static bool ParseTargetArgs(TargetOptions &Opts, ArgList &Args,
 
 #ifdef LLVM_TPC_COMPILER
   // After option marshalling, which assigns CPU its (empty) default.
-  if (StringRef(Opts.Triple).startswith("tpc") && Opts.CPU.empty())
+  if (StringRef(Opts.Triple).starts_with("tpc") && Opts.CPU.empty())
     Opts.CPU = "goya";
 #endif
 

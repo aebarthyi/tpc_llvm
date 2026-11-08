@@ -254,7 +254,7 @@ public:
 
   bool isReg() const override { return Kind == OpKind::Reg; }
 
-  unsigned getReg() const override {
+  MCRegister getReg() const override {
     assert(Kind == OpKind::Reg && "Invalid access!");
     return Reg.Num;
   }
@@ -925,6 +925,8 @@ private:
     "Unexpected token during parse tpc metadata: '";
   std::optional<TPCMetadataSection> TPCHeader;
   std::optional<std::string> IndexMap;
+  // TPC sections whose data has been emitted; flushes happen many times.
+  SmallPtrSet<const MCSection *, 4> EmittedTPCSections;
 
 public:
   TPCAsmParser(const MCSubtargetInfo &sti, MCAsmParser &Parser,
@@ -1763,11 +1765,11 @@ TPCAsmParser::SwitchParseState TPCAsmParser::processSwitch(
 
 
 static StringRef getSwitchForIntegerOperand(OperandVector &Operands, StringRef Mnemonic) {
-  if (Mnemonic.equals("popcnt") && Operands.size() == 3)  // text, datatype, switch
+  if (Mnemonic == "popcnt" && Operands.size() == 3)  // text, datatype, switch
     return "set";
-  if (Mnemonic.equals("find_first") && Operands.size() == 3)  // text, datatype, switch
+  if (Mnemonic == "find_first" && Operands.size() == 3)  // text, datatype, switch
     return "set";
-  if (Mnemonic.equals("get_lut_entry_and_interval_start") && Operands.size() == 6)  // text, datatype, dest, src, shift, switch
+  if (Mnemonic == "get_lut_entry_and_interval_start" && Operands.size() == 6)  // text, datatype, dest, src, shift, switch
     return "funcid";
   return StringRef();
 }
@@ -2072,8 +2074,8 @@ static bool isSoloInstruction(StringRef Mnemonic) {
 bool TPCAsmParser::ParseInstruction(ParseInstructionInfo &Info,
                                     StringRef Mnemonic, SMLoc MnemonicLoc,
                                     OperandVector &Operands) {
-  if (Mnemonic.equals("{") || Mnemonic.equals("}")) {
-    NewAsmFormat = !Mnemonic.equals("}");
+  if (Mnemonic == "{" || Mnemonic == "}") {
+    NewAsmFormat = Mnemonic != "}";
     return true;
   }
 
@@ -2390,16 +2392,16 @@ bool TPCAsmParser::ParseInstruction(ParseInstructionInfo &Info,
     Delimiter = Lexer.getTok().getString();
     // Recognize sequences of end-of-statement. Trailing comment is recognized
     // as EndOfStatement.
-    while (Delimiter.equals(";") || NewAsmFormat) {
+    while (Delimiter == ";" || NewAsmFormat) {
       Parser.Lex();
       IsLastInstrInBundle = Lexer.is(AsmToken::Eof);
       if (!Lexer.is(AsmToken::EndOfStatement) || IsLastInstrInBundle || NewAsmFormat)
         return false;
       Delimiter = Lexer.getTok().getString();
     }
-    if (Delimiter.equals("\r\n"))
+    if (Delimiter == "\r\n")
       Delimiter = Delimiter.drop_front();
-    IsLastInstrInBundle = Delimiter.equals("\n") ||
+    IsLastInstrInBundle = Delimiter == "\n" ||
         (Delimiter.size() > 1 && Delimiter.substr(0, 2) == "//");
 
     // If we're missing a newline at EOF, make sure we still get an
@@ -2422,7 +2424,7 @@ bool TPCAsmParser::ParseInstruction(ParseInstructionInfo &Info,
 
 bool TPCAsmParser::ParseDirective(AsmToken DirectiveID) {
   AsmToken SectionNameToken =
-      DirectiveID.getString().equals(".section") ?
+      DirectiveID.getString() == ".section" ?
         getTok() : DirectiveID;
   const char *MultipleDefErrorMessage = "Multi definition {0} is denied";
   bool ParseResult = true;
@@ -2478,7 +2480,7 @@ void TPCAsmParser::eatToEndOfLine() {
   while (Lexer.isNot(AsmToken::Eof)) {
     if (Lexer.is(AsmToken::EndOfStatement)) {
       StringRef Delimiter = Lexer.getTok().getString();
-      if (Delimiter.equals("\r\n"))
+      if (Delimiter == "\r\n")
         Delimiter = Delimiter.drop_front();
       if (Delimiter == "\n" || (Delimiter.size() > 1 && Delimiter.substr(0, 2) == "//"))
         break;
@@ -3366,9 +3368,9 @@ bool TPCAsmParser::parseIndexMap() {
   SMLoc End;
   for (;;) {
     StringRef TokStr = Tok.getString();
-    if (TokStr.equals("SCEVBEGIN"))
+    if (TokStr == "SCEVBEGIN")
       Start = Tok.getLoc();
-    else if (TokStr.equals("SCEVEND")) {
+    else if (TokStr == "SCEVEND") {
       End = Tok.getEndLoc();
       break;
     }
@@ -3391,52 +3393,46 @@ void TPCAsmParser::flushPendingInstructions(MCStreamer &Out) {
     outputBundle(Out, SMLoc(), true);
   AC.flushPendingInstructions(Out, getSTI());
 
-  if (TPCHeader) {
+  // These sections hold data only in objects, not in assembly output. Their
+  // contents are set once, so emit them once; the section is still switched to
+  // on every flush, as before.
+  auto EmitSectionData = [&](MCSectionELF *Section, StringRef Data) {
     Out.pushSection();
+    Out.switchSection(Section);
+    if (Out.getAssemblerPtr() && EmittedTPCSections.insert(Section).second)
+      Out.emitBytes(Data);
+    Out.popSection();
+  };
+
+  if (TPCHeader) {
     MCSectionELF *MetadataSection = getContext().getELFSection(
           BinaryTPCMetadataSectionName,
           ELF::SHT_PROGBITS, ELF::SHF_WRITE | ELF::SHF_ALLOC);
-    MetadataSection->getFragmentList().clear();
-    MCDataFragment* Fragment = new MCDataFragment(MetadataSection);
-
     const TPCMetadataSection &Header = TPCHeader.value();
     std::vector<uint8_t> BinaryValue = binarySerializeTPCProgramHeader(Header);
-    Fragment->getContents().append(BinaryValue.begin(), BinaryValue.end());
-    Fragment->setAlignToBundleEnd(true);
-    Out.switchSection(MetadataSection);
-    Out.popSection();
+    EmitSectionData(MetadataSection,
+                    StringRef(reinterpret_cast<const char *>(BinaryValue.data()),
+                              BinaryValue.size()));
   }
 
   std::string RootFileName = getContext().getMainFileName();
 
   if (!RootFileName.empty()) {
-    Out.pushSection();
     MCSectionELF *KernelInfoSection = getContext().getELFSection(
           KernelInfoSectionName,
           ELF::SHT_PROGBITS, ELF::SHF_WRITE | ELF::SHF_ALLOC);
-    KernelInfoSection->getFragmentList().clear();
-    MCDataFragment* Fragment = new MCDataFragment(KernelInfoSection);
-
     StringRef BareFileName = llvm::sys::path::stem(RootFileName);
     std::string KernelInfo = GenerateKernelInfo(BareFileName);
-    Fragment->getContents().append(KernelInfo.begin(), KernelInfo.end());
-    Fragment->setAlignToBundleEnd(true);
-    Out.switchSection(KernelInfoSection);
-    Out.popSection();
+    EmitSectionData(KernelInfoSection, KernelInfo);
   }
 
   if (IndexMap) {
-    Out.pushSection();
     MCSectionELF *IndexMapSection = getContext().getELFSection(
           IndexMapSectionName,
           ELF::SHT_PROGBITS, ELF::SHF_WRITE | ELF::SHF_ALLOC);
-    IndexMapSection->getFragmentList().clear();
-    MCDataFragment* Fragment = new MCDataFragment(IndexMapSection);
-
-    Fragment->getContents().append(IndexMap->begin(), IndexMap->end());
-    Fragment->setAlignToBundleEnd(true);
-    Out.switchSection(IndexMapSection);
-    Out.popSection();
+    EmitSectionData(IndexMapSection,
+                    StringRef(reinterpret_cast<const char *>(IndexMap->data()),
+                              IndexMap->size()));
   }
 }
 

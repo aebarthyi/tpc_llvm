@@ -782,7 +782,7 @@ static section_iterator findTpcMetadataSection(
           Expected<StringRef> SectionNameOrError = Section.getName();
           if (!SectionNameOrError)
             return false;
-          else if (SectionNameOrError->equals(BinaryTPCMetadataSectionName))
+          else if (*SectionNameOrError == BinaryTPCMetadataSectionName)
             return true;
           else
             return false;
@@ -816,7 +816,7 @@ void llvm::calculateMCPU(const ObjectFile *ObjFile) {
     consumeError(SectionNameOrError.takeError());
 
   TPCMetadataSection Metadata;
-  if (SectionNameOrError->equals(BinaryTPCMetadataSectionName))
+  if (*SectionNameOrError == BinaryTPCMetadataSectionName)
     Metadata = getMetadataFromBinarySection(*MetadataSection);
   else
     llvm_unreachable("Unknown TPC metadata section");
@@ -888,7 +888,7 @@ TPCMetadataSection llvm::getMetadataFromBinarySection(
 void llvm::printTPCMetadataFromBinary(const SectionRef& Section) {
   Expected<StringRef> SectionNameOrError = Section.getName();
   assert(SectionNameOrError &&
-         SectionNameOrError->equals(BinaryTPCMetadataSectionName));
+         *SectionNameOrError == BinaryTPCMetadataSectionName);
 
   TPCMetadataSection Header = getMetadataFromBinarySection(Section);
 

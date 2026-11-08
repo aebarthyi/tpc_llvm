@@ -89,7 +89,7 @@ TPCInstrInfo::TPCInstrInfo(TPCSubtarget &ST)
 /// the destination along with the FrameIndex of the loaded stack slot.  If
 /// not, return 0.  This predicate must return 0 if the instruction has
 /// any side effects other than loading from the stack slot.
-unsigned TPCInstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
+Register TPCInstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
                                            int &FrameIndex) const {
   switch (MI.getOpcode()) {
   case TPC::SPILL_ARF_RESTORE:
@@ -112,7 +112,7 @@ unsigned TPCInstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
 /// the source reg along with the FrameIndex of the loaded stack slot.  If
 /// not, return 0.  This predicate must return 0 if the instruction has
 /// any side effects other than storing to the stack slot.
-unsigned TPCInstrInfo::isStoreToStackSlot(const MachineInstr &MI,
+Register TPCInstrInfo::isStoreToStackSlot(const MachineInstr &MI,
                                           int &FrameIndex) const {
   switch (MI.getOpcode()) {
   case TPC::SPILL_ARF_SAVE:
@@ -3634,7 +3634,7 @@ bool TPCInstrInfo::useMachineCombiner() const {
   return TPCEnableX2 && Subtarget.hasGaudi2ISA();
 }
 
-bool TPCInstrInfo::isThroughputPattern(MachineCombinerPattern Pattern) const {
+bool TPCInstrInfo::isThroughputPattern(unsigned Pattern) const {
   return false;
 }
 
@@ -3645,7 +3645,7 @@ bool TPCInstrInfo::shouldReduceRegisterPressure(
 }
 
 bool TPCInstrInfo::getMachineCombinerPatterns(
-    MachineInstr &Root, SmallVectorImpl<MachineCombinerPattern> &Patterns,
+    MachineInstr &Root, SmallVectorImpl<unsigned> &Patterns,
     bool DoRegPressureReduce) const {
   // TODO : set booleans based on findings
   AllowReorderForX2 = false;
@@ -3658,7 +3658,7 @@ bool TPCInstrInfo::getMachineCombinerPatterns(
 }
 
 void TPCInstrInfo::genAlternativeCodeSequence(
-    MachineInstr &Root, MachineCombinerPattern Pattern,
+    MachineInstr &Root, unsigned Pattern,
     SmallVectorImpl<MachineInstr *> &InsInstrs,
     SmallVectorImpl<MachineInstr *> &DelInstrs,
     DenseMap<unsigned, unsigned> &InstrIdxForVirtReg) const {

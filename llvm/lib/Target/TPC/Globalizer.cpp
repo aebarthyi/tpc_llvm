@@ -8,6 +8,7 @@
 #include <iostream>
 #include "TPCTargetMachine.h"
 #include "TPCTools.h"
+#include "llvm/IR/Module.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Dominators.h"

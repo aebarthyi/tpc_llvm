@@ -90,7 +90,7 @@ bool TPCx2CombineUtil::isX2Candidate(MachineInstr &I) const {
 
 // MacX2 related functions
 bool TPCx2CombineUtil::findMACX2Pattern(
-    MachineInstr &Root, SmallVectorImpl<MachineCombinerPattern> &Patterns,
+    MachineInstr &Root, SmallVectorImpl<unsigned> &Patterns,
     bool CheckVRegsPartOfOneDRFX2, bool CheckRegPressureX2,
     bool AllowReorderForX2) const {
   MachineBasicBlock *MBB = Root.getParent();
@@ -151,7 +151,7 @@ bool TPCx2CombineUtil::findMACX2Pattern(
     return false;
 
   // Push the pattern
-  Patterns.push_back(MachineCombinerPattern::TPCMACx2f32vvp);
+  Patterns.push_back(TPCMachineCombinerPattern::TPCMACx2f32vvp);
   // Store the pointers to be processed during gen sequence stage
   X2CandidatePair = {CurrInst, &Root};
   X2RegPressure += X2RegPressureDelta;

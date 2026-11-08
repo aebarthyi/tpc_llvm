@@ -924,7 +924,7 @@ void ELFWriter::writeSection(uint32_t GroupSymbolIndex, uint64_t Offset,
 
 #ifdef LLVM_TPC_COMPILER 
   if (/*Trip.getArch() == Triple::tpc don't know how to get target here*/ 1) {
-    if (Section.getName().equals(".comment") && Section.isFixShInfo()) {
+    if (Section.getName() == ".comment" && Section.isFixShInfo()) {
       assert(sh_info == 0);
       sh_info = 1;
     }

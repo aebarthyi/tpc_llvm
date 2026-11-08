@@ -15,6 +15,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifdef LLVM_TPC_COMPILER
+#include "llvm/IR/Module.h"
+#endif
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
@@ -1250,7 +1253,7 @@ MachineLICMBase::CanCauseHighRegPressure(MachineLoop *CurLoop,
             if (!S)
               continue;
 
-            if (S->getString().equals("llvm.loop.machine.unroll.count")) {
+            if (S->getString() == "llvm.loop.machine.unroll.count") {
               return false;
             }
           }
@@ -1398,7 +1401,7 @@ bool MachineLICMBase::IsProfitableToHoist(MachineInstr &MI,
                  // high RP we're fine to hoist it even if the user can't be
                  // hoisted later Otherwise we want to check the user if it's
                  // hoistable
-                 if (CanCauseHighRegPressure(Cost, false) &&
+                 if (CanCauseHighRegPressure(CurLoop, Cost, false) &&
                      !CurLoop->isLoopInvariant(UseMI, DefReg))
                    return false;
 

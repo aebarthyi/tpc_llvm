@@ -18,6 +18,7 @@
 
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/Hashing.h"
+#include <deque>
 #include <optional>
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/DerivedTypes.h"

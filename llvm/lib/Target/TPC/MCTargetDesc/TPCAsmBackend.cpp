@@ -127,7 +127,7 @@ bool TPCAsmBackend::mayNeedRelaxation(const MCInst& Inst, const MCSubtargetInfo 
   return false;
 }
 
-bool TPCAsmBackend::fixupNeedsRelaxation(const MCFixup& Fixup, uint64_t Value, const MCRelaxableFragment* DF, const MCAsmLayout& Layout) const {
+bool TPCAsmBackend::fixupNeedsRelaxation(const MCFixup &Fixup, uint64_t Value) const {
   return false;
 }
 

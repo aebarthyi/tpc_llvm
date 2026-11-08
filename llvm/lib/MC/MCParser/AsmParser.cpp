@@ -1808,7 +1808,7 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
   // Statements always start with an identifier.
   AsmToken ID = getTok();
 #ifdef LLVM_TPC_COMPILER
-  if (ID.getString().equals("||")) {
+  if (ID.getString() == "||") {
     // New assembler format for TPC target.
     // Therefore this token is valid and has to be ignored.
     Lex();

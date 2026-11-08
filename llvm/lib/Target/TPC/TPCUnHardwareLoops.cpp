@@ -71,9 +71,9 @@ public:
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesCFG();
     AU.addRequired<AAResultsWrapperPass>();
-    AU.addRequired<MachineBranchProbabilityInfo>();
-    AU.addRequired<MachineLoopInfo>();
-    AU.addPreserved<MachineLoopInfo>();
+    AU.addRequired<MachineBranchProbabilityInfoWrapperPass>();
+    AU.addRequired<MachineLoopInfoWrapperPass>();
+    AU.addPreserved<MachineLoopInfoWrapperPass>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 
@@ -412,9 +412,9 @@ void TPCUnHardwareLoops::transformHWLoopBack(unsigned L) {
   MIB.addReg(RegCmp, RegState::Kill);
   MIB.addImm(0);
 
-  MachineLoopInfo &MLI = getAnalysis<MachineLoopInfo>();
+  MachineLoopInfo &MLI = getAnalysis<MachineLoopInfoWrapperPass>().getLI();
   auto *const AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
-  auto *const MBPI = &getAnalysis<MachineBranchProbabilityInfo>();
+  auto *const MBPI = &getAnalysis<MachineBranchProbabilityInfoWrapperPass>().getMBPI();
   TPCPacketizerList Packetizer(*MF, MLI, AA, MBPI);
   Packetizer.PacketNum = 0;
   Packetizer.PacketizeMIs(BBPre, BBPre->begin(), BBPre->end());

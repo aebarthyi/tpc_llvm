@@ -31,7 +31,7 @@ void clang::driver::addCommonTPCTargetArgs(const ArgList &Args, ArgStringList &C
       // -O2 is default, check if overridden
       if (Arg *A = Args.getLastArg(options::OPT_O_Group))
         if (A->getOption().matches(options::OPT_O0) ||
-            (A->getNumValues() && StringRef(A->getValue()).equals("1")))
+            (A->getNumValues() && StringRef(A->getValue()) == "1"))
           NeedCompression = false;
     }
     if (NeedCompression)
@@ -71,11 +71,11 @@ void TPCToolChain::addClangTargetOptions(const llvm::opt::ArgList &DriverArgs,
 
   CC1Args.push_back("-fembed-bitcode=bitcode");
 
-  if (CPUName.equals("gaudi2") || CPUName.equals("doron1"))
+  if (CPUName == "gaudi2" || CPUName == "doron1")
     CC1Args.push_back("-float8");
-  if (CPUName.equals("gaudi") || CPUName.equals("gaudib") ||
-      CPUName.equals("greco") || CPUName.equals("gaudi2") ||
-      CPUName.equals("doron1"))
+  if (CPUName == "gaudi" || CPUName == "gaudib" ||
+      CPUName == "greco" || CPUName == "gaudi2" ||
+      CPUName == "doron1")
     CC1Args.push_back("-bfloat16");
 
   if (Arg *A = DriverArgs.getLastArg(options::OPT_vector_local_memory)) {
@@ -86,13 +86,13 @@ void TPCToolChain::addClangTargetOptions(const llvm::opt::ArgList &DriverArgs,
   if (Arg *A = DriverArgs.getLastArg(options::OPT_scalar_local_memory)) {
     CC1Args.push_back(A->getValue());
   } else {
-    if (CPUName.equals("gaudi"))
+    if (CPUName == "gaudi")
       CC1Args.push_back("1");  //kb, MAX_SLM for gaudi architecture
-    else if (CPUName.equals("gaudib"))
+    else if (CPUName == "gaudib")
       CC1Args.push_back("1"); // kb, MAX_SLM for gaudib architecture
-    else if (CPUName.equals("greco"))
+    else if (CPUName == "greco")
       CC1Args.push_back("2");  //kb, MAX_SLM for goya2 architecture
-    else if (CPUName.equals("gaudi2") || CPUName.equals("doron1"))
+    else if (CPUName == "gaudi2" || CPUName == "doron1")
       CC1Args.push_back("16"); //kb, MAX_SLM for gaudi2/doron1 architecture
     else
       CC1Args.push_back("1");  //kb, MAX_SLM for dali (goya) architecture
@@ -117,15 +117,15 @@ void TPCToolChain::addClangTargetOptions(const llvm::opt::ArgList &DriverArgs,
   if (Arg *A = DriverArgs.getLastArg(options::OPT_max_tensors)) {
     CC1Args.push_back(A->getValue());
   } else {
-    if (CPUName.equals("gaudi"))
+    if (CPUName == "gaudi")
       CC1Args.push_back("16");  // MAX_TENSORS for gaudi architecture
-    else if (CPUName.equals("gaudib"))
+    else if (CPUName == "gaudib")
       CC1Args.push_back("16");  // MAX_TENSORS for gaudib architecture
-    else if (CPUName.equals("greco"))
+    else if (CPUName == "greco")
       CC1Args.push_back("16");  // MAX_TENSORS for goya2 architecture
-    else if (CPUName.equals("gaudi2"))
+    else if (CPUName == "gaudi2")
       CC1Args.push_back("16");  // MAX_TENSORS for gaudi2 architecture
-    else if (CPUName.equals("doron1"))
+    else if (CPUName == "doron1")
       CC1Args.push_back("16");  // MAX_TENSORS for gaudi2 architecture
     else
       CC1Args.push_back("8");   // MAX_TENSORS for dali (goya) architecture
@@ -189,17 +189,17 @@ void TPCToolChain::addClangTargetOptions(const llvm::opt::ArgList &DriverArgs,
 
       // Determine BC library file name.
       std::string BCLibraryName;
-      if (CPUName.equals("goya")) {
+      if (CPUName == "goya") {
         BCLibraryName = "goya.bc";
-      } else if (CPUName.equals("gaudi")) {
+      } else if (CPUName == "gaudi") {
         BCLibraryName = "gaudi.bc";
-      } else if (CPUName.equals("gaudib")) {
+      } else if (CPUName == "gaudib") {
         BCLibraryName = "gaudib.bc";
-      } else if (CPUName.equals("greco")) {
+      } else if (CPUName == "greco") {
         BCLibraryName = "greco.bc";
-      } else if (CPUName.equals("gaudi2")) {
+      } else if (CPUName == "gaudi2") {
         BCLibraryName = "gaudi2.bc";
-      } else if (CPUName.equals("doron1")) {
+      } else if (CPUName == "doron1") {
         BCLibraryName = "doron1.bc";
       }
 

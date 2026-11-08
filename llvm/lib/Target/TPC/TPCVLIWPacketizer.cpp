@@ -50,11 +50,11 @@ namespace {
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesCFG();
       AU.addRequired<AAResultsWrapperPass>();
-      AU.addRequired<MachineBranchProbabilityInfo>();
-      AU.addRequired<MachineDominatorTree>();
-      AU.addRequired<MachineLoopInfo>();
-      AU.addPreserved<MachineDominatorTree>();
-      AU.addPreserved<MachineLoopInfo>();
+      AU.addRequired<MachineBranchProbabilityInfoWrapperPass>();
+      AU.addRequired<MachineDominatorTreeWrapperPass>();
+      AU.addRequired<MachineLoopInfoWrapperPass>();
+      AU.addPreserved<MachineDominatorTreeWrapperPass>();
+      AU.addPreserved<MachineLoopInfoWrapperPass>();
       MachineFunctionPass::getAnalysisUsage(AU);
     }
     StringRef getPassName() const override { return "TPC Packetizer"; }
@@ -74,9 +74,9 @@ namespace {
 
 INITIALIZE_PASS_BEGIN(TPCPacketizer, "tpc-packets", "TPC Packetizer",
                       false, false)
-INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
-INITIALIZE_PASS_DEPENDENCY(MachineBranchProbabilityInfo)
-INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+INITIALIZE_PASS_DEPENDENCY(MachineDominatorTreeWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(MachineBranchProbabilityInfoWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(MachineLoopInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
 INITIALIZE_PASS_END(TPCPacketizer, "tpc-packets", "TPC Packetizer",
                     false, false)
@@ -99,9 +99,9 @@ bool TPCPacketizer::runOnMachineFunction(MachineFunction &MF) {
 
   HII = MF.getSubtarget<TPCSubtarget>().getInstrInfo();
   HRI = MF.getSubtarget<TPCSubtarget>().getRegisterInfo();
-  auto &MLI = getAnalysis<MachineLoopInfo>();
+  auto &MLI = getAnalysis<MachineLoopInfoWrapperPass>().getLI();
   auto *AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
-  auto *MBPI = &getAnalysis<MachineBranchProbabilityInfo>();
+  auto *MBPI = &getAnalysis<MachineBranchProbabilityInfoWrapperPass>().getMBPI();
 
   // Instantiate the packetizer.
   TPCPacketizerList Packetizer(MF, MLI, AA, MBPI);
@@ -947,7 +947,7 @@ bool TPCPacketizerList::isLegalToPacketizeTogether(SUnit *SUI, SUnit *SUJ) {
           MachineOperand Op = I.getOperand(i);
           if (Op.isReg() && Op.isDef()) {
             Register R = Op.getReg();
-            int idx = J.findRegisterUseOperandIdx(R, false, HRI);
+            int idx = J.findRegisterUseOperandIdx(R, HRI, false);
             if (idx != -1) {
               int lat = static_cast<const TPCInstrInfo *>(TII)->getTPCOperandLatency(ItinData, I, i, J, idx);
               if (lat == 0) {

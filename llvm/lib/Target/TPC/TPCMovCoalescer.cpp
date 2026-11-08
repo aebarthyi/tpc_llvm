@@ -81,14 +81,14 @@ public:
   bool coalesce(MachineLoop* L);
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<MachineLoopInfo>();
+    AU.addRequired<MachineLoopInfoWrapperPass>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 };
 
 INITIALIZE_PASS_BEGIN(TPCMovCoalescer, "movcoalescer",
                       "TPC Mov Coalescer", false, false)
-INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+INITIALIZE_PASS_DEPENDENCY(MachineLoopInfoWrapperPass)
 INITIALIZE_PASS_END(TPCMovCoalescer, "movcoalescer",
                     "TPC Mov Coalescer", false, false)
 
@@ -102,7 +102,7 @@ bool TPCMovCoalescer::runOnMachineFunction(MachineFunction &MF) {
   if (!EnableCoalescer) {
     return false;
   }
-  MLI = &getAnalysis<MachineLoopInfo>();
+  MLI = &getAnalysis<MachineLoopInfoWrapperPass>().getLI();
   MRI = &MF.getRegInfo();
   TII = MF.getSubtarget<TPCSubtarget>().getInstrInfo();
 

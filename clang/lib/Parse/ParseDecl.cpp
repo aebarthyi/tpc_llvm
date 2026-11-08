@@ -7743,7 +7743,7 @@ void Parser::ParseFunctionDeclarator(Declarator &D,
   }
 
 #ifdef LLVM_TPC_COMPILER
-  IdentifierInfo *Identifier = D.getIdentifier();
+  const IdentifierInfo *Identifier = D.getIdentifier();
 
   if (getLangOpts().RC99 &&
       Identifier && Identifier->getName() == getLangOpts().MainFunction) {

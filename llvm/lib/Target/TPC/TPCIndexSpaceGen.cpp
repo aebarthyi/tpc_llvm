@@ -1857,7 +1857,7 @@ unsigned SCEVInfo::getLoopUnrollCount(Loop *L) const {
     MDString *S = dyn_cast<MDString>(MDPtr->getOperand(0));
     if (!S)
       continue;
-    if (S->getString().equals("llvm.loop.machine.unroll.count")) {
+    if (S->getString() == "llvm.loop.machine.unroll.count") {
       assert(MDPtr->getNumOperands() == 2 &&
              "Unroll hint metadata should have two operands");
       unsigned Count =

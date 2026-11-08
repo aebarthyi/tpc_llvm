@@ -80,14 +80,14 @@ public:
   bool runOnMachineFunction(MachineFunction &MF) override;
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<MachineLoopInfo>();
+    AU.addRequired<MachineLoopInfoWrapperPass>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 };
 
 INITIALIZE_PASS_BEGIN(TPCScalarSink, "movscalarsink",
                       "TPC Scalar Sink", false, false)
-INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+INITIALIZE_PASS_DEPENDENCY(MachineLoopInfoWrapperPass)
 INITIALIZE_PASS_END(TPCScalarSink, "movscalarsink",
                     "TPC Scalar Sink", false, false)
 

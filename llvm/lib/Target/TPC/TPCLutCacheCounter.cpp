@@ -80,7 +80,7 @@ public:
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesCFG();
-    AU.addRequired<MachineLoopInfo>();
+    AU.addRequired<MachineLoopInfoWrapperPass>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 
@@ -175,7 +175,7 @@ bool TPCLutCacheCounter::processLookupDali(const MachineInstr &MI) {
  */
 bool TPCLutCacheCounter::isLookUpInADeepLoop(MachineBasicBlock *MBB,
                                              int &depth) {
-  auto &MLI = getAnalysis<MachineLoopInfo>();
+  auto &MLI = getAnalysis<MachineLoopInfoWrapperPass>().getLI();
   MachineLoop *loop = MLI.getLoopFor(MBB);
   if (loop) {
     depth = loop->getLoopDepth();

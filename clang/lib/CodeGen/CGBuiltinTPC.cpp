@@ -2421,7 +2421,7 @@ static Value *emit_LD_G_P_INC(CodeGenFunction *CGF, unsigned BuiltinID,
     Address(AddrPtr, CGF->ConvertTypeForMem(PtrTy->getPointeeType()),
             CharUnits::fromQuantity(AlignValue)),
     cast<clang::PointerType>(PtrTy->getPointeeType()));
-  Args.push_back(Addr0.getPointer());
+  Args.push_back(Addr0.emitRawPointer(*CGF));
 
   // Read value.
   Value *Income = CGF->EmitScalarExpr(E->getArg(IncomeOpNum));
@@ -2603,8 +2603,8 @@ static Value *emit_LD_G_INC(CodeGenFunction *CGF, unsigned BuiltinID,
                               CGF->ConvertType(QualType(PointeeTy, 0)) }) :
       CGF->CGM.getIntrinsic(Intrinsic::tpc_ld_g_int5_inc);
   Value *Result = BuiltinID != TPC::BIi_i32_ld_g_inc ?
-      CGF->Builder.CreateCall(Callee, { Addr0.getPointer(), IncValue, Switches, Income, Pred, Polarity }):
-      CGF->Builder.CreateCall(Callee, { Addr0.getPointer(), IncValue, DimMask, Switches, Income, Pred, Polarity });
+      CGF->Builder.CreateCall(Callee, { Addr0.emitRawPointer(*CGF), IncValue, Switches, Income, Pred, Polarity }):
+      CGF->Builder.CreateCall(Callee, { Addr0.emitRawPointer(*CGF), IncValue, DimMask, Switches, Income, Pred, Polarity });
 
   CharUnits Alignment;
   if (isa<AllocaInst>(AddrPtr))
@@ -3622,7 +3622,7 @@ static Value *emit_ST_G_INC(CodeGenFunction *CGF, unsigned BuiltinID,
 
   Function *Callee = CGF->CGM.getIntrinsic(Intrinsic::tpc_st_g_inc,
       { CGF->ConvertType(QualType(PointeeTy, 0)), Val->getType() });
-  Value *Result = CGF->Builder.CreateCall(Callee, { Addr0.getPointer(), Val, IncValue, Switches, Pred, Polarity });
+  Value *Result = CGF->Builder.CreateCall(Callee, { Addr0.emitRawPointer(*CGF), Val, IncValue, Switches, Pred, Polarity });
 
   Address VarPtr(AddrPtr, CGF->ConvertTypeForMem(PtrTy->getPointeeType()),
                  CharUnits::fromQuantity(cast<AllocaInst>(AddrPtr)->getAlign().value()));
@@ -5228,7 +5228,7 @@ static Value *emit_UPDATE_ADDR(CodeGenFunction *CGF, unsigned BuiltinID,
 
   Function *Callee = CGF->CGM.getIntrinsic(Intrinsic::tpc_update_addr);
   Value *Result = CGF->Builder.CreateCall(Callee,
-      {Ptr0.getPointer(), Addr, Switches, Predicate, Polarity});
+      {Ptr0.emitRawPointer(*CGF), Addr, Switches, Predicate, Polarity});
   assert(Result);
 
   CharUnits Alignment;

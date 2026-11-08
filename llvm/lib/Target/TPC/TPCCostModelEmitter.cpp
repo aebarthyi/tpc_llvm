@@ -656,7 +656,7 @@ public:
   bool runOnMachineFunction(MachineFunction &Fn) override;
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesCFG();
-    AU.addRequired<MachineLoopInfo>();
+    AU.addRequired<MachineLoopInfoWrapperPass>();
     AU.addRequired<ScalarEvolutionWrapperPass>();
     AU.addRequired<LoopInfoWrapperPass>();
     AU.addRequired<DominatorTreeWrapperPass>();
@@ -691,9 +691,9 @@ char TPCCostModelEmitter::ID = 0;
 
 INITIALIZE_PASS_BEGIN(TPCCostModelEmitter, "TPCCostModelEmitter",
                       "TPC Cost Model Emitter", false, false)
-INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
-INITIALIZE_PASS_DEPENDENCY(MachineBranchProbabilityInfo)
-INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+INITIALIZE_PASS_DEPENDENCY(MachineDominatorTreeWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(MachineBranchProbabilityInfoWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(MachineLoopInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(MachineScheduler)
 INITIALIZE_PASS_END(TPCCostModelEmitter, "TPCCostModelEmitter",
                     "TPC Cost Model Emitter", false, false)
@@ -838,7 +838,7 @@ bool TPCCostModelEmitter::runOnMachineFunction(MachineFunction &Fn) {
     TPC_DEBUG("Analysis doesn't work")
     return EXIT_SUCCESS;
   }
-  auto &MLI = getAnalysis<MachineLoopInfo>();
+  auto &MLI = getAnalysis<MachineLoopInfoWrapperPass>().getLI();
   auto &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
   auto &SE = getAnalysis<ScalarEvolutionWrapperPass>().getSE();
   DominatorTree &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();

@@ -89,17 +89,17 @@ static SDValue helperExtractSubRegSDValue(unsigned subReg, const SDLoc &DL,
     : TargetLowering(TM), Subtarget(&STI) {
 
   Sched::Preference spref = Sched::Source;
-  if (StringRef(TPCSchedPref.getValue()).equals("none"))
+  if (StringRef(TPCSchedPref.getValue()) == "none")
     spref = Sched::None;
-  else if (StringRef(TPCSchedPref.getValue()).equals("source"))
+  else if (StringRef(TPCSchedPref.getValue()) == "source")
     spref = Sched::Source;
-  else if (StringRef(TPCSchedPref.getValue()).equals("regpressure"))
+  else if (StringRef(TPCSchedPref.getValue()) == "regpressure")
     spref = Sched::RegPressure;
-  else if (StringRef(TPCSchedPref.getValue()).equals("hybrid"))
+  else if (StringRef(TPCSchedPref.getValue()) == "hybrid")
     spref = Sched::Hybrid;
-  else if (StringRef(TPCSchedPref.getValue()).equals("ilp"))
+  else if (StringRef(TPCSchedPref.getValue()) == "ilp")
     spref = Sched::ILP;
-  else if (StringRef(TPCSchedPref.getValue()).equals("vliw"))
+  else if (StringRef(TPCSchedPref.getValue()) == "vliw")
     spref = Sched::VLIW;
   else
     report_fatal_error(

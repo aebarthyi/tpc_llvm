@@ -247,9 +247,9 @@ bool llvm::setTpcMetadataArrayValue(int64_t Value,
   }
 
   StringRef FieldName(FieldInfo.fieldName);
-  if (FieldName.equals(TPCScalarLdName))
+  if (FieldName == TPCScalarLdName)
     Result.scalarLd[Index] = Value;
-  else if (FieldName.equals(TPCRMWStoreName))
+  else if (FieldName == TPCRMWStoreName)
     Result.rmwStore[Index] = Value;
   else
     llvm_unreachable("An unhandled case occurred");
@@ -275,9 +275,9 @@ bool llvm::setTpcMetadataArrayValue(const StringRef &Value,
   const StringRef FieldName(FieldInfo.fieldName);
 
   bool *TensorMask = nullptr;
-  if (FieldName.equals(TPCScalarLdName))
+  if (FieldName == TPCScalarLdName)
     TensorMask = Result.scalarLd;
-  else if (FieldName.equals(TPCRMWStoreName))
+  else if (FieldName == TPCRMWStoreName)
     TensorMask = Result.rmwStore;
   else {
     ErrorMessage = formatv("Unexpected array field {0}.", FieldName);

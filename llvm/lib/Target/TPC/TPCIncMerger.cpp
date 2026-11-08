@@ -127,8 +127,8 @@ public:
   bool runOnMachineFunction(MachineFunction &MF) override;
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<MachineDominatorTree>();
-    AU.addRequired<MachineLoopInfo>();
+    AU.addRequired<MachineDominatorTreeWrapperPass>();
+    AU.addRequired<MachineLoopInfoWrapperPass>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 
@@ -147,8 +147,8 @@ private:
 char TPCIncMerger::ID = 0;
 
 INITIALIZE_PASS_BEGIN(TPCIncMerger, PassName, PassDescription, false, false)
-INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
-INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+INITIALIZE_PASS_DEPENDENCY(MachineDominatorTreeWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(MachineLoopInfoWrapperPass)
 INITIALIZE_PASS_END(TPCIncMerger, PassName, PassDescription, false, false)
 
 FunctionPass *llvm::createTPCIncMerger() {
@@ -571,7 +571,7 @@ bool TPCIncMerger::matchAutoIncPattern(MachineInstr *AccessMI,
           return false;
         MachineMemOperand *MO = AccessMI->memoperands().front();
         assert(MO);
-        DataSize = MO->getSize();
+        DataSize = MO->getSize().getValue();
       }
 
       // Calculate and check pointer increment.
@@ -960,8 +960,8 @@ bool TPCIncMerger::runOnMachineFunction(MachineFunction &Func) {
     return false;
 
   MF = &Func;
-  MLI = &getAnalysis<MachineLoopInfo>();
-  MDT = &getAnalysis<MachineDominatorTree>();
+  MLI = &getAnalysis<MachineLoopInfoWrapperPass>().getLI();
+  MDT = &getAnalysis<MachineDominatorTreeWrapperPass>().getDomTree();
   MRI = &Func.getRegInfo();
   ST = &MF->getSubtarget<TPCSubtarget>();
   TII = ST->getInstrInfo();

@@ -25,6 +25,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "BranchFolding.h"
+#ifdef LLVM_TPC_COMPILER
+#include "llvm/IR/Module.h"
+#endif
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"

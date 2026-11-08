@@ -37,6 +37,10 @@ enum StackTypes : uint8_t {
 
 class TPCSubtarget;
 
+enum TPCMachineCombinerPattern : unsigned {
+  TPCMACx2f32vvp = MachineCombinerPattern::TARGET_PATTERN_START,
+};
+
 class TPCInstrInfo : public TPCGenInstrInfo {
   const TPCRegisterInfo RI;
   const TPCSubtarget& Subtarget;
@@ -58,7 +62,7 @@ public:
   /// the destination along with the FrameIndex of the loaded stack slot.  If
   /// not, return 0.  This predicate must return 0 if the instruction has
   /// any side effects other than loading from the stack slot.
-  unsigned isLoadFromStackSlot(const MachineInstr &MI,
+  Register isLoadFromStackSlot(const MachineInstr &MI,
                                int &FrameIndex) const override;
 
   /// isStoreToStackSlot - If the specified machine instruction is a direct
@@ -66,7 +70,7 @@ public:
   /// the source reg along with the FrameIndex of the loaded stack slot.  If
   /// not, return 0.  This predicate must return 0 if the instruction has
   /// any side effects other than storing to the stack slot.
-  unsigned isStoreToStackSlot(const MachineInstr &MI,
+  Register isStoreToStackSlot(const MachineInstr &MI,
                               int &FrameIndex) const override;
 
   bool analyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
@@ -121,17 +125,17 @@ public:
                                       VirtRegMap *VRM = nullptr) const override;
 
   bool useMachineCombiner() const override;
-  bool isThroughputPattern(MachineCombinerPattern Pattern) const override;
+  bool isThroughputPattern(unsigned Pattern) const override;
   bool
   shouldReduceRegisterPressure(const MachineBasicBlock *MBB,
                                const RegisterClassInfo *RegClassInfo) const override;
   bool
   getMachineCombinerPatterns(MachineInstr &Root,
-                             SmallVectorImpl<MachineCombinerPattern> &Patterns,
+                             SmallVectorImpl<unsigned> &Patterns,
                              bool DoRegPressureReduce) const override;
 
   void genAlternativeCodeSequence(
-      MachineInstr &Root, MachineCombinerPattern Pattern,
+      MachineInstr &Root, unsigned Pattern,
       SmallVectorImpl<MachineInstr *> &InsInstrs,
       SmallVectorImpl<MachineInstr *> &DelInstrs,
       DenseMap<unsigned, unsigned> &InstrIdxForVirtReg) const override;

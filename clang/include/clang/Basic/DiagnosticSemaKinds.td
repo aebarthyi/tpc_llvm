@@ -1018,7 +1018,7 @@ def err_pragma_loop_precedes_nonforloop : Error<
   "expected a for loop to follow '%0'">;
 def err_divrem : Error<"division/remainder operations are not supported">;
 def err_bfloat16_not_supported : Error<"type _Bfloat16 is not supported in this configuration">;
-def err_float8_not_supported : Error<"8-bit floating types are not supported in this configuration">;
+def err_float8_not_supported : Error<"use of 8-bit floating types is not supported in this configuration">;
 def err_non_constant_index : Error<"index of vector type must be a constant integer expression">;
 def err_index_out_of_range : Error<"index of vector type is out of range">;
 def err_unavailable_intrinsic : Error<"intrinsic function '%0' is not available for current processor">;

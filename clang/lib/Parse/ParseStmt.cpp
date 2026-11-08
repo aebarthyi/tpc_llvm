@@ -2539,7 +2539,7 @@ StmtResult Parser::ParsePragmaLoopHint(StmtVector &Stmts,
                      Hint.PragmaNameLoc->Loc, ArgHints, 4,
                      ParsedAttr::Form::Pragma());
 #ifdef LLVM_TPC_COMPILER
-    if (Hint.PragmaNameLoc->Ident->getName().equals("loop_unroll_divide")) {
+    if (Hint.PragmaNameLoc->Ident->getName() == "loop_unroll_divide") {
       IdentifierLoc *NewPragmaLoc = IdentifierLoc::create(
           Actions.Context, Hint.PragmaNameLoc->Loc, PP.getIdentifierInfo("loop"));
       IdentifierLoc *OptionLoc = IdentifierLoc::create(

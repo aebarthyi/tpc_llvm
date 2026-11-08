@@ -69,7 +69,7 @@ public:
 
   bool runOnMachineFunction(MachineFunction &MF) override;
   void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<MachineDominatorTree>();
+    AU.addRequired<MachineDominatorTreeWrapperPass>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 };
@@ -78,7 +78,7 @@ public:
 char TPCImmToReg::ID = 0;
 
 INITIALIZE_PASS_BEGIN(TPCImmToReg, PassName, PassDescription, false, false)
-INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
+INITIALIZE_PASS_DEPENDENCY(MachineDominatorTreeWrapperPass)
 INITIALIZE_PASS_END(TPCImmToReg, PassName, PassDescription, false, false)
 
 FunctionPass *llvm::createTPCImmToReg() { return new TPCImmToReg(); }
@@ -270,7 +270,7 @@ void TPCImmToReg::replaceUses(MachineFunction &Func, MachineBasicBlock *MBB,
 }
 
 void TPCImmToReg::xformImmUse(MachineFunction &Func) {
-  MachineDominatorTree *DT = &getAnalysis<MachineDominatorTree>();
+  MachineDominatorTree *DT = &getAnalysis<MachineDominatorTreeWrapperPass>().getDomTree();
   for (auto &immInstr : immInstructions) {
     LLVM_DEBUG(dbgs() << "Processing instructions using imm : "
                       << immInstr.first << "\n");

@@ -223,8 +223,7 @@ void TPCTargetMachine::registerDefaultAliasAnalyses(AAManager &AAM) {
   AAM.registerFunctionAnalysis<TPCAA>();
 }
 
-void TPCTargetMachine::registerPassBuilderCallbacks(
-    PassBuilder &PB, bool PopulateClassToPassNames) {
+void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
   PB.registerAnalysisRegistrationCallback([](FunctionAnalysisManager &FAM) {
     FAM.registerPass([] { return TPCAA(); });
   });

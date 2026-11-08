@@ -11,6 +11,7 @@
 #include "TPCSubtarget.h"
 #include "TPCFrameLowering.h"
 #include "TPCTargetMachine.h"
+#include "llvm/IR/Module.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "MCTargetDesc/TPCMCTargetDesc.h"

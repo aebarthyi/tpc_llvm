@@ -1507,7 +1507,7 @@ VarDecl *Sema::ActOnTensorDeclarator(VarDecl *TensorDecl, unsigned TensorNumber,
 /// arg20 = *pointer;
 ///
 DeclStmt *Sema::ProcessExtraArgs(ParmVarDecl *VD, VarDecl *Ptr) {
-  assert(cast<FunctionDecl>(CurContext)->getName().equals(getLangOpts().MainFunction));
+  assert(cast<FunctionDecl>(CurContext)->getName() == getLangOpts().MainFunction);
 
   SourceLocation Loc = VD->getLocation();
   SourceLocation LocStart = VD->getBeginLoc();

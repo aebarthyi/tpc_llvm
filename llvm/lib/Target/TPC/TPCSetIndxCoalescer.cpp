@@ -79,7 +79,7 @@ FunctionPass *llvm::createTPCSetIndxCoalescer() {
 static unsigned isRegUsedOnlyInSetIndx(MachineRegisterInfo *MRI, unsigned RegNo) {
   unsigned NumUses = 0;
   for (MachineInstr &U : MRI->use_nodbg_instructions(RegNo)) {
-    if (U.definesRegister(RegNo))
+    if (U.definesRegister(RegNo, /*TRI=*/nullptr))
       continue;
     if (!isSET_INDX(U.getOpcode()))
       return 0;

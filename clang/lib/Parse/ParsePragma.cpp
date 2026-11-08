@@ -1754,7 +1754,7 @@ bool Parser::HandlePragmaLoopHint(LoopHint &Hint) {
     if (Tok.isNot(tok::eof) && (PragmaLoopUnroll || PragmaLoopUnrollDivide)) {
       while (Tok.is(tok::identifier)) {
         StringRef AttrName = Tok.getIdentifierInfo()->getName();
-        if (AttrName.equals("taken")) {
+        if (AttrName == "taken") {
           if (Hint.TakenLoc) {
             Diag(Tok.getLocation(), diag::warn_pragma_duplicate_option);
           } else {
@@ -1763,7 +1763,7 @@ bool Parser::HandlePragmaLoopHint(LoopHint &Hint) {
           }
           ConsumeToken();
         }
-        else if (AttrName.equals("pipelined")) {
+        else if (AttrName == "pipelined") {
           if (Hint.PipelinedLoc) {
             Diag(Tok.getLocation(), diag::warn_pragma_duplicate_option);
           } else {
@@ -1772,7 +1772,7 @@ bool Parser::HandlePragmaLoopHint(LoopHint &Hint) {
           }
           ConsumeToken();
         }
-        else if (AttrName.equals("unaligned_trip_count")) {
+        else if (AttrName == "unaligned_trip_count") {
           if (Hint.UnalignedTripCountLoc) {
             Diag(Tok.getLocation(), diag::warn_pragma_duplicate_option);
           } else {
@@ -4092,12 +4092,12 @@ static bool ParseLoopHintValue(Preprocessor &PP, Token &Tok, Token PragmaName,
 
 #ifdef LLVM_TPC_COMPILER
   if (Tok.isNot(tok::eod)) {
-    if (PragmaName.getIdentifierInfo()->getName().equals("loop_unroll_divide") ||
-        PragmaName.getIdentifierInfo()->getName().equals("loop_unroll")) {
+    if (PragmaName.getIdentifierInfo()->getName() == "loop_unroll_divide" ||
+        PragmaName.getIdentifierInfo()->getName() == "loop_unroll") {
       while (Tok.is(tok::identifier) &&
-        (Tok.getIdentifierInfo()->getName().equals("taken") ||
-         Tok.getIdentifierInfo()->getName().equals("pipelined") ||
-         Tok.getIdentifierInfo()->getName().equals("unaligned_trip_count"))) {
+        (Tok.getIdentifierInfo()->getName() == "taken" ||
+         Tok.getIdentifierInfo()->getName() == "pipelined" ||
+         Tok.getIdentifierInfo()->getName() == "unaligned_trip_count")) {
         ValueList.push_back(Tok);
         PP.Lex(Tok);
       }

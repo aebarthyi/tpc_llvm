@@ -621,16 +621,14 @@ static bool ExecuteAssemblerImpl(AssemblerInvocation &Opts,
 #ifdef LLVM_TPC_COMPILER
     MCOptions.MCCompressInst = Opts.CompressInstructions;
 
-    if (StringRef(Opts.Triple).startswith("tpc")) {
+    if (StringRef(Opts.Triple).starts_with("tpc")) {
       Str->pushSection();
       MCSectionELF *TpcCompilerSection = Ctx.getELFSection(
             ".tpc_compiler", ELF::SHT_PROGBITS, ELF::SHF_WRITE | ELF::SHF_ALLOC);
-      MCDataFragment *Fragment = new MCDataFragment(TpcCompilerSection);
-      Fragment->getContents().append(
-            llvm::TPCCompilerArguments.begin(),
-            llvm::TPCCompilerArguments.end());
-      Fragment->setAlignToBundleEnd(true);
       Str->switchSection(TpcCompilerSection);
+      // The section holds data only in objects, not in assembly output.
+      if (Str->getAssemblerPtr())
+        Str->emitBytes(llvm::TPCCompilerArguments);
 
       // PopSection fail on assert if a previous section is NULL
       // If error occurs during parse, previous section will be NULL

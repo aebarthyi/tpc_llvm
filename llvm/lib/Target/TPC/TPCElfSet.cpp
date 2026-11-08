@@ -29,6 +29,7 @@
 #include "TPCTargetMachine.h"
 #include "TPCInstrInfo.h"
 #include "TPCSubtarget.h"
+#include "llvm/IR/Module.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
@@ -111,8 +112,8 @@ class TPCElfSpecSet : public MachineFunctionPass {
   int getLockUnlockIndex(int address);
   void setLockUnlockMember(t_LockUnlock SW, int idx);
   void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<MachineDominatorTree>();
-    AU.addPreserved<MachineDominatorTree>();
+    AU.addRequired<MachineDominatorTreeWrapperPass>();
+    AU.addPreserved<MachineDominatorTreeWrapperPass>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 
@@ -134,7 +135,7 @@ public:
 char TPCElfSpecSet::ID = 0;
 
 INITIALIZE_PASS_BEGIN(TPCElfSpecSet, PassName, PassDescription, false, false)
-INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
+INITIALIZE_PASS_DEPENDENCY(MachineDominatorTreeWrapperPass)
 INITIALIZE_PASS_END(TPCElfSpecSet, PassName, PassDescription, false, false)
 
 FunctionPass *llvm::createTPCElfSpecSet() { return new TPCElfSpecSet(); }
@@ -208,7 +209,7 @@ void TPCElfSpecSet::searchInstruction(MachineFunction &Func) {
   const auto &STI = Func.getSubtarget<TPCSubtarget>();
   const auto TII = STI.getInstrInfo();
   const auto &MRI = Func.getRegInfo();
-  const auto &MDT = getAnalysis<MachineDominatorTree>();
+  const auto &MDT = getAnalysis<MachineDominatorTreeWrapperPass>().getDomTree();
 
   bool isGoya2 = STI.getFeatureBits()[TPC::FeatureGreco];
   for (auto &MBB : Func) {

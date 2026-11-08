@@ -251,8 +251,8 @@ public:
   StringRef getPassName() const override { return "TPC Software Loop Pipelining"; }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<MachineDominatorTree>();
-    AU.addRequired<MachineLoopInfo>();
+    AU.addRequired<MachineDominatorTreeWrapperPass>();
+    AU.addRequired<MachineLoopInfoWrapperPass>();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 
@@ -300,8 +300,8 @@ private:
 
 INITIALIZE_PASS_BEGIN(TPCPipeliner, "pipelining",
                       "TPC Software Loop Pipelining", false, false)
-INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
-INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+INITIALIZE_PASS_DEPENDENCY(MachineDominatorTreeWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(MachineLoopInfoWrapperPass)
 INITIALIZE_PASS_END(TPCPipeliner, "pipelining",
                     "TPC Software Loop Pipelining", false, false)
 
@@ -324,9 +324,9 @@ bool TPCPipeliner::runOnMachineFunction(MachineFunction &MF) {
     MF.dump();
   });
 
-  MLI = &getAnalysis<MachineLoopInfo>();
+  MLI = &getAnalysis<MachineLoopInfoWrapperPass>().getLI();
   MRI = &MF.getRegInfo();
-  MDT = &getAnalysis<MachineDominatorTree>();
+  MDT = &getAnalysis<MachineDominatorTreeWrapperPass>().getDomTree();
   TII = MF.getSubtarget<TPCSubtarget>().getInstrInfo();
   TRI = MF.getSubtarget<TPCSubtarget>().getRegisterInfo();
   CurrMF = &MF;
@@ -533,7 +533,7 @@ static bool getPipelineFromMetadata(const MDNode* LoopMD) {
     if (!S)
       continue;
 
-    if (S->getString().equals("llvm.loop.pipelined")) {
+    if (S->getString() == "llvm.loop.pipelined") {
       assert(MD->getNumOperands() == 2 &&
              "Pipeline hint metadata should have two operands.");
       bool DoPipelining =
@@ -1727,7 +1727,7 @@ bool TPCPipeliner::align(const std::vector<unsigned> &Shifts) {
         }
         // If def is tied to use, we need to replace epilog's tied use with iteration's def
         if (MO.isReg() && MO.isTied() && CurLoop->contains(MRI->getVRegDef(MO.getReg()))) {
-//          unsigned Idx = LeftMI->findRegisterUseOperandIdx(MO.getReg());
+//          unsigned Idx = LeftMI->findRegisterUseOperandIdx(MO.getReg(), /*TRI=*/nullptr);
 //          LeftMI->dump();
 //          unsigned TiedReg = LeftMI->getOperand(LeftMI->findTiedOperandIdx(Idx)).getReg();
           unsigned TiedReg = LeftMI->getOperand(LeftMI->findTiedDefIdx(MO)).getReg();

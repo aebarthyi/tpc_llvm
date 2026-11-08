@@ -30,7 +30,7 @@ static std::optional<unsigned> findOptionMDIndex(const MDNode &LoopMD,
     if (!S)
       continue;
 
-    if (Name.equals(S->getString()))
+    if (Name == S->getString())
       return I;
   }
   return std::nullopt;

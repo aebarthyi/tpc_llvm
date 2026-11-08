@@ -175,8 +175,7 @@ public:
 
   const TPCSubtarget *getSubtarget() const { return Subtarget; }
   const TPCSubtarget *getSubtargetImpl(const Function &F) const override;
-  void registerPassBuilderCallbacks(PassBuilder &PB,
-                                    bool PopulateClassToPassNames) override;
+  void registerPassBuilderCallbacks(PassBuilder &PB) override;
   void registerDefaultAliasAnalyses(AAManager &AAM) override;
   /// Subtarget features used by TPCEliminateRedundantLinearity.
   TPCEliminateRedundantLinearityPassConfig
