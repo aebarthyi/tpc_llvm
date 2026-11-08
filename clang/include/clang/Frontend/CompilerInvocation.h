@@ -202,6 +202,8 @@ private:
   /// @}
 };
 
+class CowCompilerInvocation;
+
 /// Helper class for holding the data necessary to invoke the compiler.
 ///
 /// This class is designed to represent an abstract "invocation" of the
@@ -220,6 +222,9 @@ public:
     return *this;
   }
   ~CompilerInvocation() = default;
+
+  explicit CompilerInvocation(const CowCompilerInvocation &X);
+  CompilerInvocation &operator=(const CowCompilerInvocation &X);
 
   /// Const getters.
   /// @{
@@ -272,6 +277,7 @@ public:
   std::shared_ptr<PreprocessorOptions> getPreprocessorOptsPtr() {
     return PPOpts;
   }
+  std::shared_ptr<LangOptions> getLangOptsPtr() { return LangOpts; }
   /// @}
 
   /// Create a compiler invocation from a list of input options.
@@ -299,6 +305,15 @@ public:
   /// \param MainAddr - The address of main (or some other function in the main
   /// executable), for finding the builtin compiler path.
   static std::string GetResourcesPath(const char *Argv0, void *MainAddr);
+
+  /// Populate \p Opts with the default set of pointer authentication-related
+  /// options given \p LangOpts and \p Triple.
+  ///
+  /// Note: This is intended to be used by tools which must be aware of
+  /// pointer authentication-related code generation, e.g. lldb.
+  static void setDefaultPointerAuthOptions(PointerAuthOptions &Opts,
+                                           const LangOptions &LangOpts,
+                                           const llvm::Triple &Triple);
 
   /// Retrieve a module hash string that is suitable for uniquely
   /// identifying the conditions under which the module was built.
