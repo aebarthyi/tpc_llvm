@@ -23,7 +23,6 @@
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Sema/Initialization.h"
-#include "clang/Sema/SemaInternal.h"
 #include "clang/Sema/SemaObjC.h"
 #include "clang/Sema/SemaRISCV.h"
 #include "llvm/ADT/SmallVector.h"
@@ -453,7 +452,12 @@ static bool tryDiagnoseOverloadedCast(Sema &S, CastType CT,
     : InitializationKind::CreateCast(/*type range?*/ range);
   InitializationSequence sequence(S, entity, initKind, src);
 
-  assert(sequence.Failed() && "initialization succeeded on second try?");
+  // It could happen that a constructor failed to be used because
+  // it requires a temporary of a broken type. Still, it will be found when
+  // looking for a match.
+  if (!sequence.Failed())
+    return false;
+
   switch (sequence.getFailureKind()) {
   default: return false;
 
@@ -733,7 +737,8 @@ CastsAwayConstness(Sema &Self, QualType SrcType, QualType DestType,
           *CastAwayQualifiers = SrcCvrQuals - DestCvrQuals;
 
         // If we removed a cvr-qualifier, this is casting away 'constness'.
-        if (!DestCvrQuals.compatiblyIncludes(SrcCvrQuals)) {
+        if (!DestCvrQuals.compatiblyIncludes(SrcCvrQuals,
+                                             Self.getASTContext())) {
           if (TheOffendingSrcType)
             *TheOffendingSrcType = PrevUnwrappedSrcType;
           if (TheOffendingDestType)
@@ -891,7 +896,7 @@ void CastOperation::CheckDynamicCast() {
   assert(SrcRecord && "Bad source pointee slipped through.");
 
   // C++ 5.2.7p1: The dynamic_cast operator shall not cast away constness.
-  if (!DestPointee.isAtLeastAsQualifiedAs(SrcPointee)) {
+  if (!DestPointee.isAtLeastAsQualifiedAs(SrcPointee, Self.getASTContext())) {
     Self.Diag(OpRange.getBegin(), diag::err_bad_cxx_cast_qualifiers_away)
       << CT_Dynamic << OrigSrcType << this->DestType << OpRange;
     SrcExpr = ExprError();
@@ -1153,8 +1158,31 @@ static unsigned int checkCastFunctionType(Sema &Self, const ExprResult &SrcExpr,
     return false;
   };
 
+  auto IsFarProc = [](const FunctionType *T) {
+    // The definition of FARPROC depends on the platform in terms of its return
+    // type, which could be int, or long long, etc. We'll look for a source
+    // signature for: <integer type> (*)() and call that "close enough" to
+    // FARPROC to be sufficient to silence the diagnostic. This is similar to
+    // how we allow casts between function pointers and void * for supporting
+    // dlsym.
+    // Note: we could check for __stdcall on the function pointer as well, but
+    // that seems like splitting hairs.
+    if (!T->getReturnType()->isIntegerType())
+      return false;
+    if (const auto *PT = T->getAs<FunctionProtoType>())
+      return !PT->isVariadic() && PT->getNumParams() == 0;
+    return true;
+  };
+
   // Skip if either function type is void(*)(void)
   if (IsVoidVoid(SrcFTy) || IsVoidVoid(DstFTy))
+    return 0;
+
+  // On Windows, GetProcAddress() returns a FARPROC, which is a typedef for a
+  // function pointer type (with no prototype, in C). We don't want to diagnose
+  // this case so we don't diagnose idiomatic code on Windows.
+  if (Self.getASTContext().getTargetInfo().getTriple().isOSWindows() &&
+      IsFarProc(SrcFTy))
     return 0;
 
   // Check return type.
@@ -1465,7 +1493,8 @@ static TryCastResult TryStaticCast(Sema &Self, ExprResult &SrcExpr,
             SrcPointeeQuals.removeObjCGCAttr();
             SrcPointeeQuals.removeObjCLifetime();
             if (DestPointeeQuals != SrcPointeeQuals &&
-                !DestPointeeQuals.compatiblyIncludes(SrcPointeeQuals)) {
+                !DestPointeeQuals.compatiblyIncludes(SrcPointeeQuals,
+                                                     Self.getASTContext())) {
               msg = diag::err_bad_cxx_cast_qualifiers_away;
               return TC_Failed;
             }
@@ -1697,7 +1726,8 @@ TryStaticDowncast(Sema &Self, CanQualType SrcType, CanQualType DestType,
   // FIXME: Being 100% compliant here would be nice to have.
 
   // Must preserve cv, as always, unless we're in C-style mode.
-  if (!CStyle && !DestType.isAtLeastAsQualifiedAs(SrcType)) {
+  if (!CStyle &&
+      !DestType.isAtLeastAsQualifiedAs(SrcType, Self.getASTContext())) {
     msg = diag::err_bad_cxx_cast_qualifiers_away;
     return TC_Failed;
   }
@@ -2092,6 +2122,10 @@ void Sema::CheckCompatibleReinterpretCast(QualType SrcType, QualType DestType,
     if (Context.getTypeSize(DestTy) == Context.getTypeSize(SrcTy)) {
       return;
     }
+  }
+
+  if (SrcTy->isDependentType() || DestTy->isDependentType()) {
+    return;
   }
 
   Diag(Range.getBegin(), DiagID) << SrcType << DestType << Range;
@@ -2544,7 +2578,7 @@ static TryCastResult TryReinterpretCast(Sema &Self, ExprResult &SrcExpr,
     assert(SrcType->isPointerType() && DestType->isPointerType());
     if (!CStyle &&
         !DestType->getPointeeType().getQualifiers().isAddressSpaceSupersetOf(
-            SrcType->getPointeeType().getQualifiers())) {
+            SrcType->getPointeeType().getQualifiers(), Self.getASTContext())) {
       SuccessResult = TC_Failed;
     }
   } else if (IsLValueCast) {
@@ -2651,7 +2685,8 @@ static TryCastResult TryAddressSpaceCast(Sema &Self, ExprResult &SrcExpr,
     return TC_NotApplicable;
   auto SrcPointeeType = SrcPtrType->getPointeeType();
   auto DestPointeeType = DestPtrType->getPointeeType();
-  if (!DestPointeeType.isAddressSpaceOverlapping(SrcPointeeType)) {
+  if (!DestPointeeType.isAddressSpaceOverlapping(SrcPointeeType,
+                                                 Self.getASTContext())) {
     msg = diag::err_bad_cxx_cast_addr_space_mismatch;
     return TC_Failed;
   }
@@ -2696,9 +2731,10 @@ void CastOperation::checkAddressSpaceCast(QualType SrcType, QualType DestType) {
       QualType SrcPPointee = SrcPPtr->getPointeeType();
       if (Nested
               ? DestPPointee.getAddressSpace() != SrcPPointee.getAddressSpace()
-              : !DestPPointee.isAddressSpaceOverlapping(SrcPPointee)) {
+              : !DestPPointee.isAddressSpaceOverlapping(SrcPPointee,
+                                                        Self.getASTContext())) {
         Self.Diag(OpRange.getBegin(), DiagID)
-            << SrcType << DestType << Sema::AA_Casting
+            << SrcType << DestType << AssignmentAction::Casting
             << SrcExpr.get()->getSourceRange();
         if (!Nested)
           SrcExpr = ExprError();
@@ -3238,7 +3274,7 @@ void CastOperation::CheckCStyleCast() {
             !CastQuals.compatiblyIncludesObjCLifetime(ExprQuals)) {
           Self.Diag(SrcExpr.get()->getBeginLoc(),
                     diag::err_typecheck_incompatible_ownership)
-              << SrcType << DestType << Sema::AA_Casting
+              << SrcType << DestType << AssignmentAction::Casting
               << SrcExpr.get()->getSourceRange();
           return;
         }
@@ -3303,7 +3339,8 @@ void CastOperation::CheckBuiltinBitCast() {
   CharUnits SourceSize = Self.Context.getTypeSizeInChars(SrcType);
   if (DestSize != SourceSize) {
     Self.Diag(OpRange.getBegin(), diag::err_bit_cast_type_size_mismatch)
-        << (int)SourceSize.getQuantity() << (int)DestSize.getQuantity();
+        << SrcType << DestType << (int)SourceSize.getQuantity()
+        << (int)DestSize.getQuantity();
     SrcExpr = ExprError();
     return;
   }

@@ -86,6 +86,9 @@ public:
 
   ArrayRef<ConstantRange> getValueAsConstantRangeList() const;
 
+  /// Used to sort attributes. KindOnly controls if the sort includes the
+  /// attributes' values or just the kind.
+  int cmp(const AttributeImpl &AI, bool KindOnly) const;
   /// Used when sorting the attributes.
   bool operator<(const AttributeImpl &AI) const;
 
@@ -275,12 +278,7 @@ public:
 
 class AttributeBitSet {
   /// Bitset with a bit for each available attribute Attribute::AttrKind.
-#ifdef LLVM_TPC_COMPILER
-  // TPC's attributes do not fit in upstream's 96 bits.
   uint8_t AvailableAttrs[16] = {};
-#else
-  uint8_t AvailableAttrs[12] = {};
-#endif
   static_assert(Attribute::EndAttrKinds <= sizeof(AvailableAttrs) * CHAR_BIT,
                 "Too many attributes");
 
@@ -348,6 +346,7 @@ public:
   UWTableKind getUWTableKind() const;
   AllocFnKind getAllocKind() const;
   MemoryEffects getMemoryEffects() const;
+  CaptureInfo getCaptureInfo() const;
   FPClassTest getNoFPClass() const;
   std::string getAsString(bool InAttrGrp) const;
   Type *getAttributeType(Attribute::AttrKind Kind) const;

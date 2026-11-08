@@ -17,7 +17,6 @@ CodeGenOptions::CodeGenOptions() {
 #include "clang/Basic/CodeGenOptions.def"
 
   RelocationModel = llvm::Reloc::PIC_;
-  memcpy(CoverageVersion, "408*", 4);
 #ifdef LLVM_TPC_COMPILER
   // see PRM 1.3.10. Memory regions
   ScalarLocalMemory = 1024;
@@ -65,7 +64,6 @@ void CodeGenOptions::resetNonModularOptions(StringRef ModuleFormat) {
   }
 
   RelocationModel = llvm::Reloc::PIC_;
-  memcpy(CoverageVersion, "408*", 4);
 }
 
 }  // end namespace clang

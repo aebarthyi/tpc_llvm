@@ -50,6 +50,7 @@ add_llvm_component_library(LLVMScalarOpts
   LoopSimplifyCFG.cpp
   LoopStrengthReduce.cpp
   LoopSWPPass.cpp
+  LoopTermFold.cpp
   LoopUnrollPass.cpp
   LoopUnrollAndJamPass.cpp
   LoopTaken.cpp
@@ -85,7 +86,6 @@ add_llvm_component_library(LLVMScalarOpts
   StraightLineStrengthReduce.cpp
   StructurizeCFG.cpp
   TailRecursionElimination.cpp
-  TLSVariableHoist.cpp
   WarnMissedTransforms.cpp
   TPC_LICM.cpp
 
