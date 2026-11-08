@@ -5353,20 +5353,20 @@ static void applyTPCDefaults(CompilerInvocation &Res,
         llvm::makeTPCCompilerArgumentsString(CommandLineArgs));
 
   if (LangOpts.RC99) {
-    std::shared_ptr<PreprocessorOptions> PPOpts = Res.getPreprocessorOptsPtr();
+    PreprocessorOptions &PPOpts = Res.getPreprocessorOpts();
     bool IncludeTpcSpecial = Args.hasArg(OPT_tpc_special);
     if (!Args.hasArg(OPT_no_tpc_defs)) {
       ArrayRef<CompilerInvocation::EmbeddedFile> EmbeddedFiles =
           CompilerInvocation::getEmbeddedFiles();
       for (const CompilerInvocation::EmbeddedFile &F : EmbeddedFiles) {
-        PPOpts->Includes.push_back(F.Name.str());
+        PPOpts.Includes.push_back(F.Name.str());
         auto P = std::make_pair(F.Name.str(), F.Content);
-        PPOpts->RemappedFileBuffers.push_back(P);
+        PPOpts.RemappedFileBuffers.push_back(P);
       }
     } else
       IncludeTpcSpecial = true;
     if (IncludeTpcSpecial)
-      PPOpts->addMacroDef("INCLUDE_TPC_SPECIAL_H");
+      PPOpts.addMacroDef("INCLUDE_TPC_SPECIAL_H");
 
     if (Res.getTargetOpts().CPU == "gaudi") {
       LangOpts.BFloat16 = 1;

@@ -37,10 +37,11 @@ class TPCTTIImpl : public BasicTTIImplBase<TPCTTIImpl> {
 
   const TPCSubtarget *ST;
   const TPCTargetLowering *TLI;
-  //  Maps : Intrinsic/Instruction => <vpu, spu> H/W opcodes
-  IntrinToSlot IntrinToSlotMap;
-  InstToSlot InstToSlotMap;
-  CompoundInstToIntrinsMap CIIMap;
+  //  Maps : Intrinsic/Instruction => <vpu, spu> H/W opcodes. Filled on first
+  //  use by initIldMap(), from const cost hooks.
+  mutable IntrinToSlot IntrinToSlotMap;
+  mutable InstToSlot InstToSlotMap;
+  mutable CompoundInstToIntrinsMap CIIMap;
 
 public:
   explicit TPCTTIImpl(const TPCTargetMachine *TM, const Function &F)
@@ -58,22 +59,20 @@ public:
   //unsigned getRegisterBitWidth(bool Vector) const;
   bool isSupportedConstant(const Constant *C) const;
 
-  IntrinToSlot &getIntrinToSlotMap() { return IntrinToSlotMap; }
-  InstToSlot &getInstToSlotMap() { return InstToSlotMap; }
-  CompoundInstToIntrinsMap &getCiiMap() { return CIIMap; }
+  IntrinToSlot &getIntrinToSlotMap() const { return IntrinToSlotMap; }
+  InstToSlot &getInstToSlotMap() const { return InstToSlotMap; }
+  CompoundInstToIntrinsMap &getCiiMap() const { return CIIMap; }
 
-  const IntrinToSlot &getIntrinToSlotMap() const { return IntrinToSlotMap; }
-  const InstToSlot &getInstToSlotMap() const { return InstToSlotMap; }
-  const CompoundInstToIntrinsMap &getCiiMap() const { return CIIMap; }
-
-  bool shouldExpandReduction(const IntrinsicInst *II) const { return false; }
+  bool shouldExpandReduction(const IntrinsicInst *II) const override {
+    return false;
+  }
 
   InstructionCost getInstructionLatency(const Instruction *I);
   InstructionCost getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
-                                        TTI::TargetCostKind CostKind);
+                                        TTI::TargetCostKind CostKind) const override;
   int getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy,
                             ArrayRef<Value *> Args, FastMathFlags FMF,
-                            unsigned VF = 1);
+                            unsigned VF = 1) const;
 
   int getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy, ArrayRef<Type *> Tys,
                             FastMathFlags FMF,
@@ -84,12 +83,12 @@ public:
     return -1;
   }
 
-  InstructionCost getShuffleCost(TTI::ShuffleKind Kind, VectorType *Tp,
-                                 ArrayRef<int> Mask,
+  InstructionCost getShuffleCost(TTI::ShuffleKind Kind, VectorType *DstTy,
+                                 VectorType *SrcTy, ArrayRef<int> Mask,
                                  TTI::TargetCostKind CostKind, int Index,
                                  VectorType *SubTp,
-                                 ArrayRef<const Value *> Args = std::nullopt,
-                                 const Instruction *CxtI = nullptr);
+                                 ArrayRef<const Value *> Args = {},
+                                 const Instruction *CxtI = nullptr) const override;
 
   static bool getTypeMatrix(const Instruction *I, Type::TypeID Ty[]) {
     Ty[0] = I->getType()->getTypeID();
@@ -117,11 +116,11 @@ public:
   unsigned getLatency(
       const TPCLatencyEvaluation::InstructionForLatencyDetermination &src,
       const TPCLatencyEvaluation::InstructionForLatencyDetermination &dest,
-      bool DestPresent);
+      bool DestPresent) const;
   bool initLatenciesDB(void) const;
-  bool initIldMap(void);
+  bool initIldMap(void) const;
 
-  bool initBE(void) {
+  bool initBE(void) const {
     initIldMap();
     initLatenciesDB();
     return true;
@@ -136,7 +135,7 @@ public:
   // This model is simpler than fashioning a producer and a consumer instruction
   // and provides a reasonable degree of accuracy.
   unsigned
-  getLatency(TPCLatencyEvaluation::InstructionForLatencyDetermination &src);
+  getLatency(TPCLatencyEvaluation::InstructionForLatencyDetermination &src) const;
 
   static bool
   getDefaultILD(TPCLatencyEvaluation::InstructionForLatencyDetermination &);

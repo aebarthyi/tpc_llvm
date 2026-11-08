@@ -422,7 +422,7 @@ InstructionCost TPCTTIImpl::getInstructionLatency(const Instruction *I) {
 }
 
 unsigned TPCTTIImpl::getLatency(
-    TPCLatencyEvaluation::InstructionForLatencyDetermination &src) {
+    TPCLatencyEvaluation::InstructionForLatencyDetermination &src) const {
   TPCLatencyEvaluation::InstructionForLatencyDetermination dest;
   bool Success = populateDestination(
       const_cast<const TPCLatencyEvaluation::InstructionForLatencyDetermination
@@ -439,7 +439,7 @@ unsigned TPCTTIImpl::getLatency(
 unsigned TPCTTIImpl::getLatency(
     const TPCLatencyEvaluation::InstructionForLatencyDetermination &src,
     const TPCLatencyEvaluation::InstructionForLatencyDetermination &dest,
-    bool DestPresent) {
+    bool DestPresent) const {
   int latency = TPCTTIImpl::DEFAULT_LATENCY;
 
   if (TPCLatencyEvaluation::latenciesDB.find(src) !=
@@ -475,7 +475,7 @@ unsigned TPCTTIImpl::getLatency(
 }
 
 InstructionCost TPCTTIImpl::getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
-                                      TTI::TargetCostKind CostKind) {
+                                      TTI::TargetCostKind CostKind) const {
   if (CostKind == TTI::TargetCostKind::TCK_Latency) {
     TPCLatencyEvaluation::InstructionForLatencyDetermination src;
     TPCTTIImpl::initBE();
@@ -507,7 +507,7 @@ InstructionCost TPCTTIImpl::getIntrinsicInstrCost(const IntrinsicCostAttributes 
 
 int TPCTTIImpl::getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy,
                                       ArrayRef<Value *> Args, FastMathFlags FMF,
-                                      unsigned int VF) {
+                                      unsigned int VF) const {
   TPCLatencyEvaluation::InstructionForLatencyDetermination src;
   TPCTTIImpl::initBE();
   if (extractAndPopulate(ID, RetTy, Args, src)) {
@@ -520,15 +520,17 @@ int TPCTTIImpl::getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy,
 }
 
 InstructionCost TPCTTIImpl::getShuffleCost(TTI::ShuffleKind Kind,
-                                           VectorType *Tp, ArrayRef<int> Mask,
+                                           VectorType *DstTy, VectorType *SrcTy,
+                                           ArrayRef<int> Mask,
                                            TTI::TargetCostKind CostKind,
                                            int Index, VectorType *SubTp,
                                            ArrayRef<const Value *> Args,
-                                           const Instruction *CxtI) {
+                                           const Instruction *CxtI) const {
 
   switch (Kind) {
   default:
-    return BaseT::getShuffleCost(Kind, Tp, Mask, CostKind, Index, SubTp);
+    return BaseT::getShuffleCost(Kind, DstTy, SrcTy, Mask, CostKind, Index,
+                                 SubTp);
   case TTI::SK_ExtractSubvector:
     // extract subvector is basically a single COPY instruction
     return TTI::TCC_Basic;
@@ -707,7 +709,7 @@ bool TPCTTIImpl::getVectorScalarInfo(
   return true;
 }
 
-bool TPCTTIImpl::initIldMap(void) {
+bool TPCTTIImpl::initIldMap(void) const {
 
   if (!getIntrinToSlotMap().empty()) {
     return true;

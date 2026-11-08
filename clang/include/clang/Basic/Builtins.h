@@ -384,7 +384,7 @@ public:
 
 #ifdef LLVM_TPC_COMPILER
   int getParamWithDefault(unsigned ID) const {
-    return getRecord(ID).NumDefs;
+    return getInfo(ID).NumDefs;
   }
 #endif
 

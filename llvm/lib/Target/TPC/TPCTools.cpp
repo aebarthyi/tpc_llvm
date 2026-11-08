@@ -527,7 +527,8 @@ void ValueReplacer::processItem(Value *Old, Value *New) {
         // We need to use other function due to change of argument type.
         CallInst *NewMemSet = Builder.CreateMemSet(New, MemSetCall->getValue(),
             MemSetCall->getLength(), MemSetCall->getDestAlign(),
-            MemSetCall->isVolatile(), TBAA, ScopeMD, NoAliasMD);
+            MemSetCall->isVolatile(),
+            AAMDNodes(TBAA, /*TBAAStruct=*/nullptr, ScopeMD, NoAliasMD));
         DEBUG_WITH_TYPE("replacer", dbgs() << "   Updated to:\n");
         DEBUG_WITH_TYPE("replacer", dbgs() << "     " << *NewMemSet << "\n");
         (void)NewMemSet;
@@ -547,7 +548,7 @@ void ValueReplacer::processItem(Value *Old, Value *New) {
             MemCpyCall->getDest(), MemCpyCall->getDestAlign(),
             MemCpyCall->getSource(), MemCpyCall->getSourceAlign(),
             MemCpyCall->getLength(), MemCpyCall->isVolatile(),
-            TBAA, TBAAStruct, ScopeMD, NoAliasMD);
+            AAMDNodes(TBAA, TBAAStruct, ScopeMD, NoAliasMD));
         DEBUG_WITH_TYPE("replacer", dbgs() << "   Replaced:\n");
         DEBUG_WITH_TYPE("replacer", dbgs() << "     " << *NewMemCpy << "\n");
         (void)NewMemCpy;

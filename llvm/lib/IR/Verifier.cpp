@@ -7894,8 +7894,7 @@ bool TBAAVerifier::visitTBAAMetadata(Instruction &I, const MDNode *MD) {
             &I, MD, BaseNode, AccessType);
 
 #ifdef LLVM_TPC_COMPILER
-  std::string tagstr = I.getModule()->getTargetTriple();
-  bool is_tpc = tagstr.find("tpc") == 0;
+  bool is_tpc = I.getModule()->getTargetTriple().getArch() == Triple::tpc;
   if (!is_tpc) {
     if (!IsNewFormat) {
       CheckTBAA(isValidScalarTBAANode(AccessType),

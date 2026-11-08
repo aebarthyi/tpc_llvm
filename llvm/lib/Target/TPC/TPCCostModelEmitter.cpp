@@ -694,7 +694,7 @@ INITIALIZE_PASS_BEGIN(TPCCostModelEmitter, "TPCCostModelEmitter",
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(MachineBranchProbabilityInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(MachineLoopInfoWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(MachineScheduler)
+INITIALIZE_PASS_DEPENDENCY(MachineSchedulerLegacy)
 INITIALIZE_PASS_END(TPCCostModelEmitter, "TPCCostModelEmitter",
                     "TPC Cost Model Emitter", false, false)
 

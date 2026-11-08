@@ -122,7 +122,7 @@ INITIALIZE_PASS_BEGIN(TPCLatencyResolver, "tpclatresolver", "TPC Latency Resolve
   INITIALIZE_PASS_DEPENDENCY(MachineDominatorTreeWrapperPass)
   INITIALIZE_PASS_DEPENDENCY(MachineBranchProbabilityInfoWrapperPass)
   INITIALIZE_PASS_DEPENDENCY(MachineLoopInfoWrapperPass)
-  INITIALIZE_PASS_DEPENDENCY(MachineScheduler)
+  INITIALIZE_PASS_DEPENDENCY(MachineSchedulerLegacy)
 INITIALIZE_PASS_END(TPCLatencyResolver, "tpclatresolver", "TPC Latency Resolver", false, false)
 
 

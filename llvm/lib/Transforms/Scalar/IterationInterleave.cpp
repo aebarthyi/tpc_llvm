@@ -583,7 +583,7 @@ class IterationInterleaver {
         }
 
         int InstLatency =
-            *TTI->getInstructionCost(Inst, TargetTransformInfo::TCK_Latency).getValue();
+            TTI->getInstructionCost(Inst, TargetTransformInfo::TCK_Latency).getValue();
         if (InstLatency == 0)
           continue;
 

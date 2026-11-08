@@ -30,15 +30,36 @@ static LangASMap TPCAddrSpaceMap = {
     0  // ptr64
 };
 
-const Builtin::Info TPCTargetInfo::BuiltinInfo[] = {
-#define BUILTIN(ID, TYPE, ATTRS)                                               \
-  {#ID, TYPE, ATTRS, nullptr, HeaderDesc::NO_HEADER, RC99_LANG},
-#define TARGET_BUILTIN(ID, TYPE, ATTRS, FEATURE)                               \
-  {#ID, TYPE, ATTRS, FEATURE, HeaderDesc::NO_HEADER, RC99_LANG},
+static constexpr int NumBuiltins =
+    clang::TPC::LastTSBuiltin - Builtin::FirstTSBuiltin;
+
+static constexpr llvm::StringTable BuiltinStrings =
+    CLANG_BUILTIN_STR_TABLE_START
+#define BUILTIN CLANG_BUILTIN_STR_TABLE
+#define TARGET_BUILTIN CLANG_TARGET_BUILTIN_STR_TABLE
 #define TPC_BUILTIN(ID, TYPE, ATTRS, FEATURE, DEFARG)                          \
-  {#ID, TYPE, ATTRS, FEATURE, HeaderDesc::NO_HEADER, RC99_LANG, DEFARG},
+  CLANG_TARGET_BUILTIN_STR_TABLE(ID, TYPE, ATTRS, FEATURE)
 #include "clang/Basic/BuiltinsTPC.def"
-};
+#undef TPC_BUILTIN
+    ;
+
+// All TPC builtins are RC99-only; TPC_BUILTIN also records the first parameter
+// with a default argument.
+static constexpr auto BuiltinInfos = Builtin::MakeInfos<NumBuiltins>({
+#define BUILTIN(ID, TYPE, ATTRS)                                               \
+  Builtin::Info{CLANG_BUILTIN_DETAIL_STR_OFFSETS(ID, TYPE, ATTRS),             \
+                HeaderDesc::NO_HEADER, RC99_LANG},
+#define TARGET_BUILTIN(ID, TYPE, ATTRS, FEATURE)                               \
+  Builtin::Info{                                                               \
+      CLANG_TARGET_BUILTIN_DETAIL_STR_OFFSETS(ID, TYPE, ATTRS, FEATURE),       \
+      HeaderDesc::NO_HEADER, RC99_LANG},
+#define TPC_BUILTIN(ID, TYPE, ATTRS, FEATURE, DEFARG)                          \
+  Builtin::Info{                                                               \
+      CLANG_TARGET_BUILTIN_DETAIL_STR_OFFSETS(ID, TYPE, ATTRS, FEATURE),       \
+      HeaderDesc::NO_HEADER, RC99_LANG, DEFARG},
+#include "clang/Basic/BuiltinsTPC.def"
+#undef TPC_BUILTIN
+});
 
 
 static const char * const GCCRegNames[] = {
@@ -304,9 +325,9 @@ bool TPCTargetInfo::validateAsmConstraint(const char *&Name,
   }
 }
 
-ArrayRef<Builtin::Info> TPCTargetInfo::getTargetBuiltins() const {
-  return llvm::ArrayRef(BuiltinInfo,
-                            clang::TPC::LastTSBuiltin - Builtin::FirstTSBuiltin);
+llvm::SmallVector<Builtin::InfosShard>
+TPCTargetInfo::getTargetBuiltins() const {
+  return {{&BuiltinStrings, BuiltinInfos}};
 }
 
 ArrayRef<const char *> TPCTargetInfo::getGCCRegNames() const {

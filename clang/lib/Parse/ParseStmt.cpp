@@ -2403,63 +2403,50 @@ StmtResult Parser::ParsePragmaLoopHint(StmtVector &Stmts,
                      AttributeScopeInfo(), ArgHints, /*numArgs=*/4,
                      ParsedAttr::Form::Pragma());
 #ifdef LLVM_TPC_COMPILER
-    if (Hint.PragmaNameLoc->Ident->getName() == "loop_unroll_divide") {
-      IdentifierLoc *NewPragmaLoc = IdentifierLoc::create(
-          Actions.Context, Hint.PragmaNameLoc->Loc, PP.getIdentifierInfo("loop"));
-      IdentifierLoc *OptionLoc = IdentifierLoc::create(
-          Actions.Context, Hint.PragmaNameLoc->Loc, PP.getIdentifierInfo("divide"));
-      IdentifierLoc *StateLoc = IdentifierLoc::create(
-          Actions.Context, Hint.PragmaNameLoc->Loc, PP.getIdentifierInfo("enable"));
+    if (Hint.PragmaNameLoc->getIdentifierInfo()->getName() == "loop_unroll_divide") {
+      IdentifierLoc *NewPragmaLoc = new (Actions.Context) IdentifierLoc(Hint.PragmaNameLoc->getLoc(), PP.getIdentifierInfo("loop"));
+      IdentifierLoc *OptionLoc = new (Actions.Context) IdentifierLoc(Hint.PragmaNameLoc->getLoc(), PP.getIdentifierInfo("divide"));
+      IdentifierLoc *StateLoc = new (Actions.Context) IdentifierLoc(Hint.PragmaNameLoc->getLoc(), PP.getIdentifierInfo("enable"));
 
       ArgsUnion ArgHints2[] = { NewPragmaLoc, OptionLoc, StateLoc,
                                 ArgsUnion(static_cast<Expr *>(nullptr)) };
-      TempAttrs.addNew(NewPragmaLoc->Ident, Hint.Range, nullptr,
-                       Hint.PragmaNameLoc->Loc, ArgHints2, 4,
+      TempAttrs.addNew(NewPragmaLoc->getIdentifierInfo(), Hint.Range, AttributeScopeInfo(), ArgHints2, 4,
                        ParsedAttr::Form::Pragma());
     }
     if (Hint.TakenLoc) {
-      IdentifierLoc *NewPragmaLoc = IdentifierLoc::create(
-        Actions.Context, Hint.PragmaNameLoc->Loc, PP.getIdentifierInfo("loop"));
-      IdentifierLoc *OptionLoc = IdentifierLoc::create(
-        Actions.Context, Hint.PragmaNameLoc->Loc, PP.getIdentifierInfo("taken"));
-      IdentifierLoc *StateLoc = IdentifierLoc::create(
-        Actions.Context, Hint.PragmaNameLoc->Loc, PP.getIdentifierInfo("enable"));
+      IdentifierLoc *NewPragmaLoc = new (Actions.Context) IdentifierLoc(Hint.PragmaNameLoc->getLoc(), PP.getIdentifierInfo("loop"));
+      IdentifierLoc *OptionLoc = new (Actions.Context) IdentifierLoc(Hint.PragmaNameLoc->getLoc(), PP.getIdentifierInfo("taken"));
+      IdentifierLoc *StateLoc = new (Actions.Context) IdentifierLoc(Hint.PragmaNameLoc->getLoc(), PP.getIdentifierInfo("enable"));
 
       ArgsUnion ArgHints3[] = { NewPragmaLoc, OptionLoc, StateLoc,
                                 ArgsUnion(static_cast<Expr *>(nullptr)) };
-      TempAttrs.addNew(NewPragmaLoc->Ident, Hint.Range, nullptr,
-                       Hint.PragmaNameLoc->Loc, ArgHints3, 4,
+      TempAttrs.addNew(NewPragmaLoc->getIdentifierInfo(), Hint.Range, AttributeScopeInfo(), ArgHints3, 4,
                        ParsedAttr::Form::Pragma());
     }
     if (Hint.PipelinedLoc) {
-      IdentifierLoc *NewPragmaLoc = IdentifierLoc::create(
-        Actions.Context, Hint.PragmaNameLoc->Loc, PP.getIdentifierInfo("loop"));
-      IdentifierLoc *OptionLoc = IdentifierLoc::create(
-        Actions.Context, Hint.PragmaNameLoc->Loc, PP.getIdentifierInfo("pipelined"));
-      IdentifierLoc *StateLoc = IdentifierLoc::create(
-        Actions.Context, Hint.PragmaNameLoc->Loc, PP.getIdentifierInfo("enable"));
+      IdentifierLoc *NewPragmaLoc = new (Actions.Context) IdentifierLoc(Hint.PragmaNameLoc->getLoc(), PP.getIdentifierInfo("loop"));
+      IdentifierLoc *OptionLoc = new (Actions.Context) IdentifierLoc(Hint.PragmaNameLoc->getLoc(), PP.getIdentifierInfo("pipelined"));
+      IdentifierLoc *StateLoc = new (Actions.Context) IdentifierLoc(Hint.PragmaNameLoc->getLoc(), PP.getIdentifierInfo("enable"));
 
       ArgsUnion ArgHints3[] = { NewPragmaLoc, OptionLoc, StateLoc,
                                 ArgsUnion(static_cast<Expr *>(nullptr)) };
-      TempAttrs.addNew(NewPragmaLoc->Ident, Hint.Range, nullptr,
-                       Hint.PragmaNameLoc->Loc, ArgHints3, 4,
+      TempAttrs.addNew(NewPragmaLoc->getIdentifierInfo(), Hint.Range, AttributeScopeInfo(), ArgHints3, 4,
                        ParsedAttr::Form::Pragma());
     }
     if (Hint.UnalignedTripCountLoc) {
       IdentifierLoc *NewPragmaLoc =
-          IdentifierLoc::create(Actions.Context, Hint.PragmaNameLoc->Loc,
+          new (Actions.Context) IdentifierLoc(Hint.PragmaNameLoc->getLoc(),
                                 PP.getIdentifierInfo("loop"));
       IdentifierLoc *OptionLoc =
-          IdentifierLoc::create(Actions.Context, Hint.PragmaNameLoc->Loc,
+          new (Actions.Context) IdentifierLoc(Hint.PragmaNameLoc->getLoc(),
                                 PP.getIdentifierInfo("unaligned_trip_count"));
       IdentifierLoc *StateLoc =
-          IdentifierLoc::create(Actions.Context, Hint.PragmaNameLoc->Loc,
+          new (Actions.Context) IdentifierLoc(Hint.PragmaNameLoc->getLoc(),
                                 PP.getIdentifierInfo("enable"));
 
       ArgsUnion ArgHints3[] = {NewPragmaLoc, OptionLoc, StateLoc,
                                ArgsUnion(static_cast<Expr *>(nullptr))};
-      TempAttrs.addNew(NewPragmaLoc->Ident, Hint.Range, nullptr,
-                       Hint.PragmaNameLoc->Loc, ArgHints3, 4,
+      TempAttrs.addNew(NewPragmaLoc->getIdentifierInfo(), Hint.Range, AttributeScopeInfo(), ArgHints3, 4,
                        ParsedAttr::Form::Pragma());
     }
 #endif

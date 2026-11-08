@@ -1742,8 +1742,7 @@ bool Parser::HandlePragmaLoopHint(LoopHint &Hint) {
           if (Hint.TakenLoc) {
             Diag(Tok.getLocation(), diag::warn_pragma_duplicate_option);
           } else {
-            Hint.TakenLoc = IdentifierLoc::create(
-                Actions.Context, Tok.getLocation(), Tok.getIdentifierInfo());
+            Hint.TakenLoc = new (Actions.Context) IdentifierLoc(Tok.getLocation(), Tok.getIdentifierInfo());
           }
           ConsumeToken();
         }
@@ -1751,8 +1750,7 @@ bool Parser::HandlePragmaLoopHint(LoopHint &Hint) {
           if (Hint.PipelinedLoc) {
             Diag(Tok.getLocation(), diag::warn_pragma_duplicate_option);
           } else {
-            Hint.PipelinedLoc = IdentifierLoc::create(
-              Actions.Context, Tok.getLocation(), Tok.getIdentifierInfo());
+            Hint.PipelinedLoc = new (Actions.Context) IdentifierLoc(Tok.getLocation(), Tok.getIdentifierInfo());
           }
           ConsumeToken();
         }
@@ -1760,8 +1758,7 @@ bool Parser::HandlePragmaLoopHint(LoopHint &Hint) {
           if (Hint.UnalignedTripCountLoc) {
             Diag(Tok.getLocation(), diag::warn_pragma_duplicate_option);
           } else {
-            Hint.UnalignedTripCountLoc = IdentifierLoc::create(
-                Actions.Context, Tok.getLocation(), Tok.getIdentifierInfo());
+            Hint.UnalignedTripCountLoc = new (Actions.Context) IdentifierLoc(Tok.getLocation(), Tok.getIdentifierInfo());
           }
           ConsumeToken();
         }

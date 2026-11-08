@@ -131,7 +131,17 @@ const TPCSubtarget *TPCTargetMachine::getSubtargetImpl(const Function& F) const 
 
 
 TargetTransformInfo TPCTargetMachine::getTargetTransformInfo(const Function &F) const {
-  return TargetTransformInfo(TPCTTIImpl(this, F));
+  return TargetTransformInfo(std::make_unique<TPCTTIImpl>(this, F));
+}
+
+ScheduleDAGInstrs *
+TPCTargetMachine::createMachineScheduler(MachineSchedContext *C) const {
+  return createTPCMachineScheduler(C);
+}
+
+ScheduleDAGInstrs *
+TPCTargetMachine::createPostMachineScheduler(MachineSchedContext *C) const {
+  return createTPCPostMachineScheduler(C);
 }
 
 static ImmutablePass *createTPCExternalAAWrapperPass() {
@@ -182,19 +192,6 @@ public:
     addPass(createTPCExpandHWRegCopies());
     TargetPassConfig::addOptimizedRegAlloc();
   }
-
-  ScheduleDAGInstrs *
-  createMachineScheduler(MachineSchedContext *C) const override {
-    return createTPCMachineScheduler(C);
-  }
-
-// TODO: Implement postRA strategy and enable this scheduler
-#if 1
-  ScheduleDAGInstrs *
-  createPostMachineScheduler(MachineSchedContext *C) const override {
-    return createTPCPostMachineScheduler(C);
-  }
-#endif
 
   void addIRPasses() override;
   void addMachineSSAOptimization() override;

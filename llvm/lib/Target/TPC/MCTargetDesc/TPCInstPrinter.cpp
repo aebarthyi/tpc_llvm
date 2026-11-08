@@ -212,7 +212,7 @@ void TPCInstPrinter::printJmpLoopTarget(const MCInst *MI, unsigned OpNum, raw_os
     O << Op.getImm();  
   } else if (Op.isExpr()) {
     const MCExpr *Exp = Op.getExpr();
-    Exp->print(O, &MAI);
+    MAI.printExpr(O, *Exp);
   }
 
   FirstOperandPrinded = true;
@@ -412,7 +412,7 @@ void TPCInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
   }
   else {
     assert(Op.isExpr() && "Expected an expression");
-    Op.getExpr()->print(OS, &MAI);
+    MAI.printExpr(OS, *Op.getExpr());
   }
 
   FirstOperandPrinded = true;

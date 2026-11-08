@@ -560,6 +560,7 @@ static SDValue helperExtractSubRegSDValue(unsigned subReg, const SDLoc &DL,
   setTargetDAGCombine(ISD::ADD);
   setTargetDAGCombine(ISD::VECTOR_SHUFFLE);
   setTargetDAGCombine(ISD::VSELECT);
+  setTargetDAGCombine(ISD::EXTRACT_VECTOR_ELT);
 
   setMinFunctionAlignment(Align(2));
   computeRegisterProperties(Subtarget->getRegisterInfo());
@@ -2468,6 +2469,7 @@ SDValue TPCTargetLowering::lowerVECTOR_SHUFFLE(SDValue Op,
   if (is_all_eq(&ShuffleMask[0], ShuffleMask.size(), iqel)) {
     SmallVector<SDValue, 4> sbv0, sbv1;
     auto opco = V1.getOpcode();
+    SDValue ScalarOprnd;
     if (V1.getNumOperands() == 2) {
       SDValue bv0 = reachBuildVector(V1.getOperand(0), sbv0);
       SDValue bv1 = reachBuildVector(V1.getOperand(1), sbv1);
@@ -2475,43 +2477,51 @@ SDValue TPCTargetLowering::lowerVECTOR_SHUFFLE(SDValue Op,
         SDValue s0, s1;
         s0 = reachScalar(bv0, 0, sbv0, DAG);
         s1 = reachScalar(bv1, 0, sbv1, DAG);
-        auto ScalarOprnd = DAG.getNode(opco, DL, EltT, s0, s1);
-        unsigned DataTypeVal = 0;
-        if (EltT == MVT::f32) {
-          DataTypeVal = TPCII::OpType::FP32;
-        } else if (EltT == MVT::bf16) {
-          DataTypeVal = TPCII::OpType::BF16;
-        } else if (EltT == MVT::f16) {
-          DataTypeVal = TPCII::OpType::FP16;
-        } else if (EltT == MVT::f8_143) {
-          DataTypeVal = TPCII::OpType::FP8_143;
-        } else if (EltT == MVT::f8_152) {
-          DataTypeVal = TPCII::OpType::FP8_152;
-        } else if (EltT == MVT::i32) {
-          DataTypeVal = TPCII::OpType::INT32;
-        } else if (EltT == MVT::i16) {
-          DataTypeVal = TPCII::OpType::INT16;
-        } else if (EltT == MVT::i8) {
-          DataTypeVal = TPCII::OpType::INT8;
-        }
-        SDValue Income = DAG.getUNDEF(VT);
-        SmallVector<SDValue, 8> Operands;
-        Operands.push_back(ScalarOprnd);
-        Operands.push_back(DAG.getTargetConstant(DataTypeVal, DL, MVT::i8));
-        Operands.push_back(DAG.getTargetConstant(0, DL, MVT::i32));
-        Operands.push_back(Income);
-        Operands.push_back(DAG.getRegister(TPC::SPRF_TRUE, MVT::i1));
-        Operands.push_back(DAG.getTargetConstant(0, DL, MVT::i1));
-        MachineSDNode *Node = DAG.getMachineNode(TPC::MOVvsp, DL, VT, Operands);
-        return SDValue(Node,0);
-#if 0
-        // Vector Now
-        SmallVector<SDValue, 256> Args;
-        for (int i = 0; i < ShuffleMask.size(); i++)
-          Args.push_back(ScalarOp);
-        return DAG.getNode(ISD::BUILD_VECTOR, DL, VT, Args);
-#endif
+        ScalarOprnd = DAG.getNode(opco, DL, EltT, s0, s1);
       }
+    } else if (V1.getNumOperands() == 1) {
+      // A splat of unary operations on a build_vector, e.g. fneg(splat x),
+      // which InstCombine writes as splat(fneg x) since LLVM 21. reachScalar
+      // applies the operations to the scalar.
+      if (SDValue bv0 = reachBuildVector(V1, sbv0))
+        ScalarOprnd = reachScalar(bv0, iqel, sbv0, DAG);
+    }
+    if (ScalarOprnd != SDValue()) {
+      unsigned DataTypeVal = 0;
+      if (EltT == MVT::f32) {
+        DataTypeVal = TPCII::OpType::FP32;
+      } else if (EltT == MVT::bf16) {
+        DataTypeVal = TPCII::OpType::BF16;
+      } else if (EltT == MVT::f16) {
+        DataTypeVal = TPCII::OpType::FP16;
+      } else if (EltT == MVT::f8_143) {
+        DataTypeVal = TPCII::OpType::FP8_143;
+      } else if (EltT == MVT::f8_152) {
+        DataTypeVal = TPCII::OpType::FP8_152;
+      } else if (EltT == MVT::i32) {
+        DataTypeVal = TPCII::OpType::INT32;
+      } else if (EltT == MVT::i16) {
+        DataTypeVal = TPCII::OpType::INT16;
+      } else if (EltT == MVT::i8) {
+        DataTypeVal = TPCII::OpType::INT8;
+      }
+      SDValue Income = DAG.getUNDEF(VT);
+      SmallVector<SDValue, 8> Operands;
+      Operands.push_back(ScalarOprnd);
+      Operands.push_back(DAG.getTargetConstant(DataTypeVal, DL, MVT::i8));
+      Operands.push_back(DAG.getTargetConstant(0, DL, MVT::i32));
+      Operands.push_back(Income);
+      Operands.push_back(DAG.getRegister(TPC::SPRF_TRUE, MVT::i1));
+      Operands.push_back(DAG.getTargetConstant(0, DL, MVT::i1));
+      MachineSDNode *Node = DAG.getMachineNode(TPC::MOVvsp, DL, VT, Operands);
+      return SDValue(Node,0);
+#if 0
+      // Vector Now
+      SmallVector<SDValue, 256> Args;
+      for (int i = 0; i < ShuffleMask.size(); i++)
+        Args.push_back(ScalarOp);
+      return DAG.getNode(ISD::BUILD_VECTOR, DL, VT, Args);
+#endif
     }
   }
 
@@ -11034,6 +11044,70 @@ static SDValue performVSelectCombine(SDNode *N, SelectionDAG &DAG,
   return SDValue();
 }
 
+// Folds of extract_vector_elt that TPC needs (see below), then:
+//
+// extract_vector_elt (bitcast (build_vector X0, X1, ...)), Idx
+//   -> trunc (srl Xk, Shift)
+// for integer elements, where each Xk covers Scale elements of the extracted
+// vector (TPC is little-endian). DAGCombiner does this for scalar_to_vector
+// only. Since LLVM 21 the combiner turns a concat_vectors with one used part
+// into such a build_vector, and TPC cannot select the i8 extract it leaves.
+static SDValue performExtractVectorEltCombine(SDNode *N, SelectionDAG &DAG) {
+  auto *IndexC = dyn_cast<ConstantSDNode>(N->getOperand(1));
+  SDValue Vec = N->getOperand(0);
+  if (!IndexC)
+    return SDValue();
+
+  // extract_vector_elt (setcc A, B, CC), Idx
+  //   -> setcc (extract_vector_elt A, Idx), (extract_vector_elt B, Idx), CC
+  // for index-space (v5i32) operands, which TPC compares element by element.
+  // VectorCombine forms such compares from scalar ones since LLVM 21, and
+  // select-to-and then wraps them in freeze; keep the freeze on the result.
+  bool Frozen = Vec.getOpcode() == ISD::FREEZE;
+  SDValue Cmp = Frozen ? Vec.getOperand(0) : Vec;
+  if (Cmp.getOpcode() == ISD::SETCC && Cmp.hasOneUse() &&
+      Cmp.getOperand(0).getValueType() == MVT::v5i32) {
+    SDLoc DL(N);
+    auto Elt = [&](SDValue V) {
+      return DAG.getNode(ISD::EXTRACT_VECTOR_ELT, DL, MVT::i32, V,
+                         N->getOperand(1));
+    };
+    SDValue Res =
+        DAG.getSetCC(DL, N->getValueType(0), Elt(Cmp.getOperand(0)),
+                     Elt(Cmp.getOperand(1)),
+                     cast<CondCodeSDNode>(Cmp.getOperand(2))->get());
+    return Frozen ? DAG.getFreeze(Res) : Res;
+  }
+
+  if (Vec.getOpcode() != ISD::BITCAST)
+    return SDValue();
+  SDValue BV = Vec.getOperand(0);
+  EVT VecVT = Vec.getValueType();
+  EVT BVVT = BV.getValueType();
+  if (BV.getOpcode() != ISD::BUILD_VECTOR || !VecVT.isInteger() ||
+      !BVVT.isVector() || !BVVT.isInteger())
+    return SDValue();
+  unsigned EltBits = VecVT.getScalarSizeInBits();
+  unsigned SrcBits = BVVT.getScalarSizeInBits();
+  if (SrcBits <= EltBits || SrcBits % EltBits != 0)
+    return SDValue();
+  unsigned Scale = SrcBits / EltBits;
+  uint64_t Idx = IndexC->getZExtValue();
+  if (Idx >= VecVT.getVectorNumElements())
+    return SDValue();
+  SDLoc DL(N);
+  EVT ResVT = N->getValueType(0);
+  SDValue X = BV.getOperand(Idx / Scale);
+  if (X.isUndef())
+    return DAG.getUNDEF(ResVT);
+  // Build_vector operands may be wider than the element type.
+  X = DAG.getAnyExtOrTrunc(X, DL, BVVT.getScalarType());
+  if (unsigned Shift = (Idx % Scale) * EltBits)
+    X = DAG.getNode(ISD::SRL, DL, X.getValueType(), X,
+                    DAG.getShiftAmountConstant(Shift, X.getValueType(), DL));
+  return DAG.getAnyExtOrTrunc(X, DL, ResVT);
+}
+
 SDValue TPCTargetLowering::PerformDAGCombine(SDNode *N,
                                              DAGCombinerInfo &DCI) const {
   SelectionDAG &DAG = DCI.DAG;
@@ -11051,6 +11125,8 @@ SDValue TPCTargetLowering::PerformDAGCombine(SDNode *N,
     return performShuffleCombine(N, DAG, DCI, Subtarget);
   case ISD::VSELECT:
     return performVSelectCombine(N, DAG, DCI, Subtarget);
+  case ISD::EXTRACT_VECTOR_ELT:
+    return performExtractVectorEltCombine(N, DAG);
   }
 
   return SDValue();

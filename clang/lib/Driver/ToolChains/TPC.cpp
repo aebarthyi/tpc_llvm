@@ -4,7 +4,7 @@
 
 #include "Arch/TPC.h"
 #include "TPC.h"
-#include "CommonArgs.h"
+#include "clang/Driver/CommonArgs.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "llvm/Support/Path.h"

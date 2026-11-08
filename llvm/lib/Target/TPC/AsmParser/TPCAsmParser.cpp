@@ -14,7 +14,7 @@
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/APSInt.h"
-#include "llvm/MC/MCParser/MCAsmLexer.h"
+#include "llvm/MC/MCParser/AsmLexer.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/ADT/SmallBitVector.h"
 #include "llvm/ADT/STLExtras.h"
@@ -23,7 +23,7 @@
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCSectionELF.h"
-#include "llvm/MC/MCFragment.h"
+#include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstBuilder.h"
 #include "llvm/MC/MCParser/MCParsedAsmOperand.h"
@@ -804,7 +804,7 @@ public:
   /// operand.
   SMRange getLocRange() const { return SMRange(StartLoc, EndLoc); }
 
-  void print(raw_ostream &OS) const override {
+  void print(raw_ostream &OS, const MCAsmInfo &MAI) const override {
     switch (Kind) {
     case OpKind::Token:
       OS << "Tok: " << Token.Data;
@@ -906,7 +906,7 @@ class TPCAsmParser : public MCTargetAsmParser {
 
 private:
   MCAsmParser &Parser;
-  MCAsmLexer &Lexer;
+  AsmLexer &Lexer;
   TPCAsmInstCompress AC;
   const MCRegisterInfo *MRI;
   const MCRegisterClass &SPRegClass;
@@ -954,12 +954,21 @@ public:
     LLVM_DEBUG(dbgs() << "Label detected: " << Symbol->getName() << "\n");
   }
 
+  // Bundle braces start statements; the generic parser stopped accepting
+  // them itself in LLVM 21.
+  bool tokenIsStartOfStatement(AsmToken::TokenKind Token) override {
+    return Token == AsmToken::LCurly || Token == AsmToken::RCurly;
+  }
+
   void onEndOfFile() override {
     for (const StringRef &Label : OperatorLabels)
       if (FreeLabels.find(Label) == FreeLabels.end())
         Error(SMLoc::getFromPointer(Label.begin()), "missing label",
               SMRange(SMLoc::getFromPointer(Label.begin()),
                       SMLoc::getFromPointer(Label.end())));
+    // The generic parser no longer flushes at the end of the file (LLVM 21);
+    // the last flush also writes .tpc_metadata, .KernelInfo and .IndexMap.
+    flushPendingInstructions(getParser().getStreamer());
   }
 
 private:
@@ -994,18 +1003,18 @@ private:
                                  StringRef Mnemonic, StringRef Value,
                                  OperandVector &Operands, SMLoc Start, SMLoc End);
 
-  OperandMatchResultTy parseOperand(OperandVector &Operands, StringRef Mnemonic);
-  OperandMatchResultTy parsePredicate(OperandVector &Operands);
-  OperandMatchResultTy parseComparison(OperandVector &Operands);
-  OperandMatchResultTy parseRegister(OperandVector &Operands);
-  OperandMatchResultTy parseNumber(OperandVector &Operands);
-  OperandMatchResultTy parseImmediate(OperandVector &Operands);
-  OperandMatchResultTy parseMemRI(OperandVector &Operands);
+  ParseStatus parseOperand(OperandVector &Operands, StringRef Mnemonic);
+  ParseStatus parsePredicate(OperandVector &Operands);
+  ParseStatus parseComparison(OperandVector &Operands);
+  ParseStatus parseRegister(OperandVector &Operands);
+  ParseStatus parseNumber(OperandVector &Operands);
+  ParseStatus parseImmediate(OperandVector &Operands);
+  ParseStatus parseMemRI(OperandVector &Operands);
   bool parseAsSeparateSwitch(StringRef Switch, StringRef Mnemonic,
                              SMRange Range, OperandVector &Operands,
                              unsigned SwitchValue, TPCOperand *SpecialOperand);
 
-  OperandMatchResultTy parseRhu(OperandVector &Operands) {
+  ParseStatus parseRhu(OperandVector &Operands) {
     SMLoc S = Parser.getTok().getLoc();
     const AsmToken &Tok = Parser.getTok();
     StringRef RhuFlagStr = Tok.getString();
@@ -1017,13 +1026,13 @@ private:
     if (RHU != ~0U) {
       Parser.Lex(); // Eat identifier token.
       Operands.push_back(TPCOperand::CreateRhu(int64_t(RHU), S, S));
-      return MatchOperand_Success;
+      return ParseStatus::Success;
     } else {
-      return MatchOperand_NoMatch;
+      return ParseStatus::NoMatch;
     }
   }
 
-  OperandMatchResultTy parseRhazRs(OperandVector &Operands) {
+  ParseStatus parseRhazRs(OperandVector &Operands) {
     SMLoc S = Parser.getTok().getLoc();
     const AsmToken &Tok = Parser.getTok();
     StringRef RhazRsFlagStr = Tok.getString();
@@ -1035,13 +1044,13 @@ private:
     if (RhazRs != ~0U) {
       Parser.Lex(); // Eat identifier token.
       Operands.push_back(TPCOperand::CreateRhazRs(int64_t(RhazRs), S, S));
-      return MatchOperand_Success;
+      return ParseStatus::Success;
     } else {
-      return MatchOperand_NoMatch;
+      return ParseStatus::NoMatch;
     }
   }
 
-  OperandMatchResultTy parseBiased(OperandVector &Operands) {
+  ParseStatus parseBiased(OperandVector &Operands) {
     SMLoc S = Parser.getTok().getLoc();
     const AsmToken &Tok = Parser.getTok();
     StringRef BiasedFlagStr = Tok.getString();
@@ -1053,14 +1062,14 @@ private:
     if (Biased != ~0U) {
       Parser.Lex(); // Eat identifier token.
       Operands.push_back(TPCOperand::CreateBiased(int64_t(Biased), S, S));
-      return MatchOperand_Success;
+      return ParseStatus::Success;
     }
     else {
-      return MatchOperand_NoMatch;
+      return ParseStatus::NoMatch;
     }
   }
 
-  OperandMatchResultTy parseGroupDesc(OperandVector &Operands) {
+  ParseStatus parseGroupDesc(OperandVector &Operands) {
     static StringRef incorrectGroupDesc = "Unexpected group description.";
 
     static std::map<StringRef, unsigned> maxValues {
@@ -1081,31 +1090,31 @@ private:
       Parser.Lex(); // Eat identifier token.
       if (Tok.getString() != "=") {
         Error(S, incorrectGroupDesc);
-        return MatchOperand_ParseFail;
+        return ParseStatus::Failure;
       }
 
       Parser.Lex();
       if (!Tok.is(AsmToken::Integer)) {
         Error(S, incorrectGroupDesc);
-        return MatchOperand_ParseFail;
+        return ParseStatus::Failure;
       }
 
       int64_t val = Tok.getIntVal();
       Parser.Lex(); // Eat value.
       if (val > maxValues[groupDesc.lower()]) {
         Error(S, incorrectGroupDesc);
-        return MatchOperand_ParseFail;
+        return ParseStatus::Failure;
       }
 
       Operands.push_back(TPCOperand::CreateGroupDesc(int64_t(val), S, S));
-      return MatchOperand_Success;
+      return ParseStatus::Success;
     }
 
-    return MatchOperand_NoMatch;
+    return ParseStatus::NoMatch;
   }
 
 
-  OperandMatchResultTy parseRegSelFrom(OperandVector &Operands) {
+  ParseStatus parseRegSelFrom(OperandVector &Operands) {
     SMLoc S = Parser.getTok().getLoc();
     const AsmToken &Tok = Parser.getTok();
     StringRef opName = Tok.getString();
@@ -1120,13 +1129,13 @@ private:
     if (regSel != ~0U) {
       Parser.Lex();
       Operands.push_back(TPCOperand::CreateRegSelFrom(opName, int64_t(regSel), S, S));
-      return MatchOperand_Success;
+      return ParseStatus::Success;
     }
     else {
-      return MatchOperand_NoMatch;
+      return ParseStatus::NoMatch;
     }
   }
-  OperandMatchResultTy parseRegSelTo(OperandVector &Operands) {
+  ParseStatus parseRegSelTo(OperandVector &Operands) {
     SMLoc S = Parser.getTok().getLoc();
     const AsmToken &Tok = Parser.getTok();
     StringRef opName = Tok.getString();
@@ -1155,14 +1164,14 @@ private:
     if (regSel != ~0U) {
       Parser.Lex();
       Operands.push_back(TPCOperand::CreateRegSelTo(opName, int64_t(regSel), S, S));
-      return MatchOperand_Success;
+      return ParseStatus::Success;
     }
     else {
-      return MatchOperand_NoMatch;
+      return ParseStatus::NoMatch;
     }
   }
 
-  OperandMatchResultTy parseBothDivMod(OperandVector &Operands) {
+  ParseStatus parseBothDivMod(OperandVector &Operands) {
     SMLoc S = Parser.getTok().getLoc();
     const AsmToken &Tok = Parser.getTok();
     StringRef OpName = Tok.getString();
@@ -1175,9 +1184,9 @@ private:
       Parser.Lex(); // Eat identifier token.
       Operands.push_back(TPCOperand::CreateBothDivMod(
                            TPCII::SW_DIV_MODE_BOTH,S, S));
-      return MatchOperand_Success;
+      return ParseStatus::Success;
     } else {
-      return MatchOperand_NoMatch;
+      return ParseStatus::NoMatch;
     }
   }
 
@@ -1217,7 +1226,7 @@ private:
              bool MatchingInlineAsm = false) {
     MCAsmParser &Parser = getParser();
     if (MatchingInlineAsm) {
-      if (!getLexer().isAtStartOfStatement())
+      if (!getLexer().justConsumedEOL())
         eatToEndOfLine();
       return false;
     }
@@ -1336,7 +1345,7 @@ bool TPCAsmParser::ParseImmediate(const MCExpr *&Val, SMLoc &StartLoc, SMLoc &En
 }
 
 
-OperandMatchResultTy TPCAsmParser::parsePredicate(OperandVector &Operands) {
+ParseStatus TPCAsmParser::parsePredicate(OperandVector &Operands) {
   SMLoc StartLoc = Lexer.getTok().getLoc();
 
   // Optional '!'.
@@ -1347,15 +1356,15 @@ OperandMatchResultTy TPCAsmParser::parsePredicate(OperandVector &Operands) {
   }
 
   // If '!' is encountered, it must be a predicate, otherwise it is an error.
-  OperandMatchResultTy FailResult = Inversion ? MatchOperand_ParseFail
-                                              : MatchOperand_NoMatch;
+  ParseStatus FailResult = Inversion ? ParseStatus::Failure
+                                              : ParseStatus::NoMatch;
 
   // Register name.
   AsmToken RegisterTok = Lexer.getTok();
   SMLoc EndLoc = RegisterTok.getEndLoc();
 
   if (RegisterTok.isNot(AsmToken::Identifier)) {
-    if (FailResult == MatchOperand_ParseFail) {
+    if (FailResult.isFailure()) {
       Parser.Lex();
       Error(StartLoc, "expected predicate register", SMRange(StartLoc, EndLoc));
     }
@@ -1368,7 +1377,7 @@ OperandMatchResultTy TPCAsmParser::parsePredicate(OperandVector &Operands) {
     RegNo = MatchRegisterName(RegisterTok.getString().lower());
 
   if (RegNo == 0) {
-    if (FailResult == MatchOperand_ParseFail) {
+    if (FailResult.isFailure()) {
       Parser.Lex();
       Error(StartLoc, "expected predicate register", SMRange(StartLoc, EndLoc));
     }
@@ -1377,7 +1386,7 @@ OperandMatchResultTy TPCAsmParser::parsePredicate(OperandVector &Operands) {
 
   bool IsVectopPred = VPRegClass.contains(RegNo);
   if (!SPRegClass.contains(RegNo) && !IsVectopPred) {
-    if (FailResult == MatchOperand_ParseFail) {
+    if (FailResult.isFailure()) {
       Parser.Lex();
       Error(StartLoc, "expected predicate register", SMRange(StartLoc, EndLoc));
     }
@@ -1391,7 +1400,7 @@ OperandMatchResultTy TPCAsmParser::parsePredicate(OperandVector &Operands) {
     assert(Op.isToken() && "Leading operand should always be a mnemonic!");
     StringRef Mnemonic = Op.getToken();
     if (!canLastArgBeAPredicate(Mnemonic, Operands))
-      return MatchOperand_NoMatch;
+      return ParseStatus::NoMatch;
   }
 
   Parser.Lex();
@@ -1399,11 +1408,11 @@ OperandMatchResultTy TPCAsmParser::parsePredicate(OperandVector &Operands) {
     TPCOperand::CreatePredicate(RegNo, Inversion,
                                 getPredicateKind(RegNo) == VectorPredicate,
                                 StartLoc, EndLoc));
-  return MatchOperand_Success;
+  return ParseStatus::Success;
 }
 
 
-OperandMatchResultTy TPCAsmParser::parseComparison(OperandVector &Operands) {
+ParseStatus TPCAsmParser::parseComparison(OperandVector &Operands) {
   const AsmToken &Tok = Lexer.getTok();
 
   LoopCompare Result;
@@ -1420,21 +1429,21 @@ OperandMatchResultTy TPCAsmParser::parseComparison(OperandVector &Operands) {
   else if (Tok.is(AsmToken::ExclaimEqual))
     Result = LoopCompare::NE;
   else
-    return MatchOperand_NoMatch;
+    return ParseStatus::NoMatch;
 
   SMLoc StartLoc = Tok.getLoc();
   SMLoc EndLoc = Tok.getEndLoc();
   Parser.Lex();
   Operands.push_back(TPCOperand::CreateComparison(Result, StartLoc, EndLoc));
-  return MatchOperand_Success;
+  return ParseStatus::Success;
 }
 
 
-OperandMatchResultTy TPCAsmParser::parseRegister(OperandVector &Operands) {
+ParseStatus TPCAsmParser::parseRegister(OperandVector &Operands) {
   MCAsmParser &Parser = getParser();
   const AsmToken &Tok = Parser.getTok();
   if (Tok.isNot(AsmToken::Identifier))
-    return MatchOperand_NoMatch;
+    return ParseStatus::NoMatch;
 
   StringRef IdValue = Tok.getString();
   unsigned RegNo = MatchRegisterName(IdValue.upper());
@@ -1442,24 +1451,24 @@ OperandMatchResultTy TPCAsmParser::parseRegister(OperandVector &Operands) {
     if (IdValue.starts_with_insensitive("d") || IdValue.starts_with_insensitive("a")) {
       StringRef Number = IdValue.drop_front(1);
       if (Number.consumeInteger(10, RegNo))
-        return MatchOperand_NoMatch;
+        return ParseStatus::NoMatch;
       if (!Number.empty())
-        return MatchOperand_NoMatch;
+        return ParseStatus::NoMatch;
       if (IdValue.starts_with_insensitive("d")) {
         if (RegNo % 2) {
           Error(Tok.getLoc(), "Pair of registers must start with register of even number", SMRange(Tok.getLoc(), Tok.getEndLoc()));
           Parser.Lex();
-          return MatchOperand_ParseFail;
+          return ParseStatus::Failure;
         }
       } else {
         if (RegNo % 4) {
           Error(Tok.getLoc(), "Quad of registers must start with register which number is a multiple of 4", SMRange(Tok.getLoc(), Tok.getEndLoc()));
           Parser.Lex();
-          return MatchOperand_ParseFail;
+          return ParseStatus::Failure;
         }
       }
     }
-    return MatchOperand_NoMatch;
+    return ParseStatus::NoMatch;
   }
 
   SMLoc StartLoc = Tok.getLoc();
@@ -1478,11 +1487,11 @@ OperandMatchResultTy TPCAsmParser::parseRegister(OperandVector &Operands) {
     }
   Parser.Lex();
   Operands.push_back(TPCOperand::CreateReg(RegNo, RegClassNo, StartLoc, EndLoc));
-  return MatchOperand_Success;
+  return ParseStatus::Success;
 }
 
 
-OperandMatchResultTy TPCAsmParser::parseNumber(OperandVector &Operands) {
+ParseStatus TPCAsmParser::parseNumber(OperandVector &Operands) {
   AsmToken Sign = Lexer.getTok();
   SMLoc StartLoc = Sign.getLoc();
 
@@ -1499,7 +1508,7 @@ OperandMatchResultTy TPCAsmParser::parseNumber(OperandVector &Operands) {
   if (Number.isNot(AsmToken::Integer) && Number.isNot(AsmToken::Real)) {
     if (Negative)
       Lexer.UnLex(Sign);
-    return MatchOperand_NoMatch;
+    return ParseStatus::NoMatch;
   }
   consumeToken();
 
@@ -1509,7 +1518,7 @@ OperandMatchResultTy TPCAsmParser::parseNumber(OperandVector &Operands) {
     if (consumeSignedInteger(Digits, 0, Value)) {
       Error(StartLoc, "invalid number", SMRange(StartLoc, EndLoc));
       Operands.push_back(std::unique_ptr<TPCOperand>());
-      return MatchOperand_ParseFail;
+      return ParseStatus::Failure;
     } else {
       // Parse the suffix for integer type.
       // 'u' and 'U' supported. The lexer skips them without making a token, so
@@ -1521,7 +1530,7 @@ OperandMatchResultTy TPCAsmParser::parseNumber(OperandVector &Operands) {
           Error(Lexer.getTok().getLoc(), "the invalid suffix for a negative integer",
                 SMRange(StartLoc, EndLoc));
           Operands.push_back(std::unique_ptr<TPCOperand>());
-          return MatchOperand_ParseFail;
+          return ParseStatus::Failure;
         }
       }
       Operands.push_back(TPCOperand::CreateImm(Negative ? -Value : Value,
@@ -1545,7 +1554,7 @@ OperandMatchResultTy TPCAsmParser::parseNumber(OperandVector &Operands) {
         Error(Suffix.getLoc(), "invalid suffix for real number",
               SMRange(StartLoc, EndLoc));
         Operands.push_back(std::unique_ptr<TPCOperand>());
-        return MatchOperand_ParseFail;
+        return ParseStatus::Failure;
       }
     }
 
@@ -1572,21 +1581,21 @@ OperandMatchResultTy TPCAsmParser::parseNumber(OperandVector &Operands) {
     if (Status & APFloat::opUnderflow) {
       Error(StartLoc, "Type underflow", SMRange(StartLoc, EndLoc));
       Operands.push_back(std::unique_ptr<TPCOperand>());
-      return MatchOperand_ParseFail;
+      return ParseStatus::Failure;
     } else if (Status & APFloat::opOverflow) {
       Error(StartLoc, "Type overflow", SMRange(StartLoc, EndLoc));
       Operands.push_back(std::unique_ptr<TPCOperand>());
-      return MatchOperand_ParseFail;
+      return ParseStatus::Failure;
     } else if (Status & APFloat::opInvalidOp) {
       assert(false);
     }
   }
 
-  return MatchOperand_Success;
+  return ParseStatus::Success;
 }
 
 
-OperandMatchResultTy TPCAsmParser::parseImmediate(OperandVector &Operands) {
+ParseStatus TPCAsmParser::parseImmediate(OperandVector &Operands) {
   const AsmToken &Tok = Lexer.getTok();
   SMLoc StartLoc = Tok.getLoc();
   SMLoc EndLoc = Tok.getEndLoc();
@@ -1596,7 +1605,7 @@ OperandMatchResultTy TPCAsmParser::parseImmediate(OperandVector &Operands) {
     return parseNumber(Operands);
 
   if (Tok.isNot(AsmToken::Identifier))
-    return MatchOperand_NoMatch;
+    return ParseStatus::NoMatch;
 
   StringRef Identifier = Tok.getString();
 
@@ -1606,34 +1615,34 @@ OperandMatchResultTy TPCAsmParser::parseImmediate(OperandVector &Operands) {
   bool IsFloat = Identifier.starts_with_insensitive("f");
   bool IsBFloat16 = Identifier.starts_with_insensitive("bf");
   if (!IsUnsigned && !IsSigned && !IsFloat && !IsBFloat16)
-    return MatchOperand_NoMatch;
+    return ParseStatus::NoMatch;
 
   StringRef Remainder = Identifier.drop_front(IsBFloat16 ? 2 : 1);
   unsigned BitWidth = 0;
   if (Remainder.starts_with("32_")) {
     if (IsBFloat16)
-      return MatchOperand_NoMatch;
+      return ParseStatus::NoMatch;
     BitWidth = 32;
     Remainder = Remainder.drop_front(3);
   } else if (Remainder.starts_with("16_")) {
     if (IsFloat)
-      return MatchOperand_NoMatch;
+      return ParseStatus::NoMatch;
     BitWidth = 16;
     Remainder = Remainder.drop_front(3);
   } else if (Remainder.starts_with("8_")) {
     if (IsFloat || IsBFloat16)
-      return MatchOperand_NoMatch;
+      return ParseStatus::NoMatch;
     BitWidth = 8;
     Remainder = Remainder.drop_front(2);
   }
   if (!BitWidth)
-    return MatchOperand_NoMatch;
+    return ParseStatus::NoMatch;
 
   if (IsFloat || IsBFloat16) {
     // TODO: ammend identifier with fractional/exponential part.
     double Value;
     if (Remainder.getAsDouble(Value))
-      return MatchOperand_NoMatch;
+      return ParseStatus::NoMatch;
     consumeToken();   // No rollbacks anymore.
     const fltSemantics &FSem =
         (BitWidth == 32)
@@ -1646,14 +1655,14 @@ OperandMatchResultTy TPCAsmParser::parseImmediate(OperandVector &Operands) {
     if (Status != APFloat::opOK && Status != APFloat::opInexact) {
       Error(StartLoc, "invalid number", SMRange(StartLoc, EndLoc));
       Operands.push_back(std::unique_ptr<TPCOperand>());
-      return MatchOperand_ParseFail;
+      return ParseStatus::Failure;
     }
     APInt IntVal = BinValue.bitcastToAPInt();
     assert(IntVal.getBitWidth() == BitWidth);
     Operands.push_back(
       TPCOperand::CreateImm(IntVal.getLimitedValue(),
                             Tok.getLoc(), Tok.getEndLoc()));
-    return MatchOperand_Success;
+    return ParseStatus::Success;
   }
   if (IsUnsigned) {
     // Unsigned constants may be specified by hexadecimal notation.
@@ -1664,11 +1673,11 @@ OperandMatchResultTy TPCAsmParser::parseImmediate(OperandVector &Operands) {
     }
     unsigned Value;
     if (Remainder.consumeInteger(Radix, Value))
-      return MatchOperand_NoMatch;
+      return ParseStatus::NoMatch;
     consumeToken(); // No rollbacks anymore.
     Operands.push_back(
         TPCOperand::CreateImm(Value, Tok.getLoc(), Tok.getEndLoc()));
-    return MatchOperand_Success;
+    return ParseStatus::Success;
   }
 
   // Signed number is allowed to have minus sign, like i32_-12. Such constants
@@ -1687,29 +1696,29 @@ OperandMatchResultTy TPCAsmParser::parseImmediate(OperandVector &Operands) {
   }
   long long Value;
   if (consumeSignedInteger(Remainder, Radix, Value))
-    return MatchOperand_NoMatch;
+    return ParseStatus::NoMatch;
   consumeToken(); // No rollbacks anymore.
 
   Operands.push_back(TPCOperand::CreateImm(Value, Tok.getLoc(), Tok.getEndLoc()));
-  return MatchOperand_Success;
+  return ParseStatus::Success;
 }
 
 
-OperandMatchResultTy TPCAsmParser::parseMemRI(OperandVector &Operands) {
+ParseStatus TPCAsmParser::parseMemRI(OperandVector &Operands) {
   // TODO: check expression?
-  OperandMatchResultTy Result = parseImmediate(Operands);
-  if (Result != MatchOperand_Success)
+  ParseStatus Result = parseImmediate(Operands);
+  if (!Result.isSuccess())
     return Result;
 
   // TODO: to make this method a checker, we must implement token stream rollback.
   AsmToken CommaTok = Lexer.getTok();
   if (CommaTok.isNot(AsmToken::Comma))
-    return MatchOperand_ParseFail;
+    return ParseStatus::Failure;
   consumeToken();
 
   Result = parseRegister(Operands);
-  if (Result != MatchOperand_Success)
-    return MatchOperand_ParseFail;
+  if (!Result.isSuccess())
+    return ParseStatus::Failure;
 
   // Swap the last two operands.
   unsigned Size = Operands.size();
@@ -1724,7 +1733,7 @@ OperandMatchResultTy TPCAsmParser::parseMemRI(OperandVector &Operands) {
       ImmOperand->getStartLoc(),
       RegOperand->getEndLoc()));
 
-  return MatchOperand_Success;
+  return ParseStatus::Success;
 }
 
 
@@ -1774,23 +1783,23 @@ static StringRef getSwitchForIntegerOperand(OperandVector &Operands, StringRef M
   return StringRef();
 }
 
-OperandMatchResultTy TPCAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
+ParseStatus TPCAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
   const AsmToken &Tok = Lexer.getTok();
   SMLoc StartLoc = Tok.getLoc();
   SMLoc EndLoc = Tok.getEndLoc();
 
-  OperandMatchResultTy ResTy = MatchOperandParserImpl(Operands, Mnemonic);
+  ParseStatus ResTy = MatchOperandParserImpl(Operands, Mnemonic);
 
   // If there wasn't a custom match, try the generic matcher below. Otherwise,
   // there was a match, but an error occurred, in which case, just return that
   // the operand parsing failed.
-  if (ResTy == MatchOperand_Success || ResTy == MatchOperand_ParseFail)
+  if (ResTy.isSuccess() || ResTy.isFailure())
     return ResTy;
 
   if(Tok.is(AsmToken::BigNum)) {
     Error(StartLoc, "Type overflow", SMRange(StartLoc, EndLoc));
     Operands.push_back(std::unique_ptr<TPCOperand>());
-    return MatchOperand_ParseFail;
+    return ParseStatus::Failure;
   }
 
   if (Tok.is(AsmToken::Integer) || Tok.is(AsmToken::Real)) {
@@ -1800,17 +1809,17 @@ OperandMatchResultTy TPCAsmParser::parseOperand(OperandVector &Operands, StringR
       switch (processSwitch(SwitchGroup, CurrentSlot, Mnemonic, Identifier, Operands, StartLoc, EndLoc)) {
       case SwitchParseState::Ok:
         consumeToken();
-        return MatchOperand_Success;
+        return ParseStatus::Success;
       case SwitchParseState::Error:
-        return MatchOperand_ParseFail;
+        return ParseStatus::Failure;
       case SwitchParseState::Unknown:
-        return MatchOperand_NoMatch;
+        return ParseStatus::NoMatch;
       }
     }
   }
 
   ResTy = parseImmediate(Operands);
-  if (ResTy == MatchOperand_Success || ResTy == MatchOperand_ParseFail)
+  if (ResTy.isSuccess() || ResTy.isFailure())
     return ResTy;
 
   // !SP1
@@ -1822,14 +1831,14 @@ OperandMatchResultTy TPCAsmParser::parseOperand(OperandVector &Operands, StringR
       if (getPredicateKind(RegNo) == NotAPredicate) {
         Error(StartLoc, "expected predicate register", SMRange(StartLoc, EndLoc));
         Operands.push_back(std::unique_ptr<TPCOperand>());
-        return MatchOperand_ParseFail;
+        return ParseStatus::Failure;
       }
       Operands.push_back(TPCOperand::CreatePredicate(RegNo, true, PredKind == VectorPredicate, StartLoc, EndLoc));
-      return MatchOperand_Success;
+      return ParseStatus::Success;
     } else {
       Error(StartLoc, "expected predicate register", SMRange(StartLoc, EndLoc));
       Operands.push_back(std::unique_ptr<TPCOperand>());
-      return MatchOperand_ParseFail;
+      return ParseStatus::Failure;
     }
   }
 
@@ -1838,8 +1847,8 @@ OperandMatchResultTy TPCAsmParser::parseOperand(OperandVector &Operands, StringR
     StringRef SwitchValue;
 
     // Register.
-    if (parseRegister(Operands) == MatchOperand_Success)
-      return MatchOperand_Success;
+    if (parseRegister(Operands).isSuccess())
+      return ParseStatus::Success;
 
     // If identifier is followed by '=' sign, it is a switch.
     AsmToken IdentifierTok = Tok;
@@ -1853,24 +1862,24 @@ OperandMatchResultTy TPCAsmParser::parseOperand(OperandVector &Operands, StringR
       } else {
         Error(StartLoc, "expected integer number or identifier", SMRange(Tok.getLoc(), Tok.getEndLoc()));
         Operands.push_back(std::unique_ptr<TPCOperand>());
-        return MatchOperand_ParseFail;
+        return ParseStatus::Failure;
       }
     }
 
     // Try parsing identifier as switch.
     switch (processSwitch(Identifier, CurrentSlot, Mnemonic, SwitchValue, Operands, StartLoc, EndLoc)) {
     case SwitchParseState::Ok:
-      return MatchOperand_Success;
+      return ParseStatus::Success;
     case SwitchParseState::Error:
       Operands.push_back(std::unique_ptr<TPCOperand>());
-      return MatchOperand_ParseFail;
+      return ParseStatus::Failure;
     default:
       break;
     }
     if (!SwitchValue.empty()) {
       Error(StartLoc, "cannot parse as a switch", SMRange(StartLoc, EndLoc));
       Operands.push_back(std::unique_ptr<TPCOperand>());
-      return MatchOperand_ParseFail;
+      return ParseStatus::Failure;
     }
 
     Lexer.UnLex(IdentifierTok);
@@ -1882,30 +1891,30 @@ OperandMatchResultTy TPCAsmParser::parseOperand(OperandVector &Operands, StringR
       if (Remainder.size() > 5) {
         Error(StartLoc, "too long dimmask", SMRange(StartLoc, EndLoc));
         Operands.push_back(std::unique_ptr<TPCOperand>());
-        return MatchOperand_ParseFail;
+        return ParseStatus::Failure;
       }
       if (Remainder.size() < 5) {
         Error(StartLoc, "too short dimmask", SMRange(StartLoc, EndLoc));
         Operands.push_back(std::unique_ptr<TPCOperand>());
-        return MatchOperand_ParseFail;
+        return ParseStatus::Failure;
       }
       unsigned Value;
       if (Remainder.consumeInteger(2, Value)) {
         Error(StartLoc, "invalid number", SMRange(StartLoc, EndLoc));
         Operands.push_back(std::unique_ptr<TPCOperand>());
-        return MatchOperand_ParseFail;
+        return ParseStatus::Failure;
       }
       Operands.push_back(TPCOperand::CreateDimMask(Value, StartLoc, EndLoc));
-      return MatchOperand_Success;
+      return ParseStatus::Success;
     }
 
     // Generic integer expression.
     const MCExpr *Expr;
     SMLoc NewEndLoc;
     if (getParser().parseExpression(Expr, NewEndLoc))
-      return MatchOperand_ParseFail;
+      return ParseStatus::Failure;
     Operands.push_back(TPCOperand::CreateImm(Expr, StartLoc, NewEndLoc));
-    return MatchOperand_Success;
+    return ParseStatus::Success;
   }
 
   // Immediate
@@ -1913,12 +1922,12 @@ OperandMatchResultTy TPCAsmParser::parseOperand(OperandVector &Operands, StringR
     const MCExpr *Val;
     if (!ParseImmediate(Val, StartLoc, EndLoc))
       Operands.push_back(TPCOperand::CreateImm(Val, StartLoc, EndLoc));
-    return MatchOperand_Success;
+    return ParseStatus::Success;
   }
 
   Error(StartLoc, "unrecognized operand", SMRange(StartLoc, EndLoc));
   Operands.push_back(std::unique_ptr<TPCOperand>());
-  return MatchOperand_ParseFail;
+  return ParseStatus::Failure;
 }
 
 
@@ -2080,7 +2089,7 @@ bool TPCAsmParser::parseInstruction(ParseInstructionInfo &Info,
   }
 
   MCAsmParser &Parser = getParser();
-  MCAsmLexer &Lexer = getLexer();
+  AsmLexer &Lexer = getLexer();
 
   // If the current slot is undefined, check if we are parsing a solo
   // instruction. If not, change slot from Unknown to Load.
@@ -2230,7 +2239,7 @@ bool TPCAsmParser::parseInstruction(ParseInstructionInfo &Info,
   if (Lexer.isNot(AsmToken::EndOfStatement) && Lexer.isNot(AsmToken::Eof)) {
     // Read the operands.
     while (true) {
-      if (parseOperand(Operands, BareMnemonic) != MatchOperand_Success)
+      if (!parseOperand(Operands, BareMnemonic).isSuccess())
         return true;
       TPCOperand &LastOp = static_cast<TPCOperand &>(*Operands.back());
       // Check for comma and eat it.
@@ -2470,7 +2479,7 @@ bool TPCAsmParser::ParseDirective(AsmToken DirectiveID) {
 
   // The section was parsed (or an error reported), so the directive is ours.
   // Skip what is left of the statement, as the generic parser used to.
-  if (!getLexer().isAtStartOfStatement())
+  if (!getLexer().justConsumedEOL())
     getParser().eatToEndOfStatement();
   return false;
 }

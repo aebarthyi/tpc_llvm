@@ -32,25 +32,17 @@ public:
 
   // MCELFObjectTargetWriter interface
 public:
-  unsigned getRelocType(MCContext& Ctx, const MCValue& Target, const MCFixup& Fixup, bool IsPCRel) const {
-    MCSymbolRefExpr::VariantKind Modifier = Target.getAccessVariant();
-    unsigned Kind = Fixup.getKind();
-    switch (Modifier) {
-    case MCSymbolRefExpr::VK_None:
-      if (IsPCRel) {
-        return 0;
-        //llvm_unreachable("Relocatable fixups are not supported");
-      } else {
-        switch (Kind) {
-        case FK_Data_4:
-          return ELF::R_386_32;
-        default:
-          llvm_unreachable("Unknown ELF relocation type");
-        }
-      }
-
-    default:
+  unsigned getRelocType(const MCFixup &Fixup, const MCValue &Target,
+                        bool IsPCRel) const override {
+    if (Target.getSpecifier())
       llvm_unreachable("Modifier not supported");
+    if (IsPCRel)
+      return 0;
+    switch (Fixup.getKind()) {
+    case FK_Data_4:
+      return ELF::R_386_32;
+    default:
+      llvm_unreachable("Unknown ELF relocation type");
     }
   }
 };

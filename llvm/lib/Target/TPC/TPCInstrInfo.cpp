@@ -473,8 +473,8 @@ unsigned TPCInstrInfo::convertHWRegToMemAddress(unsigned HWReg) const {
 
 void TPCInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                MachineBasicBlock::iterator I,
-                               const DebugLoc &DL, MCRegister DestReg,
-                               MCRegister SrcReg, bool KillSrc,
+                               const DebugLoc &DL, Register DestReg,
+                               Register SrcReg, bool KillSrc,
                                bool RenamableDest, bool RenamableSrc) const {
   const TargetRegisterInfo &TRI = getRegisterInfo();
 
@@ -3669,7 +3669,7 @@ void TPCInstrInfo::genAlternativeCodeSequence(
     MachineInstr &Root, unsigned Pattern,
     SmallVectorImpl<MachineInstr *> &InsInstrs,
     SmallVectorImpl<MachineInstr *> &DelInstrs,
-    DenseMap<unsigned, unsigned> &InstrIdxForVirtReg) const {
+    DenseMap<Register, unsigned> &InstrIdxForVirtReg) const {
   MachineFunctionX2 = Root.getParent()->getParent();
   return m_tpcx2Util.getMACX2Sequence(Root, InsInstrs, DelInstrs);
 }

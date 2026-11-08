@@ -1359,7 +1359,9 @@ bool Sema::checkBeforeCodegen(Decl *D) {
     if (auto *FD = dyn_cast<FunctionDecl>(D)) {
       if (FD->getDeclContext()->isTranslationUnit() &&
           FD->getName() == LangOpts.MainFunction) {
-        FD->addAttr(OpenCLKernelAttr::CreateImplicit(Context));
+        // The generic device_kernel spelling: an OpenCL-spelled kernel would
+        // get an OpenCL kernel stub (__clang_ocl_kern_imp_main) in CodeGen.
+        FD->addAttr(DeviceKernelAttr::CreateImplicit(Context));
       } else {
         if ((FD->getStorageClass() != SC_Extern) &&
             FD->isThisDeclarationADefinition() &&
@@ -1399,7 +1401,7 @@ void Sema::checkTranslationUnin() {
     DeclarationNameInfo DNI(DN, SourceLocation());
     LookupResult R(*this, DNI, LookupOrdinaryName);
     LookupName(R, TUScope);
-    if (R.getResultKind() != LookupResult::Found ||
+    if (R.getResultKind() != LookupResultKind::Found ||
         !isa<FunctionDecl>(R.getFoundDecl())) {
       Diag(SourceLocation(), diag::err_main_not_found);
       return;
@@ -1459,7 +1461,7 @@ void Sema::checkTranslationUnin() {
     DeclarationNameInfo DNII(DN1, SourceLocation());
     LookupResult RI(*this, DNII, LookupOrdinaryName);
     LookupName(RI, TUScope);
-    assert(RI.getResultKind() == LookupResult::Found);
+    assert(RI.getResultKind() == LookupResultKind::Found);
     FunctionDecl *FDI = cast<FunctionDecl>(RI.getFoundDecl());
     FDI->setBody(FnBody);
     Consumer.HandleTopLevelDecl(DeclGroupRef(FDI));
@@ -1543,7 +1545,7 @@ VarDecl *Sema::CreateTensorOffsetForExtraArgs() {
   DeclarationNameInfo DNI(DN, Loc);
   LookupResult R(*this, DNI, LookupOrdinaryName);
   LookupName(R, TUScope);
-  assert(R.getResultKind() == LookupResult::Found);
+  assert(R.getResultKind() == LookupResultKind::Found);
   Decl *FD = cast<Decl>(R.getFoundDecl());
   QualType Type;
   if (auto TDD = dyn_cast<TypedefDecl>(FD))
@@ -1580,7 +1582,7 @@ Stmt *Sema::getArgumentAddress(VarDecl *Ptr, VarDecl *TensorOffset) {
   DeclarationNameInfo DNI(DN, Loc);
   LookupResult R(*this, DNI, LookupOrdinaryName);
   LookupName(R, CurScope, true /*AllowBuiltinCreation*/);
-  assert(R.getResultKind() == LookupResult::Found);
+  assert(R.getResultKind() == LookupResultKind::Found);
   CXXScopeSpec SS;
   ExprResult IntrinsicFuncPtr = BuildDeclarationNameExpr(SS, R, 0);
   assert(IntrinsicFuncPtr.isUsable());
@@ -1652,7 +1654,7 @@ Stmt *Sema::ShiftIndex(VarDecl *TensorOffset) {
 /// a beginning of main body.
 /// \param ExtraArgs Parameters of main beyond 32th. Prepared by parser.
 ///
-void Sema::DeclareExtraArgs(SmallVector<Stmt*, 32> &Stmts,
+void Sema::DeclareExtraArgs(SmallVectorImpl<Stmt *> &Stmts,
                             const SmallVector<ParmVarDecl*, 4> &ExtraArgs) {
   //  int5 hiddenTensorOffset (0,0,0,0,0);
 

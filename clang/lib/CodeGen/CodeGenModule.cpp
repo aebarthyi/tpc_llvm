@@ -383,6 +383,11 @@ static void checkDataLayoutConsistency(const TargetInfo &Target,
   if (Target.hasFloat16Type())
     Check("half", llvm::Type::getFloatingPointTy(Context, *Target.HalfFormat),
           Target.HalfAlign);
+#ifdef LLVM_TPC_COMPILER
+  // FIXME: TPC's clang aligns _BFloat16 to 4 bytes while its data layout
+  // aligns bfloat to 2; changing either changes the RC99 ABI.
+  if (Triple.getArch() != llvm::Triple::tpc)
+#endif
   if (Target.hasBFloat16Type())
     Check("bfloat", llvm::Type::getBFloatTy(Context), Target.BFloat16Align);
   Check("float", llvm::Type::getFloatingPointTy(Context, *Target.FloatFormat),

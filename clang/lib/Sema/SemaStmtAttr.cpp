@@ -90,14 +90,14 @@ static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const ParsedAttr &A,
           .Default("clang loop");
 
 #ifdef LLVM_TPC_COMPILER
-  bool PragmaLoopUnroll = PragmaNameLoc->Ident->getName() == "loop_unroll";
-  bool PragmaLoopUnrollDivide = PragmaNameLoc->Ident->getName() == "loop_unroll_divide";
-  bool PragmaLoopTaken = PragmaNameLoc->Ident->getName() == "loop_taken";
-  bool PragmaLoopPipeline = PragmaNameLoc->Ident->getName() == "loop_pipeline";
+  bool PragmaLoopUnroll = PragmaNameLoc->getIdentifierInfo()->getName() == "loop_unroll";
+  bool PragmaLoopUnrollDivide = PragmaNameLoc->getIdentifierInfo()->getName() == "loop_unroll_divide";
+  bool PragmaLoopTaken = PragmaNameLoc->getIdentifierInfo()->getName() == "loop_taken";
+  bool PragmaLoopPipeline = PragmaNameLoc->getIdentifierInfo()->getName() == "loop_pipeline";
   if (PragmaLoopUnroll || PragmaLoopUnrollDivide) {
     if (St->getStmtClass() != Stmt::ForStmtClass) {
       const char *Pragma =
-        llvm::StringSwitch<const char *>(PragmaNameLoc->Ident->getName())
+        llvm::StringSwitch<const char *>(PragmaNameLoc->getIdentifierInfo()->getName())
         .Case("loop_unroll", "#pragma loop_unroll")
         .Case("loop_unroll_divide", "#pragma loop_unroll_divide")
         .Default("#pragma clang loop");

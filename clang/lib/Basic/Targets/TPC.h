@@ -40,14 +40,13 @@ public:
   bool setCPU(const std::string &Name) override;
 
 private:
-  static const Builtin::Info BuiltinInfo[];
 
 public:
   TPCTargetInfo(const llvm::Triple &Triple, const TargetOptions &TO);
 
   void getTargetDefines(const LangOptions &Opts,
                         MacroBuilder &Builder) const override;
-  ArrayRef<Builtin::Info> getTargetBuiltins() const override;
+  llvm::SmallVector<Builtin::InfosShard> getTargetBuiltins() const override;
   bool initFeatureMap(llvm::StringMap<bool> &Features, DiagnosticsEngine &Diags,
                       StringRef CPU,
                       const std::vector<std::string> &FeaturesVec) const override;

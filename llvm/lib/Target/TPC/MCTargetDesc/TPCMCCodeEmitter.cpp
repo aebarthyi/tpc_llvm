@@ -1092,7 +1092,8 @@ void TPCMCCodeEmitter::fillInstrBits(const MCInst& MI,
   // Extract Imm field
   if (TPCMCInstrInfo::hasImm(MCII, MI)) {
     if (MI.getOperand(0).isExpr()) {
-       Fixups.push_back(MCFixup::create(0, MI.getOperand(0).getExpr(), FK_PCRel_4));
+       Fixups.push_back(MCFixup::create(0, MI.getOperand(0).getExpr(), FK_Data_4,
+                                        /*PCRel=*/true));
        Bits.Imm = 0;
        Bits.immSlotBusy = true;
     }
@@ -1222,7 +1223,7 @@ void TPCMCCodeEmitter::encodeLoop(const MCInst &Inst, raw_ostream& OS, uint64_t 
   assert (Inst.getOperand(4).isExpr() && "END_PC is not a BasicBlock");
   TPC::Fixups FixupKind = TPC::Fixups::FK_LOOP;
   Fixups.push_back(MCFixup::create(0, Inst.getOperand(4).getExpr(),
-                                   MCFixupKind(FixupKind), Inst.getLoc()));
+                                   MCFixupKind(FixupKind), /*PCRel=*/true));
   int32_t Imm = 0;
   APInt ImmValue(TPCII::ImmSize, Imm);
   Instruction |= ImmValue.zext(TPCII::InstructionSize).shl(loop_offset_start);
@@ -1568,7 +1569,8 @@ getMachineOpValue(const MCInst &MI, const MCOperand &MO,
   }
 
   if (MO.isExpr()) {
-    Fixups.push_back(MCFixup::create(0, MO.getExpr(), FK_PCRel_4));
+    Fixups.push_back(
+        MCFixup::create(0, MO.getExpr(), FK_Data_4, /*PCRel=*/true));
     return 0;
   }
 

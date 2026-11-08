@@ -19,7 +19,6 @@
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCDirectives.h"
 #include "llvm/MC/MCExpr.h"
-#include "llvm/MC/MCFixupKindInfo.h"
 #include "llvm/MC/MCMachObjectWriter.h"
 #include "llvm/MC/MCELFObjectWriter.h"
 #include "llvm/MC/MCObjectWriter.h"
@@ -55,32 +54,34 @@ std::unique_ptr<MCObjectTargetWriter> TPCAsmBackend::createObjectTargetWriter() 
   return createTPCELFObjectWriter();
 }
 
-unsigned TPCAsmBackend::getNumFixupKinds() const {
-  return TPC::NumTargetFixupKinds;
-}
 
-const MCFixupKindInfo &TPCAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
+MCFixupKindInfo TPCAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
+  // PC-relative is a property of each fixup (MCFixup::isPCRel) now; the
+  // emitter creates the loop fixups as PC-relative.
   const static MCFixupKindInfo InfosLE[TPC::NumTargetFixupKinds] = {
-    {"fixup_loop", 0, 16, MCFixupKindInfo::FKF_IsPCRel},
-    {"fixup_loop", 0, 16, MCFixupKindInfo::FKF_IsPCRel}
+    {"fixup_loop", 0, 16, 0},
+    {"fixup_loop", 0, 16, 0}
   };
   if (Kind < FirstTargetFixupKind)
     return MCAsmBackend::getFixupKindInfo(Kind);
 
-  assert(unsigned(Kind - FirstTargetFixupKind) < getNumFixupKinds() &&
+  assert(unsigned(Kind - FirstTargetFixupKind) < TPC::NumTargetFixupKinds &&
          "Invalid kind!");
   return InfosLE[Kind - FirstTargetFixupKind];
 }
 
-void TPCAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
+void TPCAsmBackend::applyFixup(const MCFragment &F, const MCFixup &Fixup,
                                const MCValue &Target, MutableArrayRef<char> Data,
-                               uint64_t Value, bool IsResolved,
-                               const MCSubtargetInfo *STI) const {
+                               uint64_t Value, bool IsResolved) {
+  maybeAddReloc(F, Fixup, Target, Value, IsResolved);
+  const MCSubtargetInfo *STI = cast<MCEncodedFragment>(F).getSubtargetInfo();
   unsigned Offset = Fixup.getOffset();
-  if (Fixup.getKind() == FK_Data_4) {
+  // Branch immediates are PC-relative 4-byte fixups (FK_PCRel_4 before
+  // LLVM 21); data words are plain FK_Data_4.
+  if (Fixup.getKind() == FK_Data_4 && !Fixup.isPCRel()) {
     void *Ptr = &Data[Fixup.getOffset()];
     memcpy(Ptr, &Value, sizeof(uint32_t));
-  } else if (Fixup.getKind() == FK_PCRel_4) {
+  } else if (Fixup.getKind() == FK_Data_4) {
     int RelOffset = Value & 0xffffffff;
     unsigned InstrSize = TPCII::InstructionSize;
     if (STI->getFeatureBits()[TPC::FeatureCompress] && (Data[Offset] & 3)) {
@@ -121,14 +122,6 @@ void TPCAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
     }
   }
 
-}
-
-bool TPCAsmBackend::mayNeedRelaxation(const MCInst& Inst, const MCSubtargetInfo &STI) const {
-  return false;
-}
-
-bool TPCAsmBackend::fixupNeedsRelaxation(const MCFixup &Fixup, uint64_t Value) const {
-  return false;
 }
 
 bool TPCAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count,

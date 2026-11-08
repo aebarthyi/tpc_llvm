@@ -2534,12 +2534,13 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
     }
 
 #ifdef LLVM_TPC_COMPILER
-    // RC99 kernels carry an implicit OpenCL-spelled kernel attribute; the TPC
-    // backend finds the kernel by this IR attribute.
-    if (getLangOpts().RC99 &&
-        DeviceKernelAttr::isOpenCLSpelling(
-            TargetDecl->getAttr<DeviceKernelAttr>()))
+    // RC99 kernels carry an implicit device_kernel attribute; the TPC backend
+    // finds the kernel by this IR attribute. Uniform work groups as for an
+    // OpenCL 1.2 kernel, which is what RC99 kernels got before LLVM 21.
+    if (getLangOpts().RC99 && TargetDecl->hasAttr<DeviceKernelAttr>()) {
       FuncAttrs.addAttribute("tpc-kernel", "true");
+      FuncAttrs.addAttribute("uniform-work-group-size", "true");
+    }
 #endif
     if (DeviceKernelAttr::isOpenCLSpelling(
             TargetDecl->getAttr<DeviceKernelAttr>()) &&
@@ -2933,8 +2934,13 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
     // > data type, the OpenCL compiler can assume that the pointee is always
     // > appropriately aligned as required by the data type.
     if (TargetDecl &&
-        DeviceKernelAttr::isOpenCLSpelling(
-            TargetDecl->getAttr<DeviceKernelAttr>()) &&
+        (DeviceKernelAttr::isOpenCLSpelling(
+             TargetDecl->getAttr<DeviceKernelAttr>())
+#ifdef LLVM_TPC_COMPILER
+         // RC99 kernels too (they use the device_kernel spelling).
+         || (getLangOpts().RC99 && TargetDecl->hasAttr<DeviceKernelAttr>())
+#endif
+             ) &&
         ParamType->isPointerType()) {
       QualType PTy = ParamType->getPointeeType();
       if (!PTy->isIncompleteType() && PTy->isConstantSizeType()) {

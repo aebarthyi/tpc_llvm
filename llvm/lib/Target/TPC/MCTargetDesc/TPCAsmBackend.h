@@ -36,16 +36,12 @@ public:
 public:
 //  MCObjectWriter *createObjectWriter(raw_pwrite_stream& OS) const override;
   std::unique_ptr<MCObjectTargetWriter> createObjectTargetWriter() const override;
-  unsigned getNumFixupKinds() const override;
-  void applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
+  void applyFixup(const MCFragment &F, const MCFixup &Fixup,
                   const MCValue &Target, MutableArrayRef<char> Data,
-                  uint64_t Value, bool IsResolved,
-                  const MCSubtargetInfo *STI) const override;
-  bool mayNeedRelaxation(const MCInst &Inst, const MCSubtargetInfo &STI) const override;
-  bool fixupNeedsRelaxation(const MCFixup &Fixup, uint64_t Value) const override;
+                  uint64_t Value, bool IsResolved) override;
   bool writeNopData(raw_ostream &OS, uint64_t Count,
                     const MCSubtargetInfo *STI) const override;
-  const MCFixupKindInfo &getFixupKindInfo(MCFixupKind Kind) const override;
+  MCFixupKindInfo getFixupKindInfo(MCFixupKind Kind) const override;
 };
 } // end namespace llvm
 

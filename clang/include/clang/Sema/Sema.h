@@ -4172,7 +4172,7 @@ public:
   Stmt *getArgumentAddress(VarDecl* Ptr, VarDecl* TensorOffset);
   VarDecl *CreateTensorOffsetForExtraArgs();
   VarDecl *CreateGlobPointer();
-  void DeclareExtraArgs(SmallVector<Stmt*, 32> &Stmts,
+  void DeclareExtraArgs(SmallVectorImpl<Stmt *> &Stmts,
                         const SmallVector<ParmVarDecl*, 4> &ExtraArgs);
   void loadRC99Types();
   bool CheckNotIndexType(Expr *E, SourceLocation Loc);
