@@ -13,7 +13,9 @@ using namespace llvm;
 
 void TPCMCAsmInfo::anchor() { }
 
-TPCMCAsmInfo::TPCMCAsmInfo(const Triple &TheTriple) {
+TPCMCAsmInfo::TPCMCAsmInfo(const Triple &TheTriple,
+                           const MCTargetOptions &Options)
+    : MCAsmInfoELF(Options) {
   assert(TheTriple.getArch() == Triple::tpc);
 
   IsLittleEndian = true;
@@ -21,5 +23,6 @@ TPCMCAsmInfo::TPCMCAsmInfo(const Triple &TheTriple) {
 
   CommentString = "//";
   SupportsDebugInformation = true;
-  PrivateGlobalPrefix = "$";
+  InternalSymbolPrefix = "$";
+  BlockLabelPrefix = ".L";
 }

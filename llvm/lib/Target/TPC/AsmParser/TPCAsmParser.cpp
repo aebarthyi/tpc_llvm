@@ -930,15 +930,18 @@ private:
 
 public:
   TPCAsmParser(const MCSubtargetInfo &sti, MCAsmParser &Parser,
-               const MCInstrInfo &MII, const MCTargetOptions &Options)
-    : MCTargetAsmParser(Options, sti, MII)
+               const MCInstrInfo &MII)
+    : MCTargetAsmParser(sti, MII)
     , Parser(Parser)
     , Lexer(Parser.getLexer())
     , AC(MII)
     , MRI(Parser.getContext().getRegisterInfo())
     , SPRegClass(MRI->getRegClass(TPC::SPRFRegClassID))
     , VPRegClass(MRI->getRegClass(TPC::VPRFRegClassID)) {
-    AC.setCompressEnabled(Options.MCCompressInst);
+    // The options come from the MCAsmInfo (set up by cc1as or the
+    // TargetMachine). getTargetOptions() needs the parser extension, which
+    // is initialized below.
+    AC.setCompressEnabled(Parser.getContext().getTargetOptions().MCCompressInst);
     MCAsmParserExtension::Initialize(Parser);
     TPCII::setSubTargetInfo(&sti);
     TPCII::setInstrInfo(&MII);
@@ -2051,10 +2054,10 @@ static bool shallSuffixBeAPartOfMnemonic(StringRef Mnemonic, StringRef Suffix,
 
   if (StringSwitch<bool>(Suffix)
       // MSVC has an issue with compilation of CasesLower.
-      .CasesLower("i8", "i16", "i32", true)
-      .CasesLower("u8", "u16", "u32", true)
-      .CasesLower("f32", "bf16", "f16", true)
-      .CasesLower("f8_143", "f8_152", true)
+      .CasesLower({"i8", "i16", "i32"}, true)
+      .CasesLower({"u8", "u16", "u32"}, true)
+      .CasesLower({"f32", "bf16", "f16"}, true)
+      .CasesLower({"f8_143", "f8_152"}, true)
       .Default(false)) {
     if (Mnemonic.equals_insensitive("mac") && Slot == SlotParser::Vector) {
       NeedAsSwitch = true;

@@ -50,7 +50,9 @@ MAP_COMPOUND_INST(SRem, MapSignedDivide)
 MAP_COMPOUND_INST(FDiv, MapFDivide)
 MAP_COMPOUND_INST(FRem, MapFRem)
 
-MAP_INST_SPU(Br, JMPA)
+// LLVM 23 split Br into UncondBr and CondBr.
+MAP_INST_SPU(UncondBr, JMPA)
+MAP_INST_SPU(CondBr, JMPA)
 MAP_INST_SPU(IndirectBr, JMPR)
 MAP_INST_SPU(Ret, JMPA)
 

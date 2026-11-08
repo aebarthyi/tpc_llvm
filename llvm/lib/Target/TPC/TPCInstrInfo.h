@@ -117,12 +117,11 @@ public:
   /// at InsertPt.
   MachineInstr *foldMemoryOperandImpl(
       MachineFunction &MF, MachineInstr &MI, ArrayRef<unsigned> Ops,
-      MachineBasicBlock::iterator InsertPt, MachineInstr &LoadMI,
-      LiveIntervals *LIS = nullptr) const override;
+      MachineInstr &LoadMI, MachineInstr *&CopyMI,
+      LiveIntervals *LIS = nullptr, VirtRegMap *VRM = nullptr) const override;
   MachineInstr *foldMemoryOperandImpl(MachineFunction &MF, MachineInstr &MI,
-                                      ArrayRef<unsigned> Ops,
-                                      MachineBasicBlock::iterator InsertPt,
-                                      int FrameIndex,
+                                      ArrayRef<unsigned> Ops, int FrameIndex,
+                                      MachineInstr *&CopyMI,
                                       LiveIntervals *LIS = nullptr,
                                       VirtRegMap *VRM = nullptr) const override;
 
@@ -150,7 +149,8 @@ public:
 
   void reMaterialize(MachineBasicBlock &MBB,
                      MachineBasicBlock::iterator MI, Register DestReg,
-                     unsigned SubIdx, const MachineInstr &Orig) const override;
+                     unsigned SubIdx, const MachineInstr &Orig,
+                     LaneBitmask UsedLanes = LaneBitmask::getAll()) const override;
 
 
   // Create machine specific model for scheduling.

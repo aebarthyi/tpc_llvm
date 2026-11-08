@@ -39,7 +39,7 @@ extern Target TheTPCTarget;
 static MCAsmInfo *createTPCMCAsmInfo(const MCRegisterInfo &MRI,
                                      const Triple &TT,
                                      const MCTargetOptions &Options) {
-  MCAsmInfo *MAI = new TPCMCAsmInfo(TT);
+  MCAsmInfo *MAI = new TPCMCAsmInfo(TT, Options);
 // unsigned Reg = 0;
 // MRI.getDwarfRegNum(SP::O6, true);
 // DEBUG:  MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(nullptr, Reg, 0);

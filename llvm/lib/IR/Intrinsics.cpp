@@ -339,8 +339,8 @@ DecodeIITType(unsigned &NextElt, ArrayRef<unsigned char> Infos,
     return;
 #ifdef LLVM_TPC_COMPILER
   case IIT_V5:
-    OutputTable.push_back(IITDescriptor::getVector(5, IsScalableVector));
-    DecodeIITType(NextElt, Infos, Info, OutputTable);
+    OutputTable.push_back(IITDescriptor::getVector(5, IsScalableVector()));
+    DecodeIITType(NextElt, Infos, OutputTable);
     return;
 #endif
   case IIT_V6:

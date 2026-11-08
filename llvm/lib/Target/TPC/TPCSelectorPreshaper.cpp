@@ -138,6 +138,17 @@ static bool analyze_shuffle_mask(ArrayRef<int> mask , int *first,
 }
 
 
+// Constant::isZeroValue, which LLVM 23 removed: +0.0 and -0.0 count as zero
+// for floating point scalars and splats; anything else must be null.
+static bool isZeroValue(const Constant *C) {
+  if (const auto *CFP = dyn_cast<ConstantFP>(C))
+    return CFP->isZero();
+  if (C->getType()->isVectorTy())
+    if (const auto *SplatCFP = dyn_cast_or_null<ConstantFP>(C->getSplatValue()))
+      return SplatCFP->isZero();
+  return C->isNullValue();
+}
+
 static bool shallExpandIntrinsic(Instruction &I) {
   if (isa<IntrinsicInst>(I))
     if (auto *Memset = dyn_cast<MemSetInst>(&I))
@@ -451,7 +462,7 @@ static void unvect_instr(Instruction &I, LLVMContext &Ctx)
           o01 = first;
         }
       }
-      else if (cv->isZeroValue()) {
+      else if (isZeroValue(cv)) {
         o01 = cv->getAggregateElement(0U);
       }
     }
@@ -499,7 +510,7 @@ static void unvect_instr(Instruction &I, LLVMContext &Ctx)
         if (!elements_are_not_equal && o01) {
           sum1 = build_op(I, o01, first);
         }
-      } else if (cv->isZeroValue()&& o01) {
+      } else if (isZeroValue(cv)&& o01) {
         sum1 = build_op(I, o01, cv->getAggregateElement(0U));
       }
 
@@ -1213,7 +1224,7 @@ bool TPCSelectorPreshaperLegacyPass::runOnFunction(Function &Func) {
             if (!isa<UndefValue>(income)) {
               auto cincome = dyn_cast<Constant>(income);
               if (cincome) {
-                if (!cincome->isZeroValue()) {
+                if (!isZeroValue(cincome)) {
                   // incompatible with predicate
                   if (!dyn_cast<ConstantInt>(predic_opnd)) {
                     llvm_unreachable("income with rt predicate");
@@ -1254,7 +1265,7 @@ bool TPCSelectorPreshaperLegacyPass::runOnFunction(Function &Func) {
             if (!isa<UndefValue>(income)) {
               auto cincome = dyn_cast<Constant>(income);
               if (cincome) {
-                if (!cincome->isZeroValue()) {
+                if (!isZeroValue(cincome)) {
                   // incompatible with predicate
                   if (!dyn_cast<ConstantInt>(predic_opnd)) {
                     llvm_unreachable("income with rt predicate");

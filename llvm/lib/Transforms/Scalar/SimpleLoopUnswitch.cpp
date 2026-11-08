@@ -594,6 +594,13 @@ static bool unswitchTrivialBranch(Loop &L, CondBrInst &BI, DominatorTree &DT,
   std::optional<int> LatchIdx = std::nullopt;
   auto *LoopLatch = L.getLoopLatch();
   auto *ULExit = L.getUniqueLatchExitBlock();
+#ifdef LLVM_TPC_COMPILER
+  // TPC: unswitching a branch to the latch (new in LLVM 23) moves the guard of
+  // every kernel's inner loop out of the outer loop, which makes the kernels
+  // larger and slower on the simulator (+1.8% cycles, +9% .text).
+  if (L.getHeader()->getModule()->getTargetTriple().getArch() == Triple::tpc)
+    ULExit = nullptr;
+#endif
   if (SE && FullUnswitch && ULExit) {
     if (BI.getSuccessor(0) == LoopLatch && L.contains(BI.getSuccessor(1)))
       LatchIdx = 0;

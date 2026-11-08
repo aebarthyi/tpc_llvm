@@ -144,10 +144,10 @@ TPCTargetInfo::TPCTargetInfo(const llvm::Triple &Triple, const TargetOptions &TO
 
 TPCTargetInfo::CPUKind TPCTargetInfo::getCPUKind(StringRef Name) const {
   return llvm::StringSwitch<CPUKind>(Name)
-    .Cases("dali", "goya", CPUKind::Goya)
+    .Cases({"dali", "goya"}, CPUKind::Goya)
     .Case("gaudi", CPUKind::Gaudi)
     .Case("gaudib", CPUKind::GaudiB)
-    .Cases("goya2", "greco", CPUKind::Greco)
+    .Cases({"goya2", "greco"}, CPUKind::Greco)
     .Case("gaudi2", CPUKind::Gaudi2)
     .Case("doron1", CPUKind::Doron1)
     .Default(CPUKind::Generic);
@@ -184,7 +184,7 @@ void TPCTargetInfo::fillValidCPUList(SmallVectorImpl<StringRef> &Values) const {
   Values.emplace_back("doron1");
 }
 
-bool TPCTargetInfo::setCPU(const std::string &Name) {
+bool TPCTargetInfo::setCPU(StringRef Name) {
   return checkCPUKind(CPU = getCPUKind(Name));
 }
 
@@ -288,8 +288,8 @@ bool TPCTargetInfo::hasFeature(StringRef Feature) const {
   return llvm::StringSwitch<bool>(Feature)
     .Case("gaudi", CPU == CPUKind::Gaudi)
     .Case("gaudib", CPU == CPUKind::GaudiB)
-    .Cases("goya", "dali", CPU == CPUKind::Goya)
-    .Cases("greco", "goya2", CPU == CPUKind::Greco)
+    .Cases({"goya", "dali"}, CPU == CPUKind::Goya)
+    .Cases({"greco", "goya2"}, CPU == CPUKind::Greco)
     .Case("gaudi2", CPU == CPUKind::Gaudi2)
     .Case("doron1", CPU == CPUKind::Doron1)
     .Default(false);

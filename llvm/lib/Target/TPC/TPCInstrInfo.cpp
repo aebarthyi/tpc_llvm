@@ -391,7 +391,7 @@ unsigned TPCInstrInfo::insertBranch(MachineBasicBlock &MBB, MachineBasicBlock *T
     } else {
       assert((Cond.size() == 2) && "Malformed cond vector");
       const MachineOperand &RO = Cond[0];
-      unsigned Flags = getUndefRegState(RO.isUndef());
+      RegState Flags = getUndefRegState(RO.isUndef());
       BuildMI(&MBB, DL, get(TPC::JMPR))
           .addMBB(TBB)
           .addReg(RO.getReg(), Flags)
@@ -403,7 +403,7 @@ unsigned TPCInstrInfo::insertBranch(MachineBasicBlock &MBB, MachineBasicBlock *T
   assert((!Cond.empty()) &&
          "Cond. cannot be empty when multiple branchings are required");
   const MachineOperand &RO = Cond[0];
-  unsigned Flags = getUndefRegState(RO.isUndef());
+  RegState Flags = getUndefRegState(RO.isUndef());
   BuildMI(&MBB, DL, get(TPC::JMPR))
       .addMBB(TBB)
       .addReg(RO.getReg(), Flags)
@@ -962,7 +962,7 @@ bool TPCInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
           .addReg(TPC::SPRF_TRUE)
           .addImm(0);
       BuildMI(MBB, MI, DL, get(TPC::SET_INDX_spu_rp), DestReg)
-          .addReg(DestReg, (k == 0) ? RegState::Undef : 0)
+          .addReg(DestReg, (k == 0) ? RegState::Undef : RegState::NoFlags)
           .addReg(sRegs[k], RegState::Kill)
           .addImm(1LL << k)
           .addImm(0)
@@ -1018,7 +1018,7 @@ bool TPCInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
           .addReg(TPC::SPRF_TRUE)
           .addImm(0);
       BuildMI(MBB, MI, DL, get(TPC::MOV_ld_hvp), DestReg)
-          .addReg(vReg, 0)
+          .addReg(vReg)
           .addImm(1)
           .addReg(DestReg, RegState::Undef)
           .addReg(TPC::SPRF_TRUE)
@@ -1215,7 +1215,7 @@ bool TPCInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
     BuildMI(MBB, MI, DL, get(TPC::ST_Lisp))
         .addImm(Offset)
         .addReg(MI.getOperand(1).getReg(),
-                MI.getOperand(1).isKill() ? RegState::Kill : 0)
+                MI.getOperand(1).isKill() ? RegState::Kill : RegState::NoFlags)
         .addImm(0)
         .addReg(TPC::SPRF_TRUE)
         .addImm(0);
@@ -1227,7 +1227,7 @@ bool TPCInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
     BuildMI(MBB, MI, DL, get(TPC::ST_Lipp))
         .addImm(Offset)
         .addReg(MI.getOperand(1).getReg(),
-                MI.getOperand(1).isKill() ? RegState::Kill : 0)
+                MI.getOperand(1).isKill() ? RegState::Kill : RegState::NoFlags)
         .addImm(0)
         .addReg(TPC::SPRF_TRUE)
         .addImm(0);
@@ -1256,7 +1256,7 @@ bool TPCInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
     unsigned Offset = MI.getOperand(0).getImm();
     for (int k = 0; k < regsFound; k++) {
       BuildMI(MBB, MI, DL, get(TPC::MOV_IRF_DIM), sRegs[k])
-          .addReg(MI.getOperand(1).getReg(), 0)
+          .addReg(MI.getOperand(1).getReg())
           .addImm(k) // DIM
           .addImm(0) // SW
           .addReg(sRegs[k], RegState::Undef) // income
@@ -1277,7 +1277,7 @@ bool TPCInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
       BuildMI(MBB, MI, DL, get(TPC::ST_L_Vimp))
           .addImm(MI.getOperand(0).getImm())
           .addReg(MI.getOperand(1).getReg(),
-                  MI.getOperand(1).isKill() ? RegState::Kill : 0)
+                  MI.getOperand(1).isKill() ? RegState::Kill : RegState::NoFlags)
           .addImm(0)
           .addReg(TPC::SPRF_TRUE)
           .addImm(0);
@@ -1286,7 +1286,7 @@ bool TPCInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
           .addReg(ZeroReg)
           .addImm(MI.getOperand(0).getImm())
           .addReg(MI.getOperand(1).getReg(),
-                  MI.getOperand(1).isKill() ? RegState::Kill : 0)
+                  MI.getOperand(1).isKill() ? RegState::Kill : RegState::NoFlags)
           .addImm(0)
           .addReg(TPC::SPRF_TRUE)
           .addImm(0);
@@ -1302,7 +1302,7 @@ bool TPCInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
       BuildMI(MBB, MI, DL, get(TPC::ST_L_Vivp))
           .addImm(Offset)
           .addReg(MI.getOperand(1).getReg(),
-                  MI.getOperand(1).isKill() ? RegState::Kill : 0)
+                  MI.getOperand(1).isKill() ? RegState::Kill : RegState::NoFlags)
           .addImm(0)
           .addReg(TPC::SPRF_TRUE)
           .addImm(0);
@@ -1311,7 +1311,7 @@ bool TPCInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
           .addReg(ZeroReg)
           .addImm(Offset)
           .addReg(MI.getOperand(1).getReg(),
-                  MI.getOperand(1).isKill() ? RegState::Kill : 0)
+                  MI.getOperand(1).isKill() ? RegState::Kill : RegState::NoFlags)
           .addImm(0)
           .addReg(TPC::SPRF_TRUE)
           .addImm(0);
@@ -1324,7 +1324,7 @@ bool TPCInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
   }
   case TPC::SPILL_ZRF_SAVE: {
     unsigned Offset = MI.getOperand(0).getImm();
-    unsigned Flags = MI.getOperand(1).isKill() ? RegState::Kill : 0;
+    RegState Flags = MI.getOperand(1).isKill() ? RegState::Kill : RegState::NoFlags;
     unsigned SrcReg = MI.getOperand(1).getReg();
     unsigned SubReg = TRI.getSubReg(SrcReg, TPC::sub_s0);
     BuildMI(MBB, MI, DL, get(TPC::ST_Lisp))
@@ -1342,7 +1342,7 @@ bool TPCInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
   }
   case TPC::SPILL_ADRF_SAVE: {
     unsigned Offset = MI.getOperand(0).getImm();
-    unsigned Flags = MI.getOperand(1).isKill() ? RegState::Kill : 0;
+    RegState Flags = MI.getOperand(1).isKill() ? RegState::Kill : RegState::NoFlags;
     unsigned SrcReg = MI.getOperand(1).getReg();
 
     BuildMI(MBB, MI, DL, get(TPC::MOVzap), TPC::Z30)
@@ -1371,7 +1371,7 @@ bool TPCInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
   }
   case TPC::SPILL_DRF_SAVE: {
     unsigned Offset = MI.getOperand(0).getImm();
-    unsigned Flags = MI.getOperand(1).isKill() ? RegState::Kill : 0;
+    RegState Flags = MI.getOperand(1).isKill() ? RegState::Kill : RegState::NoFlags;
     unsigned SrcReg = MI.getOperand(1).getReg();
     unsigned SubReg = TRI.getSubReg(SrcReg, TPC::sub_0);
     if (Subtarget.hasAddr1()) {
@@ -1413,7 +1413,7 @@ bool TPCInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
   }
   case TPC::SPILL_ARF_SAVE: {
     unsigned Offset = MI.getOperand(0).getImm();
-    unsigned Flags = MI.getOperand(1).isKill() ? RegState::Kill : 0;
+    RegState Flags = MI.getOperand(1).isKill() ? RegState::Kill : RegState::NoFlags;
     unsigned SrcReg = MI.getOperand(1).getReg();
     unsigned SubReg = TRI.getSubReg(SrcReg, TPC::sub_0);
     if (Subtarget.hasAddr1()) {
@@ -3130,10 +3130,10 @@ LLVM_READONLY int getAltOpcodeVpuDoron1  (uint16_t Opcode, enum TPC::Slot inSlot
 bool TPCInstrInfo::getOtherSlotOpcodes(MachineInstr* MI, std::vector<unsigned>& opcodes) const {
   int altOpc;
   bool found = false;
-  int (*getAltOpcode)(uint16_t, TPC::Slot);
-  int (*getAltOpcodeGen)(uint16_t, TPC::Slot) = nullptr;
-  int (*getAltOpcodeGenEx)(uint16_t, TPC::Slot) = nullptr;
-  int (*getAltOpcodeGenExEx)(uint16_t, TPC::Slot) = nullptr;
+  int32_t (*getAltOpcode)(uint32_t, TPC::Slot);
+  int32_t (*getAltOpcodeGen)(uint32_t, TPC::Slot) = nullptr;
+  int32_t (*getAltOpcodeGenEx)(uint32_t, TPC::Slot) = nullptr;
+  int32_t (*getAltOpcodeGenExEx)(uint32_t, TPC::Slot) = nullptr;
   if (TPCII::isVPUInst(MI->getDesc())) {
     getAltOpcode = llvm::TPC::getAltOpcodeVpu;
     if (Subtarget.hasDoron1ISA()) {
@@ -3186,29 +3186,44 @@ bool TPCInstrInfo::getOtherSlotOpcodes(MachineInstr* MI, std::vector<unsigned>& 
     return found;
   }
 
+  // Each mapping is keyed on the instruction's own slot and has the other three
+  // slots as columns. Since LLVM 23 a lookup aborts for a column the mapping
+  // does not have (the key slot, which returned -1 before), and an entry
+  // without an instruction holds INSTRUCTION_LIST_END rather than -1.
+  TPC::Slot KeySlot = TPCII::isVPUInst(MI->getDesc())   ? TPC::Slot_VpuSlot
+                      : TPCII::isSPUInst(MI->getDesc()) ? TPC::Slot_SpuSlot
+                      : TPCII::isLoadInst(MI->getDesc()) ? TPC::Slot_LoadSlot
+                                                          : TPC::Slot_StoreSlot;
+  auto lookup = [&](int32_t (*Map)(uint32_t, TPC::Slot), TPC::Slot S) -> int {
+    if (S == KeySlot)
+      return -1;
+    int32_t Opc = Map(MI->getOpcode(), S);
+    return Opc == TPC::INSTRUCTION_LIST_END ? -1 : Opc;
+  };
+
   TPC::Slot slots[4] = {TPC::Slot_SpuSlot, TPC::Slot_VpuSlot, TPC::Slot_LoadSlot, TPC::Slot_StoreSlot};
   for (int i = 0; i < 4; i++) {
-    altOpc = getAltOpcode(MI->getOpcode(), slots[i]);
+    altOpc = lookup(getAltOpcode, slots[i]);
     if (altOpc >= 0 && (altOpc != (uint16_t)-1U)) {
       opcodes.push_back(altOpc);
       found = true;
     }
     if (getAltOpcodeGen != nullptr) {
-      altOpc = getAltOpcodeGen(MI->getOpcode(), slots[i]);
+      altOpc = lookup(getAltOpcodeGen, slots[i]);
       if (altOpc >= 0 && (altOpc != (uint16_t)-1U)) {
         opcodes.push_back(altOpc);
         found = true;
       }
     }
     if (getAltOpcodeGenEx != nullptr) {
-      altOpc = getAltOpcodeGenEx(MI->getOpcode(), slots[i]);
+      altOpc = lookup(getAltOpcodeGenEx, slots[i]);
       if (altOpc >= 0 && (altOpc != (uint16_t)-1U)) {
         opcodes.push_back(altOpc);
         found = true;
       }
     }
     if (getAltOpcodeGenExEx != nullptr) {
-      altOpc = getAltOpcodeGenExEx(MI->getOpcode(), slots[i]);
+      altOpc = lookup(getAltOpcodeGenExEx, slots[i]);
       if (altOpc >= 0 && (altOpc != (uint16_t)-1U)) {
         opcodes.push_back(altOpc);
         found = true;
@@ -3411,16 +3426,18 @@ bool TPCInstrInfo::isMovDualGroup(const MachineInstr &MI, unsigned *pSrcG, unsig
 
 MachineInstr *TPCInstrInfo::foldMemoryOperandImpl(
     MachineFunction &MF, MachineInstr &MI, ArrayRef<unsigned> Ops,
-    MachineBasicBlock::iterator InsertPt, MachineInstr &LoadMI,
-    LiveIntervals *LIS) const {
+    MachineInstr &LoadMI, MachineInstr *&CopyMI, LiveIntervals *LIS,
+    VirtRegMap *VRM) const {
   return nullptr;
 }
 
 
 MachineInstr *TPCInstrInfo::foldMemoryOperandImpl(
     MachineFunction &MF, MachineInstr &MI, ArrayRef<unsigned> Ops,
-    MachineBasicBlock::iterator InsertPt, int FrameIndex,
-    LiveIntervals *LIS, VirtRegMap *VRM) const {
+    int FrameIndex, MachineInstr *&CopyMI, LiveIntervals *LIS,
+    VirtRegMap *VRM) const {
+  // The spill or reload goes in front of MI.
+  MachineBasicBlock::iterator InsertPt = MI;
   const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
   const MachineRegisterInfo &MRI = MF.getRegInfo();
   MachineBasicBlock &MBB = *MI.getParent();
@@ -3468,10 +3485,10 @@ llvm::getRegisterClass(Register Reg, const MachineRegisterInfo &MRI) {
     if (TPC::SRFRegClass.contains(Reg))
       RC = &TPC::SRFRegClass;
     else
-      for (auto TRC : TRI.regclasses())
-        if (TRC->contains(Reg)) {
-          if (!RC || TRC->hasSubClassEq(RC))
-            RC = TRC;
+      for (const TargetRegisterClass &TRC : TRI.regclasses())
+        if (TRC.contains(Reg)) {
+          if (!RC || TRC.hasSubClassEq(RC))
+            RC = &TRC;
         }
   } else {
     RC = MRI.getRegClass(Reg);
@@ -3500,7 +3517,8 @@ bool TPCInstrInfo::isReMaterializableImpl(const MachineInstr &MI) const {
 
 void TPCInstrInfo::reMaterialize(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MI, Register DestReg,
-                                 unsigned SubIdx, const MachineInstr &Orig) const {
+                                 unsigned SubIdx, const MachineInstr &Orig,
+                                 LaneBitmask UsedLanes) const {
   const MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
   const TargetRegisterInfo &TRI = getRegisterInfo();
 

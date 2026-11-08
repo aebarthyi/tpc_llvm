@@ -58,6 +58,7 @@ Tool *TPCToolChain::buildLinker() const {
 
 void TPCToolChain::addClangTargetOptions(const llvm::opt::ArgList &DriverArgs,
                                          llvm::opt::ArgStringList &CC1Args,
+                                         BoundArch BA,
                                          Action::OffloadKind DeviceOffloadKind) const {
   StringRef CPUName = tpc::getTPCTargetCPU(DriverArgs);
 

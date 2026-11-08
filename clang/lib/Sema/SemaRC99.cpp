@@ -1560,7 +1560,10 @@ VarDecl *Sema::CreateTensorOffsetForExtraArgs() {
   Expr *Init = ActOnIntegerConstant(Loc, 0).get();
   for (unsigned int i = 0; i<5; i++)
     InitExprs.push_back(Init);
-  InitListExpr *E = new (Context) InitListExpr(Context, Loc, InitExprs, Loc);
+  // Explicit, as its brace locations are valid (what isExplicit() checked
+  // before LLVM 23).
+  InitListExpr *E = new (Context)
+      InitListExpr(Context, Loc, InitExprs, Loc, /*isExplicit=*/true);
   E->setType(Type); 
   AddInitializerToDecl(NewVD, E, false);
 
@@ -1875,7 +1878,8 @@ Expr *Sema::buildDefaultArgument(const FunctionProtoType *FT,
     // The last but two argument, income.
     if (ArgTy->isStructureType()) {
       TypeSourceInfo *TInfo = Context.getTrivialTypeSourceInfo(ParamTy);
-      ExprResult Init = BuildInitList(SourceLocation(), {}, SourceLocation());
+      ExprResult Init = BuildInitList(SourceLocation(), {}, SourceLocation(),
+                                      /*IsExplicit=*/false);
       assert(Init.isUsable());
       ExprResult R = BuildCompoundLiteralExpr(SourceLocation(), TInfo, SourceLocation(), Init.get());
       assert(R.isUsable());

@@ -160,9 +160,12 @@ namespace llvm {
     // LLVM 22).
     bool hasMultipleConditionRegisters(EVT VT) const override { return true; }
 
-    bool getTgtMemIntrinsic(IntrinsicInfo &Info, const CallBase &I,
-                            MachineFunction &MF,
+    void getTgtMemIntrinsic(SmallVectorImpl<IntrinsicInfo> &Infos,
+                            const CallBase &I, MachineFunction &MF,
                             unsigned Intrinsic) const override;
+    // Fills in the single memory access of a TPC intrinsic.
+    bool getTPCTgtMemIntrinsic(IntrinsicInfo &Info, const CallBase &I,
+                               MachineFunction &MF, unsigned Intrinsic) const;
     SDValue lowerTPC_CONVERT(SDValue Op, SelectionDAG &DAG) const;
     SDValue lowerTPC_CONVERT_LINEAR(SDValue Op, SelectionDAG &DAG) const;
     SDValue lowerTPC_CONVERT_INT(SDValue Op, SelectionDAG &DAG) const;

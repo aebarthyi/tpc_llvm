@@ -402,7 +402,8 @@ static void NormalizeIntrinPredic(IntrinsicInst *intrins, bool invert,
   const tPredicPart PP = getPred(*intrins);
   // Start with trivial cases
   Constant *cv = dyn_cast<Constant>(PP.polar);
-  unsigned polarity = cv->isZeroValue() ? 0 : 1;
+  // An i1, so null means zero.
+  unsigned polarity = cv->isNullValue() ? 0 : 1;
   if (polarity == invert)
     return;
 

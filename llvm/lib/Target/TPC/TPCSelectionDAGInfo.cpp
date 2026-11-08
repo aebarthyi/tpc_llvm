@@ -67,8 +67,10 @@ SDValue TPCSelectionDAGInfo::EmitTargetCodeForMemset(
 SDValue TPCSelectionDAGInfo::EmitTargetCodeForMemcpy(
     SelectionDAG &DAG, const SDLoc &dl, SDValue Chain,
     SDValue Dst, SDValue Src, SDValue Size,
-    Align Alignment, bool isVolatile, bool AlwaysInline,
+    Align DstAlign, Align SrcAlign, bool isVolatile, bool AlwaysInline,
     MachinePointerInfo DstPtrInfo, MachinePointerInfo SrcPtrInfo) const {
+  // One alignment for both sides, as SelectionDAG passed before LLVM 23.
+  Align Alignment = std::min(DstAlign, SrcAlign);
   // Prepare arguments making sanity checks.
   ConstantSDNode *SizeValue = dyn_cast<ConstantSDNode>(Size);
   assert(SizeValue && "Size in memset call must be a compile time constant");

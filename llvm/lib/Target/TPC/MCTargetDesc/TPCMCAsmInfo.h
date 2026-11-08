@@ -20,7 +20,7 @@ class TPCMCAsmInfo : public MCAsmInfoELF {
   void anchor() override;
 
 public:
-  explicit TPCMCAsmInfo(const Triple &TheTriple);
+  TPCMCAsmInfo(const Triple &TheTriple, const MCTargetOptions &Options);
 };
 
 } // namespace llvm

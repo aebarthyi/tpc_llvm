@@ -1727,7 +1727,7 @@ PassBuilder::buildModuleOptimizationPipeline(OptimizationLevel Level,
   // Disable header duplication at -Oz.
 #ifdef LLVM_TPC_COMPILER
   // TPC: no loop rotation at -O1.
-  if (!isTPCTarget(TM) || Level.getSpeedupLevel() > 1)
+  if (!isTPCTarget(TM) || static_cast<int>(Level) > 1)
 #endif
   LPM.addPass(LoopRotatePass(/*EnableLoopHeaderDuplication=*/true,
                              isLTOPreLink(LTOPhase),
@@ -1745,11 +1745,11 @@ PassBuilder::buildModuleOptimizationPipeline(OptimizationLevel Level,
       createFunctionToLoopPassAdaptor(std::move(LPM), /*UseMemorySSA=*/false));
 #ifdef LLVM_TPC_COMPILER
   if (isTPCTarget(TM) && EnableUnrollAndJam && PTO.LoopUnrolling) {
-    OptimizePM.addPass(LoopTakenPass(Level.getSpeedupLevel()));
+    OptimizePM.addPass(LoopTakenPass(static_cast<int>(Level)));
     OptimizePM.addPass(
         buildFunctionSimplificationPipeline(Level, ThinOrFullLTOPhase::None));
     OptimizePM.addPass(createFunctionToLoopPassAdaptor(
-        LoopUnrollAndJamPass(Level.getSpeedupLevel())));
+        LoopUnrollAndJamPass(static_cast<int>(Level))));
   }
 #endif
 
@@ -1812,7 +1812,7 @@ PassBuilder::buildModuleOptimizationPipeline(OptimizationLevel Level,
                           .hoistLoadsStoresWithCondFaulting(true)));
 
 #ifdef LLVM_TPC_COMPILER
-  if (isTPCTarget(TM) && Level.getSpeedupLevel() > 1 &&
+  if (isTPCTarget(TM) && static_cast<int>(Level) > 1 &&
       EnableIterationInterleave) {
     LoopPassManager InterleaveLPM;
     InterleaveLPM.addPass(LoopSimplifyCFGPass());

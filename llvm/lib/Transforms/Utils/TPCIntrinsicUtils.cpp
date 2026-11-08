@@ -138,11 +138,8 @@ static SwitchTbl SwTbl[] = {
 
 std::string getTPCIntrinsicName(const Intrinsic::ID IDNum,
                                 FunctionType *FType) {
-  SmallVector<Intrinsic::IITDescriptor, 8> Table;
-  Intrinsic::getIntrinsicInfoTableEntries(IDNum, Table);
-  ArrayRef<Intrinsic::IITDescriptor> TableRef = Table;
   SmallVector<Type *, 4> ArgTys;
-  Intrinsic::matchIntrinsicSignature(FType, TableRef, ArgTys);
+  Intrinsic::isSignatureValid(IDNum, FType, ArgTys);
   return Intrinsic::getNameNoUnnamedTypes(IDNum, ArgTys);
 }
 

@@ -375,13 +375,18 @@ MCSymbol *MCContext::createNamedTempSymbol(const Twine &Name) {
 }
 
 MCSymbol *MCContext::createBlockSymbol(const Twine &Name, bool AlwaysEmit) {
+#ifdef LLVM_TPC_COMPILER
+  StringRef Prefix = MAI.getBlockLabelPrefix();
+#else
+  StringRef Prefix = MAI.getInternalSymbolPrefix();
+#endif
   if (AlwaysEmit)
-    return getOrCreateSymbol(MAI.getInternalSymbolPrefix() + Name);
+    return getOrCreateSymbol(Prefix + Name);
 
   bool IsTemporary = !SaveTempLabels;
   if (IsTemporary && !UseNamesOnTempLabels)
     return createSymbolImpl(nullptr, IsTemporary);
-  return createRenamableSymbol(MAI.getInternalSymbolPrefix() + Name,
+  return createRenamableSymbol(Prefix + Name,
                                /*AlwaysAddSuffix=*/false, IsTemporary);
 }
 

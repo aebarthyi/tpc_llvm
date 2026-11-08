@@ -161,6 +161,13 @@ protected:
   /// object file. This is also used for labels for basic blocks.
   StringRef InternalSymbolPrefix = "L";
 
+#ifdef LLVM_TPC_COMPILER
+  /// TPC: prefix for basic block labels, if not empty. TPC labels blocks with
+  /// ".L" and other internal symbols with "$"; LLVM 23 dropped the separate
+  /// label prefix because every other target used the same one for both.
+  StringRef BlockLabelPrefix;
+#endif
+
   /// This prefix is used for symbols that should be passed through the
   /// assembler but be removed by the linker.  This is 'l' on Darwin, currently
   /// used for some ObjC metadata.  The default of "" meast that for this system
@@ -560,6 +567,11 @@ public:
   bool useAssignmentForEHBegin() const { return UseAssignmentForEHBegin; }
   bool needsLocalForSize() const { return NeedsLocalForSize; }
   StringRef getInternalSymbolPrefix() const { return InternalSymbolPrefix; }
+#ifdef LLVM_TPC_COMPILER
+  StringRef getBlockLabelPrefix() const {
+    return BlockLabelPrefix.empty() ? InternalSymbolPrefix : BlockLabelPrefix;
+  }
+#endif
 
   bool hasLinkerPrivateGlobalPrefix() const {
     return !LinkerPrivateGlobalPrefix.empty();

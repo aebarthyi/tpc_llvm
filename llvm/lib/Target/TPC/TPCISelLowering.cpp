@@ -708,6 +708,7 @@ static bool CC_TPC_EXTRA_ARGS(unsigned &ValNo, MVT &ValVT,
   return true;
 }
 
+#define GET_CALLING_CONV_IMPL
 #include "TPCGenCallingConv.inc"
 
 SDValue TPCTargetLowering::LowerCall(CallLoweringInfo &CLI,
@@ -3572,10 +3573,18 @@ SDValue TPCTargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
   return SDValue();
 }
 
-bool TPCTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
-                                           const CallBase &I,
-                                           MachineFunction &MF,
-                                           unsigned Intrinsic) const {
+void TPCTargetLowering::getTgtMemIntrinsic(
+    SmallVectorImpl<IntrinsicInfo> &Infos, const CallBase &I,
+    MachineFunction &MF, unsigned Intrinsic) const {
+  IntrinsicInfo Info;
+  if (getTPCTgtMemIntrinsic(Info, I, MF, Intrinsic))
+    Infos.push_back(Info);
+}
+
+bool TPCTargetLowering::getTPCTgtMemIntrinsic(IntrinsicInfo &Info,
+                                              const CallBase &I,
+                                              MachineFunction &MF,
+                                              unsigned Intrinsic) const {
   switch (Intrinsic) {
   default:
     return false;

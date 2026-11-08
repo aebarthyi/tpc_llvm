@@ -481,8 +481,8 @@ bool TPCHWWAGeneral::goya2HwWA(MachineFunction &Func) {
               BuildMI(MBB, nextInstrAfterAsh, MI->getDebugLoc(), TII->get(TargetOpcode::IMPLICIT_DEF), addIncome);
 
               // Insert all necessary operands for ADD.
-              addInstr.addReg(mulInstr->getOperand(0).getReg(), 0, TPC::sub_0); // Src #1.
-              addInstr.addReg(mulInstr->getOperand(0).getReg(), 0, TPC::sub_1); // Src #2.
+              addInstr.addReg(mulInstr->getOperand(0).getReg(), {}, TPC::sub_0); // Src #1.
+              addInstr.addReg(mulInstr->getOperand(0).getReg(), {}, TPC::sub_1); // Src #2.
               addInstr.addImm(mulInstr->getOperand(3).getImm());                // Data type.
               addInstr.addImm(MachineOperand::CreateImm(0).getImm());           // Switch.
               addInstr.addReg(addIncome);                                       // Income.
@@ -609,8 +609,8 @@ bool TPCHWWAGeneral::goya2HwWA(MachineFunction &Func) {
 
               // Add new instruction : R = ADD D2.V1, D2.V2.
               MachineInstrBuilder addInstr = BuildMI(MBB, MI, MI->getDebugLoc(), TII->get(TPC::ADDvvp), MI->getOperand(0).getReg());
-              addInstr.addReg(mulInstr->getOperand(0).getReg(), 0, TPC::sub_0);
-              addInstr.addReg(mulInstr->getOperand(0).getReg(), 0, TPC::sub_1);
+              addInstr.addReg(mulInstr->getOperand(0).getReg(), {}, TPC::sub_0);
+              addInstr.addReg(mulInstr->getOperand(0).getReg(), {}, TPC::sub_1);
               addInstr.addImm(mulInstr->getOperand(3).getImm());
               addInstr.addImm(MachineOperand::CreateImm(0).getImm()); // Switch.
               addInstr.addReg(MI->getOperand(6).getReg()); // ASH income.

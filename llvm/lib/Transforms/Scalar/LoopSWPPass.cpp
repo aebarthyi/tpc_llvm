@@ -1044,9 +1044,9 @@ bool LoopSWPImpl::isPrologueOrEpilogueLoop() {
   int ConstOp;
   auto *ConstVal0 = dyn_cast<Constant>(Op[0]);
   auto *ConstVal1 = dyn_cast<Constant>(Op[1]);
-  if (ConstVal0 && ConstVal0->isZeroValue()) {
+  if (ConstVal0 && ConstVal0->isNullValue()) {
     ConstOp = 0;
-  } else if (ConstVal1 && ConstVal1->isZeroValue()) {
+  } else if (ConstVal1 && ConstVal1->isNullValue()) {
     ConstOp = 1;
   } else {
     LOOP_SWP_DEBUG(NotPELoopStr << "Expected an equality check with 0")

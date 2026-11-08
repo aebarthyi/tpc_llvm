@@ -96,8 +96,9 @@ static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const ParsedAttr &A,
           .Cases({"unroll", "nounroll", "unroll_and_jam", "nounroll_and_jam"},
                  PragmaNameLoc->getIdentifierInfo()->getName())
 #ifdef LLVM_TPC_COMPILER
-          .Cases("loop_unroll", "loop_unroll_divide", "loop_taken",
-                 "loop_pipeline", PragmaNameLoc->getIdentifierInfo()->getName())
+          .Cases({"loop_unroll", "loop_unroll_divide", "loop_taken",
+                  "loop_pipeline"},
+                 PragmaNameLoc->getIdentifierInfo()->getName())
 #endif
           .Default("clang loop");
 
