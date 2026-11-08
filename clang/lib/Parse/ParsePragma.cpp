@@ -2877,8 +2877,9 @@ void PragmaReductionOrNormAxesHandler::HandlePragma(Preprocessor &PP,
     return;
   }
 
-  PragmaReductionOrNormAxesInfo *Info =
-      PP.getPreprocessorAllocator().Allocate<PragmaReductionOrNormAxesInfo>(1);
+  // Construct it: Allocate() only returns raw memory, and assigning to the
+  // vectors in it is undefined (it crashed in LLVM 12, 17 and 23).
+  auto *Info = new (PP.getPreprocessorAllocator()) PragmaReductionOrNormAxesInfo;
   Info->TensorIDs = TensorIDs;
   Info->Axes = Axes;
 
