@@ -76,10 +76,8 @@ declare <128 x bfloat16> @llvm.tpc.convert.v128bf16.v64f32.i1(<64 x float>, i8, 
 declare <128 x i16> @llvm.tpc.pack.v128i16.i1(<128 x i16>, i8, i32, <128 x i16>, i1, i1) #1
 
 ; Function Attrs: nounwind readnone
-declare <128 x i16> @llvm.tpc.mov.dual.group.all.v128i16.i1(<128 x i16>, i32, i32, <128 x i16>, i1, i1) #1
 
 ; Function Attrs: nounwind readnone
-declare <128 x i16> @llvm.tpc.mov.dual.group.v128i16.i1(<128 x i16>, i32, i32, <128 x i16>, i1, i1) #1
 
 attributes #0 = { nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="goya2" "target-features"="+goya2" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }

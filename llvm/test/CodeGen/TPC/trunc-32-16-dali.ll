@@ -80,7 +80,6 @@ declare <128 x i16> @llvm.tpc.pack.v128i16.i1(<128 x i16>, i8, i32, <128 x i16>,
  
 
 ; Function Attrs: nounwind readnone
-declare <128 x i16> @llvm.tpc.mov.dual.group.v128i16.i1(<128 x i16>, i32, i32, <128 x i16>, i1, i1) #1
 
  
 
