@@ -433,7 +433,7 @@ static bool tryToUnrollAndJamLoop(LoopNest &LN, DominatorTree &DT, LoopInfo &LI,
                                   const TargetTransformInfo &TTI,
                                   AssumptionCache &AC, DependenceInfo &DI,
                                   OptimizationRemarkEmitter &ORE, int OptLevel,
-                                  LPMUpdater &U) {
+                                  LPMUpdater &U, bool &AnyLoopRemoved) {
   bool DidSomething = false;
   ArrayRef<Loop *> Loops = LN.getLoops();
   Loop *OutmostLoop = &LN.getOutermostLoop();
@@ -449,8 +449,11 @@ static bool tryToUnrollAndJamLoop(LoopNest &LN, DominatorTree &DT, LoopInfo &LI,
         tryToUnrollAndJamLoop(L, DT, &LI, SE, TTI, AC, DI, ORE, OptLevel);
     if (Result != LoopUnrollResult::Unmodified)
       DidSomething = true;
-    if (L == OutmostLoop && Result == LoopUnrollResult::FullyUnrolled)
-      U.markLoopAsDeleted(*L, LoopName);
+    if (Result == LoopUnrollResult::FullyUnrolled) {
+      if (L == OutmostLoop)
+        U.markLoopAsDeleted(*L, LoopName);
+      AnyLoopRemoved = true;
+    }
   }
 
   return DidSomething;
@@ -465,11 +468,13 @@ PreservedAnalyses LoopUnrollAndJamPass::run(LoopNest &LN,
   DependenceInfo DI(&F, &AR.AA, &AR.SE, &AR.LI);
   OptimizationRemarkEmitter ORE(&F);
 
+  bool AnyLoopRemoved = false;
   if (!tryToUnrollAndJamLoop(LN, AR.DT, AR.LI, AR.SE, AR.TTI, AR.AC, DI, ORE,
-                             OptLevel, U))
+                             OptLevel, U, AnyLoopRemoved))
     return PreservedAnalyses::all();
 
   auto PA = getLoopPassPreservedAnalyses();
-  PA.preserve<LoopNestAnalysis>();
+  if (!AnyLoopRemoved)
+    PA.preserve<LoopNestAnalysis>();
   return PA;
 }

@@ -36,6 +36,7 @@ class LitConfig(object):
         params,
         config_prefix=None,
         maxIndividualTestTime=0,
+        maxRetriesPerTest=None,
         # LLVM_TPC_COMPILER
         nightly=False,
         # /LLVM_TPC_COMPILER
@@ -95,6 +96,7 @@ class LitConfig(object):
             self.valgrindArgs.extend(self.valgrindUserArgs)
 
         self.maxIndividualTestTime = maxIndividualTestTime
+        self.maxRetriesPerTest = maxRetriesPerTest
         self.parallelism_groups = parallelism_groups
         self.per_test_coverage = per_test_coverage
         self.gtest_sharding = bool(gtest_sharding)

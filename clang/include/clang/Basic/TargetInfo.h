@@ -16,6 +16,7 @@
 
 #include "clang/Basic/AddressSpaces.h"
 #include "clang/Basic/BitmaskEnum.h"
+#include "clang/Basic/Builtins.h"
 #include "clang/Basic/CFProtectionOptions.h"
 #include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/LLVM.h"
@@ -32,6 +33,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSet.h"
+#include "llvm/ADT/StringTable.h"
 #include "llvm/Frontend/OpenMP/OMPGridValues.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/Support/DataTypes.h"
@@ -204,6 +206,10 @@ protected:
   /// zero length bitfield, regardless of the zero length bitfield type.
   unsigned ZeroLengthBitfieldBoundary;
 
+  /// The largest container size which should be used for an over-sized
+  /// bitfield, in bits.
+  unsigned LargestOverSizedBitfieldContainer;
+
   /// If non-zero, specifies a maximum alignment to truncate alignment
   /// specified in the aligned attribute of a static variable to this value.
   unsigned MaxAlignedAttribute;
@@ -225,7 +231,7 @@ enum OpenCLTypeKind : uint8_t {
 ///
 class TargetInfo : public TransferrableTargetInfo,
                    public RefCountedBase<TargetInfo> {
-  std::shared_ptr<TargetOptions> TargetOpts;
+  TargetOptions *TargetOpts;
   llvm::Triple Triple;
 protected:
   // Target values set by the ctor of the actual target implementation.  Default
@@ -236,7 +242,7 @@ protected:
   bool NoAsmVariants;  // True if {|} are normal characters.
   bool HasLegalHalfType; // True if the backend supports operations on the half
                          // LLVM IR type.
-  bool HalfArgsAndReturns;
+  bool HalfArgsAndReturns; // OpenCL 6.1.1.1, NEON (IEEE 754-2008 half) type.
   bool HasFloat128;
   bool HasFloat16;
   bool HasBFloat16;
@@ -254,6 +260,7 @@ protected:
   const char *MCountName;
   unsigned char RegParmMax, SSERegParmMax;
   TargetCXXABI TheCXXABI;
+  bool UseMicrosoftManglingForC = false;
   const LangASMap *AddrSpaceMap;
 
   mutable StringRef PlatformName;
@@ -270,7 +277,7 @@ protected:
   unsigned HasBuiltinMSVaList : 1;
 
   LLVM_PREFERRED_TYPE(bool)
-  unsigned HasAArch64SVETypes : 1;
+  unsigned HasAArch64ACLETypes : 1;
 
   LLVM_PREFERRED_TYPE(bool)
   unsigned HasRISCVVTypes : 1;
@@ -289,6 +296,8 @@ protected:
 
   std::optional<llvm::Triple> DarwinTargetVariantTriple;
 
+  bool HasMicrosoftRecordLayout = false;
+
   // TargetInfo Constructor.  Default initializes all fields.
   TargetInfo(const llvm::Triple &T);
 
@@ -302,15 +311,17 @@ protected:
   // in function attributes in IR.
   llvm::StringSet<> ReadOnlyFeatures;
 
+  // Default atomic options
+  AtomicOptions AtomicOpts;
+
 public:
   /// Construct a target for the given options.
   ///
   /// \param Opts - The options to use to initialize the target. The target may
   /// modify the options to canonicalize the target feature information to match
-  /// what the backend expects.
-  static TargetInfo *
-  CreateTargetInfo(DiagnosticsEngine &Diags,
-                   const std::shared_ptr<TargetOptions> &Opts);
+  /// what the backend expects. These must outlive the returned TargetInfo.
+  static TargetInfo *CreateTargetInfo(DiagnosticsEngine &Diags,
+                                      TargetOptions &Opts);
 
   virtual ~TargetInfo();
 
@@ -966,6 +977,10 @@ public:
     return ZeroLengthBitfieldBoundary;
   }
 
+  unsigned getLargestOverSizedBitfieldContainer() const {
+    return LargestOverSizedBitfieldContainer;
+  }
+
   /// Get the maximum alignment in bits for a static variable with
   /// aligned attribute.
   unsigned getMaxAlignedAttribute() const { return MaxAlignedAttribute; }
@@ -1030,15 +1045,21 @@ public:
   virtual void getTargetDefines(const LangOptions &Opts,
                                 MacroBuilder &Builder) const = 0;
 
-  /// Return information about target-specific builtins for
-  /// the current primary target, and info about which builtins are non-portable
-  /// across the current set of primary and secondary targets.
-  virtual ArrayRef<Builtin::Info> getTargetBuiltins() const = 0;
+  /// Return information about target-specific builtins for the current primary
+  /// target, and info about which builtins are non-portable across the current
+  /// set of primary and secondary targets.
+  virtual llvm::SmallVector<Builtin::InfosShard> getTargetBuiltins() const = 0;
+
+  enum class ArmStreamingKind {
+    NotStreaming,
+    StreamingCompatible,
+    Streaming,
+  };
 
   /// Returns target-specific min and max values VScale_Range.
   virtual std::optional<std::pair<unsigned, unsigned>>
-  getVScaleRange(const LangOptions &LangOpts,
-                 bool IsArmStreamingFunction) const {
+  getVScaleRange(const LangOptions &LangOpts, ArmStreamingKind Mode,
+                 llvm::StringMap<bool> *FeatureMap = nullptr) const {
     return std::nullopt;
   }
   /// The __builtin_clz* and __builtin_ctz* built-in
@@ -1056,17 +1077,13 @@ public:
   /// available on this target.
   bool hasBuiltinMSVaList() const { return HasBuiltinMSVaList; }
 
-  /// Returns whether or not the AArch64 SVE built-in types are
+  /// Returns whether or not the AArch64 ACLE built-in types are
   /// available on this target.
-  bool hasAArch64SVETypes() const { return HasAArch64SVETypes; }
+  bool hasAArch64ACLETypes() const { return HasAArch64ACLETypes; }
 
   /// Returns whether or not the RISC-V V built-in types are
   /// available on this target.
   bool hasRISCVVTypes() const { return HasRISCVVTypes; }
-
-  /// Returns whether or not the AMDGPU unsafe floating point atomics are
-  /// allowed.
-  bool allowAMDGPUUnsafeFPAtomics() const { return AllowAMDGPUUnsafeFPAtomics; }
 
   /// For ARM targets returns a mask defining which coprocessors are configured
   /// as Custom Datapath.
@@ -1179,8 +1196,7 @@ public:
     }
     void setRequiresImmediate(llvm::ArrayRef<int> Exacts) {
       Flags |= CI_ImmediateConstant;
-      for (int Exact : Exacts)
-        ImmSet.insert(Exact);
+      ImmSet.insert_range(Exacts);
     }
     void setRequiresImmediate(int Exact) {
       Flags |= CI_ImmediateConstant;
@@ -1331,7 +1347,8 @@ public:
   /// Apply changes to the target information with respect to certain
   /// language options which change the target configuration and adjust
   /// the language based on the target options where applicable.
-  virtual void adjust(DiagnosticsEngine &Diags, LangOptions &Opts);
+  virtual void adjust(DiagnosticsEngine &Diags, LangOptions &Opts,
+                      const TargetInfo *Aux);
 
   /// Initialize the map with the default set of target features for the
   /// CPU this should include all legal feature strings on the target.
@@ -1347,6 +1364,11 @@ public:
   /// Get the C++ ABI currently in use.
   TargetCXXABI getCXXABI() const {
     return TheCXXABI;
+  }
+
+  /// Should the Microsoft mangling scheme be used for C Calling Convention.
+  bool shouldUseMicrosoftCCforMangling() const {
+    return UseMicrosoftManglingForC;
   }
 
   /// Target the specified CPU.
@@ -1703,6 +1725,9 @@ public:
     return CC_C;
   }
 
+  /// Get the default atomic options.
+  AtomicOptions getAtomicOpts() const { return AtomicOpts; }
+
   enum CallingConvCheckResult {
     CCCR_OK,
     CCCR_Warning,
@@ -1838,6 +1863,8 @@ public:
 
   virtual void setAuxTarget(const TargetInfo *Aux) {}
 
+  bool hasMicrosoftRecordLayout() const { return HasMicrosoftRecordLayout; }
+
   /// Whether target allows debuginfo types for decl only variables/functions.
   virtual bool allowDebugInfoForExternalRef() const { return false; }
 
@@ -1849,7 +1876,7 @@ public:
 
   /// Returns the version of the darwin target variant SDK which was used during
   /// the compilation if one was specified, or an empty version otherwise.
-  const std::optional<VersionTuple> getDarwinTargetVariantSDKVersion() const {
+  std::optional<VersionTuple> getDarwinTargetVariantSDKVersion() const {
     return !getTargetOpts().DarwinTargetVariantSDKVersion.empty()
                ? getTargetOpts().DarwinTargetVariantSDKVersion
                : std::optional<VersionTuple>();

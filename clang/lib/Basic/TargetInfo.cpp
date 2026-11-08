@@ -47,6 +47,10 @@ static const LangASMap FakeAddrSpaceMap = {
     11, // ptr32_uptr
     12, // ptr64
     13, // hlsl_groupshared
+    14, // hlsl_constant
+    15, // hlsl_private
+    16, // hlsl_device
+    17, // hlsl_input
     20, // wasm_funcref
 };
 
@@ -147,6 +151,7 @@ TargetInfo::TargetInfo(const llvm::Triple &T) : Triple(T) {
   UseLeadingZeroLengthBitfield = true;
   UseExplicitBitFieldAlignment = true;
   ZeroLengthBitfieldBoundary = 0;
+  LargestOverSizedBitfieldContainer = 64;
   MaxAlignedAttribute = 0;
 #ifdef LLVM_TPC_COMPILER
   Float8_143Format = &llvm::APFloat::Float8_143();
@@ -165,7 +170,7 @@ TargetInfo::TargetInfo(const llvm::Triple &T) : Triple(T) {
   SSERegParmMax = 0;
   HasAlignMac68kSupport = false;
   HasBuiltinMSVaList = false;
-  HasAArch64SVETypes = false;
+  HasAArch64ACLETypes = false;
   HasRISCVVTypes = false;
   AllowAMDGPUUnsafeFPAtomics = false;
   HasUnalignedAccess = false;
@@ -181,6 +186,8 @@ TargetInfo::TargetInfo(const llvm::Triple &T) : Triple(T) {
   TheCXXABI.set(Triple.isKnownWindowsMSVCEnvironment()
                     ? TargetCXXABI::Microsoft
                     : TargetCXXABI::GenericItanium);
+
+  HasMicrosoftRecordLayout = TheCXXABI.isMicrosoft();
 
   // Default to an empty address space map.
   AddrSpaceMap = &DefaultAddrSpaceMap;
@@ -416,7 +423,8 @@ bool TargetInfo::isTypeSigned(IntType T) {
 /// Apply changes to the target information with respect to certain
 /// language options which change the target configuration and adjust
 /// the language based on the target options where applicable.
-void TargetInfo::adjust(DiagnosticsEngine &Diags, LangOptions &Opts) {
+void TargetInfo::adjust(DiagnosticsEngine &Diags, LangOptions &Opts,
+                        const TargetInfo *Aux) {
   if (Opts.NoBitFieldTypeAlign)
     UseBitFieldTypeAlignment = false;
 
@@ -556,13 +564,16 @@ void TargetInfo::adjust(DiagnosticsEngine &Diags, LangOptions &Opts) {
 
   if (Opts.FakeAddressSpaceMap)
     AddrSpaceMap = &FakeAddrSpaceMap;
+
+  // Check if it's CUDA device compilation; ensure layout consistency with host.
+  if (Opts.CUDA && Opts.CUDAIsDevice && Aux && !HasMicrosoftRecordLayout)
+    HasMicrosoftRecordLayout = Aux->getCXXABI().isMicrosoft();
 }
 
 bool TargetInfo::initFeatureMap(
     llvm::StringMap<bool> &Features, DiagnosticsEngine &Diags, StringRef CPU,
     const std::vector<std::string> &FeatureVec) const {
-  for (const auto &F : FeatureVec) {
-    StringRef Name = F;
+  for (StringRef Name : FeatureVec) {
     if (Name.empty())
       continue;
     // Apply the feature via the target.

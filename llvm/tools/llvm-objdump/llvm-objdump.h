@@ -76,6 +76,7 @@ class Dumper {
   StringSet<> Warnings;
 
 protected:
+  llvm::raw_ostream &OS;
   std::function<Error(const Twine &Msg)> WarningHandler;
 
 public:

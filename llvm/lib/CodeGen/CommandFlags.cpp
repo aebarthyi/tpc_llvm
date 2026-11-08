@@ -106,6 +106,7 @@ CGOPT(bool, EnableStackSizeSection)
 CGOPT(bool, EnableAddrsig)
 CGOPT(bool, EmitCallSiteInfo)
 CGOPT(bool, EnableMachineFunctionSplitter)
+CGOPT(bool, EnableStaticDataPartitioning)
 CGOPT(bool, EnableDebugEntryValues)
 CGOPT(bool, ForceDwarfFrameSection)
 CGOPT(bool, XRayFunctionIndex)
@@ -491,6 +492,12 @@ codegen::RegisterCodeGenFlags::RegisterCodeGenFlags() {
       cl::init(false));
   CGBINDOPT(EnableMachineFunctionSplitter);
 
+  static cl::opt<bool> EnableStaticDataPartitioning(
+      "partition-static-data-sections",
+      cl::desc("Partition data sections using profile information."),
+      cl::init(false));
+  CGBINDOPT(EnableStaticDataPartitioning);
+
   static cl::opt<bool> ForceDwarfFrameSection(
       "force-dwarf-frame-section",
       cl::desc("Always emit a debug frame section."), cl::init(false));
@@ -597,6 +604,7 @@ codegen::InitTargetOptionsFromCodeGenFlags(const Triple &TheTriple) {
   Options.ExceptionModel = getExceptionModel();
   Options.EmitStackSizeSection = getEnableStackSizeSection();
   Options.EnableMachineFunctionSplitter = getEnableMachineFunctionSplitter();
+  Options.EnableStaticDataPartitioning = getEnableStaticDataPartitioning();
   Options.EmitAddrsig = getEnableAddrsig();
   Options.EmitCallSiteInfo = getEmitCallSiteInfo();
   Options.EnableDebugEntryValues = getEnableDebugEntryValues();
@@ -772,7 +780,7 @@ codegen::createTargetMachineForTriple(StringRef TargetTriple,
   if (!TheTarget)
     return createStringError(inconvertibleErrorCode(), Error);
   auto *Target = TheTarget->createTargetMachine(
-      TheTriple.getTriple(), codegen::getCPUStr(), codegen::getFeaturesStr(),
+      TheTriple, codegen::getCPUStr(), codegen::getFeaturesStr(),
       codegen::InitTargetOptionsFromCodeGenFlags(TheTriple),
       codegen::getExplicitRelocModel(), codegen::getExplicitCodeModel(),
       OptLevel);
