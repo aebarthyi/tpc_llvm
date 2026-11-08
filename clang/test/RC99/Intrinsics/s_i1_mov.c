@@ -10,7 +10,7 @@ void main(int dest, int src, _Bool src2, _Bool pred) {
     _Bool res = src & 0x01;
     _Bool x = src2 > src;
 // CHECK-DAG: mov          [[DEST:%SP[0-9]+]], %S1
-// CHECK-DAG: cmp_grt.i32  [[X:%SP[0-9]+]], %S2, %S1
+// CHECK-DAG: cmp_less.i32 [[X:%SP[0-9]+]], %S1, %S2
 // CHECK-DAG: mov          [[PRED:%SP[0-9]+]], %S3
     
     res = s_i1_mov(x, 0, res, pred, 0);

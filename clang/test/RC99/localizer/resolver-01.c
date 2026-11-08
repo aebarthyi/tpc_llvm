@@ -11,7 +11,7 @@ void main(int x) {
 }
 
 
-// CHECK: store i32 11, ptr addrspace(1) getelementptr inbounds (i8, ptr addrspace(1) null, i32 4)
+// CHECK: store i32 11, ptr addrspace(1) getelementptr inbounds nuw (i8, ptr addrspace(1) null, i32 4)
 // CHECK: store i32 777, ptr addrspace(1) inttoptr (i32 48 to ptr addrspace(1))
 
 

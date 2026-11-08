@@ -6,6 +6,6 @@ void main(int dest, int src, _BFloat16 src2) {
 
   *dptr = *sptr + src2;
 // CHECK: ld_l  [[REG:%S[0-9]+]], %S1
-// CHECK: add.bf16 [[REG2:%S[0-9]+]], [[REG]], %S2
+// CHECK: add.bf16 [[REG2:%S[0-9]+]], %S2, [[REG]]
 // CHECK: st_l %S0, [[REG2]]
 }

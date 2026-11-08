@@ -9,16 +9,16 @@ target triple = "tpc"
 define dso_local void @main(float %0, float %1) local_unnamed_addr #0 {
 ; CHECK-LABEL: @main(
 ; CHECK:    [[TMP27:%.*]] = tail call <64 x i32> @llvm.read_register.v64i32(metadata !0)
-; CHECK-NEXT:    [[TMP28:%.*]] = add <64 x i32> [[TMP27]], <i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64>
+; CHECK-NEXT:    [[TMP28:%.*]] = add <64 x i32> [[TMP27]], splat (i32 64)
 ; CHECK-NEXT:    [[TMP29:%.*]] = tail call <128 x float> @llvm.tpc.lookup.2c.v128f32.v64i32(<64 x i32> [[TMP28]], i32 282, i32 0, <128 x float> undef, i1 true, i1 false)
 ; CHECK-NEXT:    [[TMP30:%.*]] = tail call <64 x i32> @llvm.read_register.v64i32(metadata !0)
-; CHECK-NEXT:    [[TMP31:%.*]] = add <64 x i32> [[TMP30]], <i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64>
+; CHECK-NEXT:    [[TMP31:%.*]] = add <64 x i32> [[TMP30]], splat (i32 64)
 ; CHECK-NEXT:    [[TMP32:%.*]] = tail call <128 x float> @llvm.tpc.lookup.2c.v128f32.v64i32(<64 x i32> [[TMP31]], i32 282, i32 0, <128 x float> undef, i1 true, i1 false)
 ; CHECK-NEXT:    [[TMP33:%.*]] = tail call <64 x i32> @llvm.read_register.v64i32(metadata !0)
-; CHECK-NEXT:    [[TMP34:%.*]] = add <64 x i32> [[TMP33]], <i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64>
+; CHECK-NEXT:    [[TMP34:%.*]] = add <64 x i32> [[TMP33]], splat (i32 64)
 ; CHECK-NEXT:    [[TMP35:%.*]] = tail call <128 x float> @llvm.tpc.lookup.2c.v128f32.v64i32(<64 x i32> [[TMP34]], i32 282, i32 0, <128 x float> undef, i1 true, i1 false)
 ; CHECK-NEXT:    [[TMP36:%.*]] = tail call <64 x i32> @llvm.read_register.v64i32(metadata !0)
-; CHECK-NEXT:    [[TMP37:%.*]] = add <64 x i32> [[TMP36]], <i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64, i32 64>
+; CHECK-NEXT:    [[TMP37:%.*]] = add <64 x i32> [[TMP36]], splat (i32 64)
 ; CHECK-NEXT:    [[TMP38:%.*]] = tail call <128 x float> @llvm.tpc.lookup.2c.v128f32.v64i32(<64 x i32> [[TMP37]], i32 282, i32 0, <128 x float> undef, i1 true, i1 false)
 ; CHECK:       74:
 ; CHECK-NEXT:    [[TMP75:%.*]] = phi <5 x i32>

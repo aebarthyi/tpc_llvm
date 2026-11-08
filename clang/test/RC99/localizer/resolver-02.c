@@ -15,7 +15,7 @@ void main(int x) {
 
 
 // CHECK: store float 1.000000e+00, ptr addrspace(1) null
-// CHECK: store i32 777, ptr addrspace(1) getelementptr inbounds (i8, ptr addrspace(1) null, i32 8)
+// CHECK: store i32 777, ptr addrspace(1) getelementptr inbounds nuw (i8, ptr addrspace(1) null, i32 8)
 
 
 // CHECK: !llvm.tpc.scalar_data = !{![[SSZ:[0-9]+]]}

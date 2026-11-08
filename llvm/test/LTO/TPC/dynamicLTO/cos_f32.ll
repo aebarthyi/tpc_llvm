@@ -10,8 +10,8 @@ entry:
   tail call void @llvm.tpc.st.tnsr.v64f32(<5 x i32> zeroinitializer, i8 1, <64 x float> %1, i32 0, i1 true, i1 false)
   ret void
   ; CHECK: {{.*}}get_lut_entry_and_interval_start.f32 sin_cos{{.*}}
-  ; CHECK: lookup_1c{{.*}}
-  ; CHECK: lookup_2c{{.*}}
+  ; CHECK-DAG: lookup_1c{{.*}}
+  ; CHECK-DAG: lookup_2c{{.*}}
 }
 
 declare <64 x float>  @tpc_cos_f32(<64 x float> )
