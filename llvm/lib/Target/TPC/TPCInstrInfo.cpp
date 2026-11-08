@@ -3598,17 +3598,11 @@ bool llvm::TPCInstrInfo::isMMIOAccess(const MachineInstr & MI)
 }
 
 bool TPCInstrInfo::isGlobalScalarLoad(const MachineInstr &MI) const {
-  const auto &MIDesc = MI.getDesc();
-  if (!TPCII::isLoadInst(MIDesc) || MI.getNumOperands() < 2)
+  if (!TPCII::is_ld_g(MI.getDesc()))
     return false;
 
-  const MachineOperand &DestOp = MI.getOperand(0);
-  const MachineOperand &SrcOp = MI.getOperand(1);
-  if (!DestOp.isReg() || !SrcOp.isReg())
-    return false;
-  
-  return (TPC::SRFRegClass.contains(DestOp.getReg()) &&
-          TPC::ADRFRegClass.contains(SrcOp.getReg()));
+  const Register Dest = MI.getOperand(0).getReg();
+  return !TPC::VRFRegClass.contains(Dest) && !TPC::VPRFRegClass.contains(Dest);
 }
 
 bool TPCInstrInfo::instrProducesUnspillableReg(const MachineInstr &MI) const {

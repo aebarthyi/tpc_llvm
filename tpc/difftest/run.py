@@ -11,10 +11,11 @@ output tensors are compared.
   FAIL   anything else (including candidate metadata differing from baseline)
   SKIP   reference cannot compile the kernel for that arch
 
-Fork compilers emit .tpc_metadata v12, which current habanatools cannot run
-(see README.md). Before simulation, the reference object's metadata section is
-copied into each fork object; with --baseline, the fork's own metadata is
-instead checked byte-for-byte against the baseline's.
+The candidate runs exactly as compiled. A baseline from before the fork emitted
+.tpc_metadata v20 cannot run on current habanatools (see README.md), so it runs
+with the reference object's metadata section instead. A baseline with the
+candidate's metadata version has its metadata checked byte-for-byte against the
+candidate's.
 
 Compile-parity mode (--compile-parity) compiles C sources (default: the RC99
 lit tests) with each compiler and compares only whether compilation succeeds.
@@ -50,6 +51,7 @@ FLOAT_DTYPES = {"f32", "bf16", "f16"}
 SIM_ARCHS = {"gaudi", "gaudi2", "gaudi3"}
 PARITY_ARCHS = ["gaudi", "gaudib", "greco", "goya2", "gaudi2"]
 METADATA = b".tpc_metadata"
+METADATA_VERSION = 20
 
 
 @dataclass
@@ -213,6 +215,10 @@ def section_bytes(path, name=METADATA):
     return data[off:off + size]
 
 
+def metadata_version(path):
+    return struct.unpack_from("<I", section_bytes(path))[0]
+
+
 def transplant_metadata(fork_obj, ref_obj, out_obj):
     data = bytearray(fork_obj.read_bytes())
     off, size = find_section(data, METADATA)
@@ -337,11 +343,12 @@ def run_functional_case(k, arch, compilers, args, runner, env):
 
     notes = []
     if "baseline" in objs and "candidate" in objs:
-        if section_bytes(objs["baseline"]) != section_bytes(objs["candidate"]):
+        if (metadata_version(objs["baseline"]) == metadata_version(objs["candidate"]) and
+                section_bytes(objs["baseline"]) != section_bytes(objs["candidate"])):
             notes.append("candidate .tpc_metadata differs from baseline")
 
     for role, obj in objs.items():
-        if role != "ref":
+        if role == "baseline" and metadata_version(obj) < METADATA_VERSION:
             patched = work / f"{role}.sim.o"
             try:
                 transplant_metadata(obj, objs["ref"], patched)

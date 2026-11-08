@@ -3116,10 +3116,9 @@ bool TPCAsmParser::parseTPCMetadata() {
   std::string RedefinitionField = formatv("Redefintion of {0} field: ",
                                           BinaryTPCMetadataSectionName);
 
-  // scalarLds set indexes.
-  std::bitset<TPCNumTensors> ScalarIdSetIndexes;
-  // rmwStore set indexes.
-  std::bitset<TPCNumTensors> RMWStoreIndexes;
+  // Indexes already set, per tensor mask field.
+  std::unordered_map<const TPCMetadataFieldInfo *, std::bitset<TPCNumTensors>>
+      MaskSetIndexes;
   // Parse field by field
 
   for (;;) {
@@ -3133,13 +3132,9 @@ bool TPCAsmParser::parseTPCMetadata() {
         getTPCMetadataFieldInfo(Tok.getString());
     if (!CurrentFieldInfo)
       break;  // Possible, if it is start of an assembler program
-    if (StringRef(CurrentFieldInfo->fieldName).compare(TPCScalarLdName) == 0) {
-      if (!parseTPCMetadataArrayField(ScalarIdSetIndexes, *CurrentFieldInfo))
-        return false;
-      continue;
-    }
-    if (StringRef(CurrentFieldInfo->fieldName).compare(TPCRMWStoreName) == 0) {
-      if (!parseTPCMetadataArrayField(RMWStoreIndexes, *CurrentFieldInfo))
+    if (CurrentFieldInfo->isArray()) {
+      if (!parseTPCMetadataArrayField(MaskSetIndexes[CurrentFieldInfo],
+                                      *CurrentFieldInfo))
         return false;
       continue;
     }

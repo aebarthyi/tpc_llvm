@@ -9,19 +9,10 @@
 //         mzuckerman@habana.ai
 //===----------------------------------------------------------------------===//
 // 1) This pass adds metadata to the ELF under the name of TPC_METADATA.
-// 2) This header is build according to the protocol of ELFSpec0.1.
-// 3) struct {
-//      uint32_t version; //spec version
-//      uint8_t  specialFunction;
-//      uint8_t  printf;
-//      uint8_t  lock;
-//      bool HasScalarMemOperation[16];
-//      int16_t HasRMW; // This indicate what ever there is ST_TNSR_RMW or not
-//      uint32_t reserved[256];
-//    }
-//  4) This pass searches for lookup instruction if exist set
-//     report.specialFunction to true.
-//  5) This pass searches for printf metadata if exist set printf to true.
+// 2) The layout is in TPCMetadataSection.cpp.
+// 3) This pass searches for lookup instruction if exist set
+//    report.specialFunction to true.
+// 4) This pass searches for printf metadata if exist set printf to true.
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/TPCMCInstrInfo.h"
@@ -29,13 +20,18 @@
 #include "TPCTargetMachine.h"
 #include "TPCInstrInfo.h"
 #include "TPCSubtarget.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Module.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/Support/CRC.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Target/TPCMetadataSection.h"
+#include <algorithm>
+#include <iterator>
 #include <limits>
 
 #define DEBUG_TYPE "TPCElfSpec"
@@ -132,6 +128,50 @@ public:
 };
 } // namespace
 
+/// Marks \p Tensor in \p Mask. A tensor ID in a register can name any tensor.
+static void setTensorBits(bool (&Mask)[TPCNumTensors],
+                          const MachineOperand &Tensor) {
+  if (Tensor.isImm())
+    Mask[Tensor.getImm()] = true;
+  else
+    std::fill(std::begin(Mask), std::end(Mask), true);
+}
+
+/// Whether the st_tnsr \p MI may write only part of a tensor element. This
+/// matches what Habana's compiler reports for each form of the instruction.
+static bool isPartialStore(const MachineInstr &MI) {
+  const unsigned Switches = getSwitches(MI);
+  switch (TPCII::getSlotOpCode(MI.getDesc())) {
+  case TPCII::ST_TNSR:
+    return (Switches & TPCII::SW_PARTIAL) && !(Switches & TPCII::SW_DIRECT);
+  case TPCII::ST_TNSR_S:
+    return Switches & TPCII::SW_HW_REG;
+  case TPCII::ST_TNSR_SQZ:
+    // The other two forms do not name a tensor.
+    return MI.getOpcode() != TPC::ST_TNSR_SQZ_CNT_ONLY &&
+           MI.getOpcode() != TPC::ST_TNSR_SQZ_FLUSH;
+  default:
+    return false;
+  }
+}
+
+/// A value that identifies the kernel, for the hashedISA field. Like Habana's,
+/// it depends on the source text and the file name, so a kernel keeps it across
+/// architectures and optimization levels. The values differ from Habana's; the
+/// tools run a kernel whatever the value is.
+static uint32_t computeKernelHash(const Module &M) {
+  uint32_t Hash =
+      crc32(arrayRefFromStringRef(sys::path::stem(M.getSourceFileName())));
+  // Clang embeds the source text when it emits an object, see
+  // BackendConsumer::HandleTranslationUnit.
+  if (const GlobalVariable *Source = M.getNamedGlobal("source"))
+    if (Source->getSection() == ".source" && Source->hasInitializer())
+      if (const auto *Text =
+              dyn_cast<ConstantDataSequential>(Source->getInitializer()))
+        Hash = crc32(Hash, arrayRefFromStringRef(Text->getRawDataValues()));
+  return Hash;
+}
+
 char TPCElfSpecSet::ID = 0;
 
 INITIALIZE_PASS_BEGIN(TPCElfSpecSet, PassName, PassDescription, false, false)
@@ -197,6 +237,8 @@ void TPCElfSpecSet::mapInputOutputTensor(const MachineInstr &BMI) {
       else
         AllTrueRMW = true;
     }
+    if (isPartialStore(BMI))
+      setTensorBits(TPCMetadata.partialStore, BMI.getOperand(1));
   }
 }
 
@@ -226,19 +268,21 @@ void TPCElfSpecSet::searchInstruction(MachineFunction &Func) {
         const auto AddrOperand = BMI.getOperand(0);
 
         const auto AddrReg = AddrOperand.getReg();
-        if (BMI.getOperand(1).isImm()) {
-          const auto TensorID = BMI.getOperand(1).getImm();
-          // TODO: Ideally we should register data flow analysis, but,
-          // apparently ADRF reg is killed with LD use. So this along with
-          // dominator check should work.
-          for (const auto &MI : MRI.use_instructions(AddrReg)) {
-            if (MDT.dominates(BMI.getParent(), MI.getParent()) &&
-                TII->isGlobalScalarLoad(MI)) {
-              TPCMetadata.scalarLd[TensorID] = true;
-              // Break if ADRF operand is dead or killed.
-              if (MI.getOperand(1).isDead() || MI.getOperand(1).isKill())
-                break;
-            }
+        const MachineOperand &Tensor = BMI.getOperand(1);
+        // TODO: Ideally we should register data flow analysis, but,
+        // apparently ADRF reg is killed with LD use. So this along with
+        // dominator check should work.
+        for (const auto &MI : MRI.use_instructions(AddrReg)) {
+          if (!MDT.dominates(BMI.getParent(), MI.getParent()))
+            continue;
+          const bool IsLoad = TPCII::is_ld_g(MI.getDesc());
+          const bool IsStore = TPCII::is_st_g(MI.getDesc());
+          if (IsStore)
+            setTensorBits(TPCMetadata.scalarSt, Tensor);
+          if (Tensor.isImm() && (IsLoad || IsStore)) {
+            TPCMetadata.genAddrTensorMask[Tensor.getImm()] = true;
+            if (TII->isGlobalScalarLoad(MI))
+              TPCMetadata.scalarLd[Tensor.getImm()] = true;
           }
         }
       }
@@ -320,8 +364,13 @@ void TPCElfSpecSet::CalculateTPCMetadata(const MachineFunction &Func) {
   else
     llvm_unreachable("A unhandled march case");
 
-  if (SubTarget.getTargetLowering()->getTargetMachine().Options.TpcDnorm)
+  const TargetOptions &Options =
+      SubTarget.getTargetLowering()->getTargetMachine().Options;
+  if (Options.TpcDnorm)
     TPCMetadata.dnorm = 1;
+  TPCMetadata.irf32Mode = !Options.LongIRF;
+
+  TPCMetadata.hashedISA = computeKernelHash(*Func.getFunction().getParent());
 }
 
 /*

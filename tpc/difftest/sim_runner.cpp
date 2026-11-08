@@ -197,11 +197,6 @@ int main(int Argc, char **Argv) {
   std::memset(&Params, 0, sizeof(Params));
   Params.deviceId = parseDevice(DeviceName);
   std::strncpy(Params.guid.name, "difftest", tpc_lib_api::MAX_NODE_NAME - 1);
-  // Fork-built objects carry .tpc_metadata v12, which predates the irf32Mode
-  // flag, so the simulator treats them as irf44 kernels and refuses to run them
-  // unless the guid declares 64-bit size support. Declaring it is harmless for
-  // irf32 kernels.
-  Params.guid.supports64bit = 1;
   Params.inputTensors = InTensors.data();
   Params.inputTensorNr = static_cast<uint32_t>(InTensors.size());
   Params.outputTensors = OutTensors.data();

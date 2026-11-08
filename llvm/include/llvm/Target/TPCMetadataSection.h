@@ -33,13 +33,11 @@ namespace llvm {
 constexpr const char BinaryTPCMetadataSectionName[] = ".tpc_metadata";
 
 constexpr unsigned TPCNumTensors = 16;
-constexpr unsigned TPCReservedSize = 232;
-constexpr unsigned TPCReservedSize1 = 9;
-constexpr unsigned TPCMetadataVersion = 12;
+constexpr unsigned TPCReservedSize = 213;
+constexpr unsigned TPCReservedSize1 = 4;
+constexpr unsigned TPCMetadataVersion = 20;
 
 constexpr const char TPCMarchName[] = "march";
-constexpr const char TPCScalarLdName[] = "scalarLd";
-constexpr const char TPCRMWStoreName[] = "rmwStore";
 
 struct TPCMetadataSection {
   uint32_t    version = TPCMetadataVersion;
@@ -52,10 +50,20 @@ struct TPCMetadataSection {
   uint8_t     printfTensorID = 0;
   uint8_t     numberOfThreads = 1;
   uint8_t     directMMIOAccess = 0;
+  bool        targetSpecific = false;
   bool        dnorm = false;
+  uint32_t    hashedISA = 0;
   uint8_t     reservedTemp[TPCReservedSize1];
   bool        scalarLd[TPCNumTensors] = {false};
   bool        rmwStore[TPCNumTensors] = {false};
+  uint64_t    duplicateTensors = 0;
+  bool        genAddrTensorMask[TPCNumTensors] = {false};
+  bool        regIDUsed = false;
+  bool        irf32Mode = true;
+  bool        partialStore[TPCNumTensors] = {false};
+  bool        exclusiveSwitch[TPCNumTensors] = {false};
+  bool        unsetSmallVLM = false;
+  bool        scalarSt[TPCNumTensors] = {false};
   // Do not use these fields:
   uint8_t     reserved[TPCReservedSize];
 };
@@ -72,8 +80,8 @@ struct TPCMetadataFieldInfo {
   const char  *fieldName;
   unsigned    elementSize;
   unsigned    length;
-  unsigned    minValue;
-  unsigned    maxValue;
+  uint64_t    minValue;
+  uint64_t    maxValue;
   uint8_t     startWithVersion;
   unsigned    offset;
 
@@ -89,19 +97,22 @@ struct TPCMetadataFieldInfo {
   /// Whether field is a reserved area which should be always zero-filled.
   bool IsPlaceholder;
 
+  /// The per-tensor mask behind an array field, null for other fields.
+  bool (TPCMetadataSection::*TensorMask)[TPCNumTensors];
+
   bool isArray() const {return length > 1;}
 };
 
-extern const std::array<TPCMetadataFieldInfo, 16> TPCMetadataFieldsInfo;
+extern const std::array<TPCMetadataFieldInfo, 26> TPCMetadataFieldsInfo;
 
 const TPCMetadataFieldInfo *getTPCMetadataFieldInfo(const StringRef FieldName);
 
-bool setTpcMetadataValue(int64_t Value,
+bool setTpcMetadataValue(uint64_t Value,
                          const TPCMetadataFieldInfo &FieldInfo,
                          TPCMetadataSection &Result,
                          std::string &ErrorMessage);
 
-bool setTpcMetadataArrayValue(int64_t Value,
+bool setTpcMetadataArrayValue(uint64_t Value,
                               unsigned Index,
                               const TPCMetadataFieldInfo &FieldInfo,
                               TPCMetadataSection &Result,

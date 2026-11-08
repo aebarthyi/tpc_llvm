@@ -55,7 +55,7 @@ Results, one line per kernel and architecture:
 |---------|---------|
 | `PASS`  | Candidate output equals the reference output. |
 | `KNOWN` | Candidate differs from the reference exactly like the baseline does (a pre-existing difference). |
-| `FAIL`  | Anything else, including a change in the candidate's `.tpc_metadata` relative to the baseline. |
+| `FAIL`  | Anything else, including a change in the candidate's `.tpc_metadata` relative to a baseline with the same metadata version. |
 | `SKIP`  | The reference compiler cannot build the kernel for that architecture. |
 
 `run.py` exits non-zero on any `FAIL`. Work files (objects, inputs, outputs) are
@@ -85,14 +85,15 @@ Keep each kernel focused on one feature, so a failure points at a cause.
 
 ### Known issues
 
-* **Metadata format.** The fork writes `.tpc_metadata` version 12; current
-  habanatools expect version 20, which added fields such as `irf32Mode`. On
-  version 12 objects the simulator assumes irf44 mode (gaudi2 kernels then write
-  nothing) or crashes (gaudi). `run.py` therefore copies the reference object's
-  metadata section into each fork object before simulating, and separately
-  requires the candidate's own metadata to match the baseline's byte for byte.
-  Fork-built objects will not run correctly under SynapseAI 1.24 until the fork
-  emits version 20 metadata.
+* **Old baselines.** Fork compilers older than the version 20 `.tpc_metadata`
+  change write version 12, which current habanatools cannot run: the missing
+  `irf32Mode` makes the simulator assume irf44 mode. `run.py` runs such a baseline
+  with the reference object's metadata section, and does not compare its metadata
+  with the candidate's.
+* **Metadata the fork does not compute.** `targetSpecific`, `regIDUsed`,
+  `duplicateTensors`, `exclusiveSwitch` and `unsetSmallVLM` stay 0, and
+  `hashedISA` does not match Habana's values. The simulator accepts this, but
+  nothing has checked it against the graph compiler or hardware.
 * **`srem_var_i32`.** The fork crashes on signed scalar remainder by a
   non-constant divisor; expected `KNOWN` until fixed.
 * **`scalar_math_i32` at `-O0` on gaudi2.** The fork miscompiles it: every output

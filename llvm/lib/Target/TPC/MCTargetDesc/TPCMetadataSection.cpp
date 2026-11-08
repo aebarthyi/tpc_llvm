@@ -25,7 +25,7 @@ static constexpr unsigned TPCLastMarch = 6; // Doron1
 template <typename FieldT>
 static TPCMetadataFieldInfo
 makeScalarFI(const char *FieldName, const unsigned ElementSize,
-             const unsigned MinValue, const unsigned MaxValue,
+             const uint64_t MinValue, const uint64_t MaxValue,
              const uint8_t StartWithVersion, const unsigned Offset,
              FieldT TPCMetadataSection::*Field) {
   return TPCMetadataFieldInfo{
@@ -43,7 +43,8 @@ makeScalarFI(const char *FieldName, const unsigned ElementSize,
         MD.*Field = static_cast<FieldT>(Val);
       },
       ElementSize,
-      false};
+      false,
+      nullptr};
 }
 
 static TPCMetadataFieldInfo makePlaceholderFI(const char *FieldName,
@@ -61,7 +62,8 @@ static TPCMetadataFieldInfo makePlaceholderFI(const char *FieldName,
       [](const TPCMetadataSection &MD) -> std::uint64_t { return 0; },
       [](TPCMetadataSection &MD, std::uint64_t Val) {},
       BinSize,
-      true};
+      true,
+      nullptr};
 }
 
 static std::uint64_t convertTensorMaskToU64(const bool Mask[],
@@ -80,9 +82,33 @@ static void convertU64ToTensorMask(const std::uint64_t Value, bool *Mask,
     Mask[I] = (Value >> I) & 1;
 }
 
+static TPCMetadataFieldInfo
+makeTensorMaskFI(const char *FieldName, const uint8_t StartWithVersion,
+                 const unsigned Offset,
+                 bool (TPCMetadataSection::*Mask)[TPCNumTensors]) {
+  return TPCMetadataFieldInfo{
+      FieldName,
+      1,
+      TPCNumTensors,
+      0,
+      1,
+      StartWithVersion,
+      Offset,
+      [Mask](const TPCMetadataSection &MD) -> std::uint64_t {
+        return convertTensorMaskToU64(MD.*Mask, TPCNumTensors);
+      },
+      [Mask](TPCMetadataSection &MD, std::uint64_t Value) {
+        convertU64ToTensorMask(Value, MD.*Mask, TPCNumTensors);
+      },
+      2,
+      false,
+      Mask};
+}
+
 namespace llvm {
 
-const std::array<TPCMetadataFieldInfo, 16> TPCMetadataFieldsInfo = {
+// The layout of version 20, as read by the SynapseAI 1.24 tools.
+const std::array<TPCMetadataFieldInfo, 26> TPCMetadataFieldsInfo = {
     makeScalarFI("version", 4, 0, TPCMetadataVersion, 3, 0,
                  &TPCMetadataSection::version),
     makeScalarFI("specialFunctionUsed", 1, 0, 1, 3, 4,
@@ -102,27 +128,27 @@ const std::array<TPCMetadataFieldInfo, 16> TPCMetadataFieldsInfo = {
                  &TPCMetadataSection::numberOfThreads),
     makeScalarFI("directMMIOAccess", 1, 0, 1, 11, 15,
                  &TPCMetadataSection::directMMIOAccess),
-    makeScalarFI("dnorm", 1, 0, 1, 12, 16, &TPCMetadataSection::dnorm),
-    makePlaceholderFI("reserveMidArea", 17, TPCReservedSize1, 3),
-    TPCMetadataFieldInfo{
-        TPCScalarLdName, 1, TPCNumTensors, 0, 1, 3, 26,
-        [](const TPCMetadataSection &MD) {
-          return convertTensorMaskToU64(MD.scalarLd, TPCNumTensors);
-        },
-        [](TPCMetadataSection &MD, std::uint64_t Value) {
-          convertU64ToTensorMask(Value, MD.scalarLd, TPCNumTensors);
-        },
-        2, false},
-    TPCMetadataFieldInfo{
-        TPCRMWStoreName, 1, TPCNumTensors, 0, 1, 4, 28,
-        [](const TPCMetadataSection &MD) {
-          return convertTensorMaskToU64(MD.rmwStore, TPCNumTensors);
-        },
-        [](TPCMetadataSection &MD, std::uint64_t Value) {
-          convertU64ToTensorMask(Value, MD.rmwStore, TPCNumTensors);
-        },
-        2, false},
-    makePlaceholderFI("reserveEndArea", 30, TPCReservedSize, 3),
+    makeScalarFI("targetSpecific", 1, 0, 1, 13, 16,
+                 &TPCMetadataSection::targetSpecific),
+    makeScalarFI("dnorm", 1, 0, 1, 12, 17, &TPCMetadataSection::dnorm),
+    makeScalarFI("hashedISA", 4, 0, std::numeric_limits<uint32_t>::max(), 14,
+                 18, &TPCMetadataSection::hashedISA),
+    makePlaceholderFI("reserveMidArea", 22, TPCReservedSize1, 3),
+    makeTensorMaskFI("scalarLd", 3, 26, &TPCMetadataSection::scalarLd),
+    makeTensorMaskFI("rmwStore", 4, 28, &TPCMetadataSection::rmwStore),
+    makeScalarFI("duplicateTensors", 8, 0, std::numeric_limits<uint64_t>::max(),
+                 15, 30, &TPCMetadataSection::duplicateTensors),
+    makeTensorMaskFI("genAddrTensorMask", 15, 38,
+                     &TPCMetadataSection::genAddrTensorMask),
+    makeScalarFI("regIDUsed", 1, 0, 1, 15, 40, &TPCMetadataSection::regIDUsed),
+    makeScalarFI("irf32Mode", 1, 0, 1, 16, 41, &TPCMetadataSection::irf32Mode),
+    makeTensorMaskFI("partialStore", 17, 42, &TPCMetadataSection::partialStore),
+    makeTensorMaskFI("exclusiveSwitch", 18, 44,
+                     &TPCMetadataSection::exclusiveSwitch),
+    makeScalarFI("unsetSmallVLM", 1, 0, 1, 19, 46,
+                 &TPCMetadataSection::unsetSmallVLM),
+    makeTensorMaskFI("scalarSt", 20, 47, &TPCMetadataSection::scalarSt),
+    makePlaceholderFI("reserveEndArea", 49, TPCReservedSize, 3),
 };
 } // namespace llvm
 
@@ -141,7 +167,7 @@ static std::uint64_t fromUint8Array(const uint8_t *Array, const unsigned NumByte
   assert(NumBytes <= 8);
   std::uint64_t Result = 0;
   for (unsigned I = 0; I < NumBytes; ++I)
-    Result |= (*(Array++)) << (8 * I);
+    Result |= static_cast<std::uint64_t>(*(Array++)) << (8 * I);
   return Result;
 }
 
@@ -204,7 +230,7 @@ llvm::getTPCMetadataFieldInfo(const StringRef FieldName) {
   return nullptr;
 }
 
-bool llvm::setTpcMetadataValue(int64_t  Value,
+bool llvm::setTpcMetadataValue(uint64_t Value,
                          const TPCMetadataFieldInfo &FieldInfo,
                          TPCMetadataSection &Result,
                          std::string &ErrorMessage) {
@@ -223,7 +249,7 @@ bool llvm::setTpcMetadataValue(int64_t  Value,
   return true;
 }
 
-bool llvm::setTpcMetadataArrayValue(int64_t Value,
+bool llvm::setTpcMetadataArrayValue(uint64_t Value,
                               unsigned Index,
                               const TPCMetadataFieldInfo &FieldInfo,
                               TPCMetadataSection &Result,
@@ -246,14 +272,7 @@ bool llvm::setTpcMetadataArrayValue(int64_t Value,
     return false;
   }
 
-  StringRef FieldName(FieldInfo.fieldName);
-  if (FieldName == TPCScalarLdName)
-    Result.scalarLd[Index] = Value;
-  else if (FieldName == TPCRMWStoreName)
-    Result.rmwStore[Index] = Value;
-  else
-    llvm_unreachable("An unhandled case occurred");
-
+  (Result.*FieldInfo.TensorMask)[Index] = Value;
   return true;
 }
 
@@ -272,18 +291,7 @@ bool llvm::setTpcMetadataArrayValue(const StringRef &Value,
     return false;
   }
 
-  const StringRef FieldName(FieldInfo.fieldName);
-
-  bool *TensorMask = nullptr;
-  if (FieldName == TPCScalarLdName)
-    TensorMask = Result.scalarLd;
-  else if (FieldName == TPCRMWStoreName)
-    TensorMask = Result.rmwStore;
-  else {
-    ErrorMessage = formatv("Unexpected array field {0}.", FieldName);
-    return false;
-  }
-
+  bool *TensorMask = Result.*FieldInfo.TensorMask;
   for (unsigned I = 0; I < FieldInfo.length; ++I) {
     if (Value[I] == '0')
       TensorMask[I] = false;
