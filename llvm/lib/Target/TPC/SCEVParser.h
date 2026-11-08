@@ -20,7 +20,7 @@ class SCEVParser {
 
   SCEVParser(const SCEV *scev, ScalarEvolution *sel, Module *M = nullptr,
              LoopInfo *LInfo = nullptr)
-          : p_SCEVP(scev), p_SEL(sel), m_SCE((*p_SEL), p_SEL->getDataLayout(), "TPC_LLVM"), p_M(M) {
+          : p_SCEVP(scev), p_SEL(sel), m_SCE((*p_SEL), "TPC_LLVM"), p_M(M) {
       computeStride();
   };
 

@@ -51,7 +51,7 @@ static bool insertAssume(Loop *const L, ScalarEvolution &SE,
             ? ICmpInst::ICMP_SGT
             : ICmpInst::ICMP_SLT;
 
-    Function *AssumeIntrinsic = Intrinsic::getDeclaration(
+    Function *AssumeIntrinsic = Intrinsic::getOrInsertDeclaration(
         L->getHeader()->getModule(), Intrinsic::assume);
     ICmpInst *Cmp = new ICmpInst(Pred, &Final, &Initial);
     Cmp->insertBefore(InsertP);

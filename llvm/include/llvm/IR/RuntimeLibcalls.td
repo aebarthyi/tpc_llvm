@@ -3514,10 +3514,15 @@ def WasmSystemLibrary
 //===----------------------------------------------------------------------===//
 
 // TODO: Should make every target explicit.
+// TPC: before LLVM 22 every target had the default libcalls. TPC relies on
+// memset, memcpy and memmove counting as available so that PreISelIntrinsic-
+// Lowering leaves them to the TPC backend instead of expanding them into byte
+// loops it cannot select.
 def isDefaultLibcallArch : RuntimeLibcallPredicate<[{
   TT.isMIPS() || TT.isLoongArch() || TT.isVE() || TT.isBPF() ||
   TT.getArch() == Triple::csky || TT.getArch() == Triple::arc ||
   TT.getArch() == Triple::m68k ||  TT.getArch() == Triple::xtensa ||
+  TT.getArch() == Triple::tpc ||
   (TT.isSystemZ() && !TT.isOSzOS())
 }]>;
 

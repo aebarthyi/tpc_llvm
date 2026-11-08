@@ -100,7 +100,6 @@ def DataType : Operand<i8> {
   let PrintMethod = "printDataType";
   let ParserMatchClass = DataTypeAsmOperand;
   let OperandType = "OPERAND_DATATYPE";
-  let MIOperandInfo = (ops i8imm:$datatype);
 }
 
 def DimMaskAsmOperand : AsmOperandClass {
@@ -112,7 +111,6 @@ def DimMaskAsmOperand : AsmOperandClass {
 def DimMask : Operand<i32> {
   let PrintMethod = "printDimMask";
   let ParserMatchClass = DimMaskAsmOperand;
-  let MIOperandInfo = (ops i32imm:$dimmask);
   let OperandNamespace = "TPC";
   let OperandType = "OPERAND_DIMMASK";
 }
@@ -126,7 +124,6 @@ def SwitchSetAsmOperand : AsmOperandClass {
 def SwitchSet : Operand<i32> {
   let PrintMethod = "printSwitchSet";
   let ParserMatchClass = SwitchSetAsmOperand;
-  let MIOperandInfo = (ops i32imm:$sw);
   let OperandNamespace = "TPC";
   let OperandType = "OPERAND_SWITCH";
 }
@@ -154,7 +151,6 @@ def MacAccAsmOperand : AsmOperandClass {
 def MacAcc : Operand<i8> {
   let PrintMethod = "printAccumulator";
   let ParserMatchClass = MacAccAsmOperand;
-  let MIOperandInfo = (ops i8imm:$acc);
 }
 
 def RhazRsAsmOperand : AsmOperandClass {
@@ -166,7 +162,6 @@ def RhazRsAsmOperand : AsmOperandClass {
 def RhazRsOp : Operand<i8> {
   let PrintMethod = "printRhazRs";
   let ParserMatchClass = RhazRsAsmOperand;
-  let MIOperandInfo = (ops i8imm:$rhaz);
 }
 
 def SwitchRhuAsmOperand : AsmOperandClass {
@@ -200,7 +195,6 @@ def BothDivModAsmOperand : AsmOperandClass {
 def BothDivModOp : Operand<i8> {
   let PrintMethod = "printBothDivMod";
   let ParserMatchClass = BothDivModAsmOperand;
-  let MIOperandInfo = (ops i8imm:$bothdiv);
 }
 
 def SwitchBothDivModAsmOperand : AsmOperandClass {
@@ -223,7 +217,6 @@ def X2AsmOperand : AsmOperandClass {
 def X2Op : Operand<i8> {
   let PrintMethod = "printX2";
   let ParserMatchClass = X2AsmOperand;
-  let MIOperandInfo = (ops i8imm:$x2);
 }
 
 def MovDGAllAsmOperand : AsmOperandClass {
@@ -235,7 +228,6 @@ def MovDGAllAsmOperand : AsmOperandClass {
 def MovDGAllOp : Operand<i8> {
   let PrintMethod = "printMovDGAll";
   let ParserMatchClass = MovDGAllAsmOperand;
-  let MIOperandInfo = (ops i8imm:$movdgall);
 }
 
 def MovDGPackAsmOperand : AsmOperandClass {
@@ -247,7 +239,6 @@ def MovDGPackAsmOperand : AsmOperandClass {
 def MovDGPackOp : Operand<i8> {
   let PrintMethod = "printMovDGPack";
   let ParserMatchClass = MovDGPackAsmOperand;
-  let MIOperandInfo = (ops i8imm:$movdgpack);
 }
 
 def MovDGUnpackAsmOperand : AsmOperandClass {
@@ -259,7 +250,6 @@ def MovDGUnpackAsmOperand : AsmOperandClass {
 def MovDGUnpackOp : Operand<i8> {
   let PrintMethod = "printMovDGUnpack";
   let ParserMatchClass = MovDGUnpackAsmOperand;
-  let MIOperandInfo = (ops i8imm:$movdgunpack);
 }
 
 class SlotType<bits<3> t> {

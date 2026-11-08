@@ -1309,7 +1309,7 @@ public:
 
   bool VisitRecordDecl(RecordDecl *RD) {
     // Check presence of short values.
-    QualType RecType(RD->getTypeForDecl(), 0);
+    QualType RecType = SemaRef.getASTContext().getCanonicalTagType(RD);
     if (containsShortValue(RecType) == AlignmentConflict) {
       SemaRef.Diag(RD->getLocation(), diag::err_aggregate_of_short_values);
     }
@@ -1875,7 +1875,7 @@ Expr *Sema::buildDefaultArgument(const FunctionProtoType *FT,
     // The last but two argument, income.
     if (ArgTy->isStructureType()) {
       TypeSourceInfo *TInfo = Context.getTrivialTypeSourceInfo(ParamTy);
-      ExprResult Init = BuildInitList(SourceLocation(), std::nullopt, SourceLocation());
+      ExprResult Init = BuildInitList(SourceLocation(), {}, SourceLocation());
       assert(Init.isUsable());
       ExprResult R = BuildCompoundLiteralExpr(SourceLocation(), TInfo, SourceLocation(), Init.get());
       assert(R.isUsable());

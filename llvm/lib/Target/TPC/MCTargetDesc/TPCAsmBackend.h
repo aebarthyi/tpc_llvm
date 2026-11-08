@@ -37,8 +37,8 @@ public:
 //  MCObjectWriter *createObjectWriter(raw_pwrite_stream& OS) const override;
   std::unique_ptr<MCObjectTargetWriter> createObjectTargetWriter() const override;
   void applyFixup(const MCFragment &F, const MCFixup &Fixup,
-                  const MCValue &Target, MutableArrayRef<char> Data,
-                  uint64_t Value, bool IsResolved) override;
+                  const MCValue &Target, uint8_t *Data, uint64_t Value,
+                  bool IsResolved) override;
   bool writeNopData(raw_ostream &OS, uint64_t Count,
                     const MCSubtargetInfo *STI) const override;
   MCFixupKindInfo getFixupKindInfo(MCFixupKind Kind) const override;

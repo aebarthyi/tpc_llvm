@@ -65,7 +65,7 @@ LANGSTANDARD(gnu99, "gnu99",
 LANGSTANDARD_ALIAS_DEPR(gnu99, "gnu9x")
 LANGSTANDARD(rc99, "rc99",
              C, "Restricted C99 for TPC target",
-             LineComment | C99 | GNUMode | HexFloat)
+             LineComment | C99 | GNUMode | HexFloat, 199901)
 
 // C11 modes
 LANGSTANDARD(c11, "c11",
@@ -197,7 +197,7 @@ LANGSTANDARD_ALIAS(gnucxx26, "gnu++26")
 LANGSTANDARD(rcxx, "rc++",
              CXX, "Restricted C++ for TPC target",
              LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus17 |
-             CPlusPlus20 | CPlusPlus23 | HexFloat | GNUMode)
+             CPlusPlus20 | CPlusPlus23 | HexFloat | GNUMode, 202302)
 
 // OpenCL
 LANGSTANDARD(opencl10, "cl1.0",

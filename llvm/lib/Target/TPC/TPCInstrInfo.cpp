@@ -80,7 +80,7 @@ void TPCInstrInfo::anchor() {}
 
 // TODO: What is the register in InstrInfo constructor for?
 TPCInstrInfo::TPCInstrInfo(TPCSubtarget &ST)
-    : TPCGenInstrInfo(), RI(), Subtarget(ST), m_tpcx2Util() {
+    : TPCGenInstrInfo(ST, RI), RI(), Subtarget(ST), m_tpcx2Util() {
   TPCLatencyEvaluation::setDefaultLatency(TPCDefaultLatency);
 }
 
@@ -761,8 +761,7 @@ void TPCInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
 void TPCInstrInfo::
 storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                     Register SrcReg, bool isKill, int FrameIndex,
-                    const TargetRegisterClass *RC,
-                    const TargetRegisterInfo *TRI, Register VReg,
+                    const TargetRegisterClass *RC, Register VReg,
                     MachineInstr::MIFlag Flags) const {
   DebugLoc DL = MBB.findDebugLoc(I);
   MachineFunction *MF = MBB.getParent();
@@ -817,9 +816,8 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 void TPCInstrInfo::
 loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                      Register DestReg, int FrameIndex,
-                     const TargetRegisterClass *RC,
-                     const TargetRegisterInfo *TRI, Register VReg,
-                     MachineInstr::MIFlag Flags) const {
+                     const TargetRegisterClass *RC, Register VReg,
+                     unsigned SubReg, MachineInstr::MIFlag Flags) const {
   DebugLoc DL = MBB.findDebugLoc(I);
   MachineFunction *MF = MBB.getParent();
   MachineFrameInfo &FrameInfo = MF->getFrameInfo();
@@ -1935,7 +1933,7 @@ int TPCInstrInfo::getTPCOperandLatency(const InstrItineraryData *ItinData,
   Register DefReg = DefOperand.getReg();
   const TargetRegisterClass *DefRegClass;
   if (DefReg.isPhysical()) {
-    DefRegClass = getRegClass(DefMCID, DefIdx, &RI, MF);
+    DefRegClass = getRegClass(DefMCID, DefIdx);
     if (!DefRegClass)
       DefRegClass = getRegisterClass(DefReg, MRI);
   } else {
@@ -1946,7 +1944,7 @@ int TPCInstrInfo::getTPCOperandLatency(const InstrItineraryData *ItinData,
   Register UseReg = UseOperand.getReg();
   const TargetRegisterClass *UseRegClass;
   if (UseReg.isPhysical()) {
-    UseRegClass = getRegClass(UseMCID, UseIdx, &RI, MF);
+    UseRegClass = getRegClass(UseMCID, UseIdx);
     if (!UseRegClass)
       UseRegClass = getRegisterClass(UseReg, MRI);
   } else {
@@ -2461,7 +2459,7 @@ int TPCInstrInfo::getTPCOperandLatency(const InstrItineraryData *ItinData,
   const MachineOperand &UseDest = UseMI.getOperand(0);
   if (UseDest.isReg() && UseDest.isDef()) {
     if (UseDest.getReg().isPhysical()) {
-      UseDestRegClass = getRegClass(UseMCID, 0, &RI, MF);
+      UseDestRegClass = getRegClass(UseMCID, 0);
     } else {
       UseDestRegClass = MRI.getRegClass(UseDest.getReg());
     }
@@ -3444,13 +3442,13 @@ MachineInstr *TPCInstrInfo::foldMemoryOperandImpl(
 
       MachineInstr *SpillMI = nullptr;
       if (IsSpill) {
-        storeRegToStackSlot(MBB, InsertPt, SrcReg, DstMO.isKill(), FrameIndex, RC, &TRI, Register());
+        storeRegToStackSlot(MBB, InsertPt, SrcReg, DstMO.isKill(), FrameIndex, RC, Register());
         SpillMI = &*--InsertPt;
         if (SrcMO.getSubReg() != 0) {
           SpillMI->getOperand(1).setSubReg(SrcMO.getSubReg());
         }
       } else {
-        loadRegFromStackSlot(MBB, InsertPt, DstReg, FrameIndex, RC, &TRI, Register());
+        loadRegFromStackSlot(MBB, InsertPt, DstReg, FrameIndex, RC, Register());
         SpillMI = &*--InsertPt;
         if (DstMO.getSubReg() != 0) {
           SpillMI->getOperand(0).setSubReg(DstMO.getSubReg());
@@ -3490,7 +3488,7 @@ bool TPCInstrInfo::isProfitableToHoist(MachineInstr &MI) const {
   return true;
 }
 
-bool TPCInstrInfo::isReallyTriviallyReMaterializable(const MachineInstr &MI) const {
+bool TPCInstrInfo::isReMaterializableImpl(const MachineInstr &MI) const {
   unsigned NumOperands = MI.getDesc().getNumOperands();
   if (NumOperands < 3)
     return false;
@@ -3502,9 +3500,9 @@ bool TPCInstrInfo::isReallyTriviallyReMaterializable(const MachineInstr &MI) con
 
 void TPCInstrInfo::reMaterialize(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MI, Register DestReg,
-                                 unsigned SubIdx, const MachineInstr &Orig,
-                                 const TargetRegisterInfo &TRI) const {
+                                 unsigned SubIdx, const MachineInstr &Orig) const {
   const MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
+  const TargetRegisterInfo &TRI = getRegisterInfo();
 
   MachineInstr *DefMI = MBB.getParent()->CloneMachineInstr(&Orig);
   DefMI->substituteRegister(DefMI->getOperand(0).getReg(), DestReg, SubIdx, TRI);

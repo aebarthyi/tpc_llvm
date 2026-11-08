@@ -8120,11 +8120,15 @@ bool TBAAVerifier::visitTBAAMetadata(const Instruction *I, const MDNode *MD) {
             I, MD, BaseNode, AccessType);
 
 #ifdef LLVM_TPC_COMPILER
-  bool is_tpc = I.getModule()->getTargetTriple().getArch() == Triple::tpc;
+  // I is null for module-level tags (llvm.errno.tbaa, since LLVM 22).
+  const Module *TBAAModule =
+      I ? I->getModule() : (Diagnostic ? &Diagnostic->M : nullptr);
+  bool is_tpc =
+      TBAAModule && TBAAModule->getTargetTriple().getArch() == Triple::tpc;
   if (!is_tpc) {
     if (!IsNewFormat) {
       CheckTBAA(isValidScalarTBAANode(AccessType),
-        "Access type node must be a valid scalar type", &I, MD,
+        "Access type node must be a valid scalar type", I, MD,
         AccessType);
     }
   }

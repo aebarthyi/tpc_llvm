@@ -86,7 +86,7 @@ static SDValue helperExtractSubRegSDValue(unsigned subReg, const SDLoc &DL,
 
     TPCTargetLowering::TPCTargetLowering(const TargetMachine &TM,
                                      const TPCSubtarget &STI)
-    : TargetLowering(TM), Subtarget(&STI) {
+    : TargetLowering(TM, STI), Subtarget(&STI) {
 
   Sched::Preference spref = Sched::Source;
   if (StringRef(TPCSchedPref.getValue()) == "none")
@@ -566,8 +566,7 @@ static SDValue helperExtractSubRegSDValue(unsigned subReg, const SDLoc &DL,
   computeRegisterProperties(Subtarget->getRegisterInfo());
 
   // we don't need to sink (and duplicate) compares
-  // aggressively in CodeGenPrep.
-  setHasMultipleConditionRegisters();
+  // aggressively in CodeGenPrep (see hasMultipleConditionRegisters).
   InitConversionMatrix();
 }
 
@@ -3574,7 +3573,7 @@ SDValue TPCTargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
 }
 
 bool TPCTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
-                                           const CallInst &I,
+                                           const CallBase &I,
                                            MachineFunction &MF,
                                            unsigned Intrinsic) const {
   switch (Intrinsic) {

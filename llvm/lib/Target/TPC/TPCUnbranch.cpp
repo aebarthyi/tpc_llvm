@@ -429,7 +429,7 @@ static Value* ReplacePHI(PHINode* phino, Instruction* build_instr,
   Type *tt = truval->getType();
   Value *NewIns;
   if (tt == Int5Ty) {
-    Function *ExtF = Intrinsic::getDeclaration(Mod, Intrinsic::tpc_mov_mask, tt);
+    Function *ExtF = Intrinsic::getOrInsertDeclaration(Mod, Intrinsic::tpc_mov_mask, tt);
     NewIns =
         Builder.CreateCall(ExtF, {truval, ConstantInt::get(Int32Ty, 31), // mask
                                   ConstantInt::get(Int32Ty, 0), // switch

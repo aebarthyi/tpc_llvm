@@ -172,7 +172,7 @@ bool TPCFMAopt::runOnFunction(Function &Func) {
           } else {
             llvm_unreachable("unexpected opearion");
           }
-          Function *ExtF = Intrinsic::getDeclaration(F->getParent(), Intrinsic::tpc_mac,
+          Function *ExtF = Intrinsic::getOrInsertDeclaration(F->getParent(), Intrinsic::tpc_mac,
                                            {mactype, opnd_type, I1Type});
           Value *acc_opnd;
           Value *us_opnd0 = usi->getOperand(0);

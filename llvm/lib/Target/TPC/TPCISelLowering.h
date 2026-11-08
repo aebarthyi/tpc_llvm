@@ -155,7 +155,12 @@ namespace llvm {
 
     bool mergeStoresAfterLegalization(EVT MemVT) const override { return false; }
 
-    bool getTgtMemIntrinsic(IntrinsicInfo &Info, const CallInst &I,
+    // TPC has many predicate registers, so compares need not be sunk and
+    // duplicated next to their users (setHasMultipleConditionRegisters before
+    // LLVM 22).
+    bool hasMultipleConditionRegisters(EVT VT) const override { return true; }
+
+    bool getTgtMemIntrinsic(IntrinsicInfo &Info, const CallBase &I,
                             MachineFunction &MF,
                             unsigned Intrinsic) const override;
     SDValue lowerTPC_CONVERT(SDValue Op, SelectionDAG &DAG) const;

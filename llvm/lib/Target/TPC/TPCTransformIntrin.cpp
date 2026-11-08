@@ -1181,7 +1181,7 @@ bool TPCTransformIntrin::runImpl(Function &Func) {
               if (val2 != 1) { //ctpop counts only 1
                 continue;
               }
-              Function *ExtF = Intrinsic::getDeclaration(F->getParent(), Intrinsic::ctpop, op0->getType());
+              Function *ExtF = Intrinsic::getOrInsertDeclaration(F->getParent(), Intrinsic::ctpop, op0->getType());
               newins = Builder.CreateCall(ExtF, { op0 });
               newins = Builder.CreateTrunc(newins, income_type);
             }
@@ -1208,7 +1208,7 @@ bool TPCTransformIntrin::runImpl(Function &Func) {
                 continue;
               }
               // 3 means cttz  
-              Function *ExtF = Intrinsic::getDeclaration(F->getParent(),
+              Function *ExtF = Intrinsic::getOrInsertDeclaration(F->getParent(),
                 (val2 == 3) ? Intrinsic::cttz : Intrinsic::ctlz, op0->getType());
               Value* uv;// = Constant::getNullValue(I1Type);
               // with null value Codegen Prepare transform code into branches
@@ -1247,7 +1247,7 @@ bool TPCTransformIntrin::runImpl(Function &Func) {
             }
             else if (inid == Intrinsic::tpc_abs) {
               if (apint == 0) { //float 
-                Function *ExtF = Intrinsic::getDeclaration(F->getParent(), Intrinsic::fabs, op0->getType());
+                Function *ExtF = Intrinsic::getOrInsertDeclaration(F->getParent(), Intrinsic::fabs, op0->getType());
                 newins = Builder.CreateCall(ExtF, { op0 });
               }
               else if (apint == 1) { //bfloat

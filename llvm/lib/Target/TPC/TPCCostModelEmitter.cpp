@@ -842,7 +842,7 @@ bool TPCCostModelEmitter::runOnMachineFunction(MachineFunction &Fn) {
   auto &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
   auto &SE = getAnalysis<ScalarEvolutionWrapperPass>().getSE();
   DominatorTree &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
-  SCE = new SCEVExpander(SE, SE.getDataLayout(), "expander");
+  SCE = new SCEVExpander(SE, "expander");
 
   TPC_DEBUG("Init graph presentation:\n");
   CostTree graph(&Fn, LI, SE, MLI, DT);

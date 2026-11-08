@@ -11,7 +11,10 @@ tablegen(LLVM TPCGenDAGISel.inc -gen-dag-isel)
 tablegen(LLVM TPCGenDFAPacketizer.inc -gen-dfa-packetizer)
 tablegen(LLVM TPCGenMCCodeEmitter.inc -gen-emitter)
 tablegen(LLVM TPCGenCallingConv.inc -gen-callingconv)
-tablegen(LLVM TPCGenDisassemblerTables.inc -gen-disassembler)
+# Branch and loop targets have no encoding bits (fixups fill them in) and are
+# added by the disassembler itself.
+tablegen(LLVM TPCGenDisassemblerTables.inc -gen-disassembler
+              -ignore-non-decodable-operands)
 
 add_public_tablegen_target(TPCCommonTableGen)
 

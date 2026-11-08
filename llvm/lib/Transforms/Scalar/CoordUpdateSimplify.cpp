@@ -618,7 +618,7 @@ Instruction *CoordUpdateSimplifyImpl::createAddMaskInst(Instruction *I) {
       ConstantInt::get(Int32Ty, (1LL << Dim->getZExtValue()));
   Constant *ZeroVal = ConstantInt::get(Int32Ty, 0);
 
-  Function *AddMaskFunc = Intrinsic::getDeclaration(
+  Function *AddMaskFunc = Intrinsic::getOrInsertDeclaration(
       HeaderBlock->getModule(), Intrinsic::tpc_add_mask, {Int5x32Ty, Int32Ty});
   Instruction *AddMask = Builder.CreateCall(
       AddMaskFunc, {BasePHI, InductionStep, IRFLocation,

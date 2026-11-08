@@ -5254,6 +5254,19 @@ static void applyTPCDefaults(CompilerInvocation &Res,
     if (IncludeTpcSpecial)
       PPOpts.addMacroDef("INCLUDE_TPC_SPECIAL_H");
 
+    // Clang 22 makes -Wincompatible-pointer-types an error by default. RC99
+    // kernels often cast between vector pointer types (minifloat256 and
+    // minihalf256, for example), which LLVM 21 and Habana's compiler accept
+    // with a warning, so RC99 keeps the warning. It is put first, so that
+    // later -W options still apply, and only without -Werror, which made the
+    // warning an error before too.
+    std::vector<std::string> &Warnings = Res.getDiagnosticOpts().Warnings;
+    auto LastWError = llvm::find_if(llvm::reverse(Warnings), [](StringRef W) {
+      return W == "error" || W == "no-error";
+    });
+    if (LastWError == Warnings.rend() || *LastWError != "error")
+      Warnings.insert(Warnings.begin(), "no-error=incompatible-pointer-types");
+
     if (Res.getTargetOpts().CPU == "gaudi") {
       LangOpts.BFloat16 = 1;
     }

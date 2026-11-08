@@ -82,13 +82,13 @@ static Function *getIRFIntrinsic(Module *M, unsigned OpCode) {
   default:
     return nullptr;
   case Instruction::Add:
-    Func = Intrinsic::getDeclaration(M, Intrinsic::tpc_add_mask, { Int5Ty, Int32Ty });
+    Func = Intrinsic::getOrInsertDeclaration(M, Intrinsic::tpc_add_mask, { Int5Ty, Int32Ty });
     break;
     //  case Instruction::Mul:
-    //    Func = Intrinsic::getDeclaration(M, Intrinsic::tpc_mul, { Int5Ty, Int5Ty, BitTy });
+    //    Func = Intrinsic::getOrInsertDeclaration(M, Intrinsic::tpc_mul, { Int5Ty, Int5Ty, BitTy });
     //    break;
   case Instruction::Sub:
-    Func = Intrinsic::getDeclaration(M, Intrinsic::tpc_sub_mask, { Int32Ty, Int5Ty });
+    Func = Intrinsic::getOrInsertDeclaration(M, Intrinsic::tpc_sub_mask, { Int32Ty, Int5Ty });
     break;
   }
   return Func;
@@ -103,22 +103,22 @@ static Function *getIRFIntrinsicForCmp(Module *M, ICmpInst *Inst) {
   default:
     return nullptr;
   case ICmpInst::Predicate::ICMP_EQ:
-    Func = Intrinsic::getDeclaration(M, Intrinsic::tpc_cmp_eq_mask, { Int5Ty, Int5Ty });
+    Func = Intrinsic::getOrInsertDeclaration(M, Intrinsic::tpc_cmp_eq_mask, { Int5Ty, Int5Ty });
     break;
   case ICmpInst::Predicate::ICMP_NE:
-    Func = Intrinsic::getDeclaration(M, Intrinsic::tpc_cmp_neq_mask, { Int5Ty, Int5Ty });
+    Func = Intrinsic::getOrInsertDeclaration(M, Intrinsic::tpc_cmp_neq_mask, { Int5Ty, Int5Ty });
     break;
   case ICmpInst::Predicate::ICMP_SLT:
-    Func = Intrinsic::getDeclaration(M, Intrinsic::tpc_cmp_less_mask, { Int5Ty, Int5Ty });
+    Func = Intrinsic::getOrInsertDeclaration(M, Intrinsic::tpc_cmp_less_mask, { Int5Ty, Int5Ty });
     break;
   case ICmpInst::Predicate::ICMP_SLE:
-    Func = Intrinsic::getDeclaration(M, Intrinsic::tpc_cmp_leq_mask, { Int5Ty, Int5Ty });
+    Func = Intrinsic::getOrInsertDeclaration(M, Intrinsic::tpc_cmp_leq_mask, { Int5Ty, Int5Ty });
     break;
   case ICmpInst::Predicate::ICMP_SGT:
-    Func = Intrinsic::getDeclaration(M, Intrinsic::tpc_cmp_grt_mask, { Int5Ty, Int5Ty });
+    Func = Intrinsic::getOrInsertDeclaration(M, Intrinsic::tpc_cmp_grt_mask, { Int5Ty, Int5Ty });
     break;
   case ICmpInst::Predicate::ICMP_SGE:
-    Func = Intrinsic::getDeclaration(M, Intrinsic::tpc_cmp_geq_mask, { Int5Ty, Int5Ty });
+    Func = Intrinsic::getOrInsertDeclaration(M, Intrinsic::tpc_cmp_geq_mask, { Int5Ty, Int5Ty });
     break;
   }
   return Func;

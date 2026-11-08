@@ -349,7 +349,7 @@ Instruction *TpcLoopOptImpl::incInstruction(BasicBlock *to, BasicBlock *from,
   Type *Int5Ty = FixedVectorType::get(Type::getInt32Ty(C), 5);
   //Value *undef = UndefValue::get(Int5Ty);
   Instruction *add = input;
-  Function *func = Intrinsic::getDeclaration(to->getModule(),
+  Function *func = Intrinsic::getOrInsertDeclaration(to->getModule(),
       Intrinsic::tpc_add, { Int5Ty, Type::getInt32Ty(C), Int5Ty, Type::getInt1Ty(C) });
 
   assert(instList.size() > 2 && "number of instruction smaller then two");

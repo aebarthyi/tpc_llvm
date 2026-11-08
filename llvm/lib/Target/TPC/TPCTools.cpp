@@ -510,8 +510,9 @@ void ValueReplacer::processItem(Value *Old, Value *New) {
           FuncID == Intrinsic::lifetime_end) {
         // Lifetime intrinsics are used for marking alloca life ranges. We cannot
         // use them when moving allocas to global scope and cannot see then when
-        // moving global variables to local scope.
-        assert(U.getOperandNo() == 1);
+        // moving global variables to local scope. The pointer is the only
+        // operand (LLVM 22 dropped the size).
+        assert(U.getOperandNo() == 0);
         DeletedInstructions.insert(CI);
         DEBUG_WITH_TYPE("replacer", dbgs() << "   Remove:\n");
         DEBUG_WITH_TYPE("replacer", dbgs() << "     " << *CI << "\n");
@@ -528,7 +529,8 @@ void ValueReplacer::processItem(Value *Old, Value *New) {
         CallInst *NewMemSet = Builder.CreateMemSet(New, MemSetCall->getValue(),
             MemSetCall->getLength(), MemSetCall->getDestAlign(),
             MemSetCall->isVolatile(),
-            AAMDNodes(TBAA, /*TBAAStruct=*/nullptr, ScopeMD, NoAliasMD));
+            AAMDNodes(TBAA, /*TBAAStruct=*/nullptr, ScopeMD, NoAliasMD,
+                      /*NoAliasAddrSpace=*/nullptr));
         DEBUG_WITH_TYPE("replacer", dbgs() << "   Updated to:\n");
         DEBUG_WITH_TYPE("replacer", dbgs() << "     " << *NewMemSet << "\n");
         (void)NewMemSet;
@@ -548,7 +550,8 @@ void ValueReplacer::processItem(Value *Old, Value *New) {
             MemCpyCall->getDest(), MemCpyCall->getDestAlign(),
             MemCpyCall->getSource(), MemCpyCall->getSourceAlign(),
             MemCpyCall->getLength(), MemCpyCall->isVolatile(),
-            AAMDNodes(TBAA, TBAAStruct, ScopeMD, NoAliasMD));
+            AAMDNodes(TBAA, TBAAStruct, ScopeMD, NoAliasMD,
+                      /*NoAliasAddrSpace=*/nullptr));
         DEBUG_WITH_TYPE("replacer", dbgs() << "   Replaced:\n");
         DEBUG_WITH_TYPE("replacer", dbgs() << "     " << *NewMemCpy << "\n");
         (void)NewMemCpy;

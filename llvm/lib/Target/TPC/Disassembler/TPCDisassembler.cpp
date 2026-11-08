@@ -24,6 +24,7 @@
 #include "llvm/MC/MCDisassembler/MCRelocationInfo.h"
 #include "llvm/MC/MCDisassembler/MCSymbolizer.h"
 #include "llvm/MC/MCExpr.h"
+#include "llvm/MC/MCDecoder.h"
 #include "llvm/MC/MCDecoderOps.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstPrinter.h"
@@ -51,6 +52,7 @@
 
 
 using namespace llvm;
+using namespace llvm::MCD;
 
 #define DEBUG_TYPE "tpc-disassembler"
 

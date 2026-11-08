@@ -353,9 +353,8 @@ void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
           }
           return;
         }
-        FPM.addPass(createFunctionToLoopPassAdaptor(
-            TpcLoopOptPass(), /*UseMemorySSA=*/false,
-            /*UseBlockFrequencyInfo=*/false));
+        FPM.addPass(createFunctionToLoopPassAdaptor(TpcLoopOptPass(),
+                                                    /*UseMemorySSA=*/false));
         FPM.addPass(DCEPass());
         MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
         if (!Options.CompileForLibrary) {

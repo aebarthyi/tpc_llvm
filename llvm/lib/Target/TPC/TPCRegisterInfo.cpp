@@ -247,8 +247,7 @@ BitVector TPCRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 }
 
 const TargetRegisterClass*
-TPCRegisterInfo::getPointerRegClass(const MachineFunction &MF,
-                                      unsigned Kind) const {
+TPCRegisterInfo::getPointerRegClass(unsigned Kind) const {
   return &TPC::SRFRegClass;
 }
 

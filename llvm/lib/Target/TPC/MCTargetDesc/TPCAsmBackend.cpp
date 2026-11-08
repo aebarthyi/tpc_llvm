@@ -71,15 +71,16 @@ MCFixupKindInfo TPCAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
 }
 
 void TPCAsmBackend::applyFixup(const MCFragment &F, const MCFixup &Fixup,
-                               const MCValue &Target, MutableArrayRef<char> Data,
+                               const MCValue &Target, uint8_t *Data,
                                uint64_t Value, bool IsResolved) {
   maybeAddReloc(F, Fixup, Target, Value, IsResolved);
-  const MCSubtargetInfo *STI = cast<MCEncodedFragment>(F).getSubtargetInfo();
-  unsigned Offset = Fixup.getOffset();
+  const MCSubtargetInfo *STI = F.getSubtargetInfo();
+  // Data points at the fixup (the start of the instruction) since LLVM 22.
+  const unsigned Offset = 0;
   // Branch immediates are PC-relative 4-byte fixups (FK_PCRel_4 before
   // LLVM 21); data words are plain FK_Data_4.
   if (Fixup.getKind() == FK_Data_4 && !Fixup.isPCRel()) {
-    void *Ptr = &Data[Fixup.getOffset()];
+    void *Ptr = &Data[Offset];
     memcpy(Ptr, &Value, sizeof(uint32_t));
   } else if (Fixup.getKind() == FK_Data_4) {
     int RelOffset = Value & 0xffffffff;

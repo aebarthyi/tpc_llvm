@@ -346,7 +346,7 @@ static bool isHWReg(const MachineInstr &MI, unsigned OpNo) {
     const TPCInstrInfo *TII = static_cast<const TPCInstrInfo *>(STI.getInstrInfo());
     const TPCRegisterInfo &RI = TII->getRegisterInfo();
     const MCInstrDesc &DefMCID = MI.getDesc();
-    TRC = TII->getRegClass(DefMCID, 0, &RI, *MF);
+    TRC = TII->getRegClass(DefMCID, 0);
   }
   return TRC->hasSuperClassEq(&TPC::HSRFRegClass) ||
          TRC->hasSuperClassEq(&TPC::HVRFRegClass);
@@ -616,9 +616,9 @@ void TPCMachineScheduler::schedule() {
   RegisterClassInfo * RCI = getRegClassInfo();
   int liveInVRF = 0;
   for (const auto &RegMaskPair : pressureAfterSched.LiveInRegs) {
-    Register Reg = RegMaskPair.RegUnit;
-    if (Reg.isPhysical())
+    if (!RegMaskPair.VRegOrUnit.isVirtualReg())
       continue;
+    Register Reg = RegMaskPair.VRegOrUnit.asVirtualReg();
     const TargetRegisterClass* rClass = MF.getRegInfo().getRegClass(Reg);
     if (rClass == &TPC::VRFRegClass) {
       liveInVRF++;
@@ -880,9 +880,9 @@ void TPCSchedStrategy::initialize(ScheduleDAGMI *dag) {
     const llvm::MachineFunction &MF = DAG->MF;
     // const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
     for (const auto &RegMaskPair : DAG->getTopRPTracker().getPressure().LiveInRegs) {
-      Register Reg = RegMaskPair.RegUnit;
-      if (Reg.isPhysical())
+      if (!RegMaskPair.VRegOrUnit.isVirtualReg())
         continue;
+      Register Reg = RegMaskPair.VRegOrUnit.asVirtualReg();
       const TargetRegisterClass* rClass = MF.getRegInfo().getRegClass(Reg);
       if (rClass == &TPC::ADRFRegClass) {
         liveInsADRF++;

@@ -98,16 +98,15 @@ public:
   void storeRegToStackSlot(MachineBasicBlock &MBB,
                            MachineBasicBlock::iterator MBBI,
                            Register SrcReg, bool isKill, int FrameIndex,
-                           const TargetRegisterClass *RC,
-                           const TargetRegisterInfo *TRI, Register VReg,
+                           const TargetRegisterClass *RC, Register VReg,
                            MachineInstr::MIFlag Flags =
                                MachineInstr::NoFlags) const override;
 
   void loadRegFromStackSlot(MachineBasicBlock &MBB,
                             MachineBasicBlock::iterator MBBI,
                             Register DestReg, int FrameIndex,
-                            const TargetRegisterClass *RC,
-                            const TargetRegisterInfo *TRI, Register VReg,
+                            const TargetRegisterClass *RC, Register VReg,
+                            unsigned SubReg = 0,
                             MachineInstr::MIFlag Flags =
                                 MachineInstr::NoFlags) const override;
 
@@ -147,12 +146,11 @@ public:
 
   bool isProfitableToHoist(MachineInstr &MI) const override;
 
-  bool isReallyTriviallyReMaterializable(const MachineInstr &MI) const override;
+  bool isReMaterializableImpl(const MachineInstr &MI) const override;
 
   void reMaterialize(MachineBasicBlock &MBB,
                      MachineBasicBlock::iterator MI, Register DestReg,
-                     unsigned SubIdx, const MachineInstr &Orig,
-                     const TargetRegisterInfo &TRI) const override;
+                     unsigned SubIdx, const MachineInstr &Orig) const override;
 
 
   // Create machine specific model for scheduling.

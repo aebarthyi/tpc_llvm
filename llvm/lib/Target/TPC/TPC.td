@@ -406,6 +406,10 @@ include "TPCRegisterInfo.td"
 include "TPCInstrInfo.td"
 include "TPCCallingConv.td"
 
+// Pseudo instructions with pointer operands use the scalar registers, as
+// getPointerRegClass does.
+defm : RemapAllTargetPseudoPointerOperands<SRF>;
+
 //----------------------------------------------------------------------------//
 // TPC processors supported.
 //----------------------------------------------------------------------------//

@@ -647,7 +647,7 @@ static bool ExecuteAssemblerImpl(AssemblerInvocation &Opts,
 #ifdef LLVM_TPC_COMPILER
     MCOptions.MCCompressInst = Opts.CompressInstructions;
 
-    if (StringRef(Opts.Triple).starts_with("tpc")) {
+    if (Opts.Triple.getArch() == llvm::Triple::tpc) {
       Str->pushSection();
       MCSectionELF *TpcCompilerSection = Ctx.getELFSection(
             ".tpc_compiler", ELF::SHT_PROGBITS, ELF::SHF_WRITE | ELF::SHF_ALLOC);

@@ -852,7 +852,7 @@ bool TPCSelectorPreshaperLegacyPass::runOnFunction(Function &Func) {
         if (type_from->isIntegerTy(32) && ty->isBFloatTy()) {
           IRBuilder<> Builder(sitofp);
           Intrinsic::ID intrinId = Intrinsic::tpc_convert;
-          auto ExtF = Intrinsic::getDeclaration(Mod, intrinId, { ty, type_from, IntegerType::get(F->getContext(), 1) });
+          auto ExtF = Intrinsic::getOrInsertDeclaration(Mod, intrinId, { ty, type_from, IntegerType::get(F->getContext(), 1) });
           auto NewIns = Builder.CreateCall(ExtF,
           { opnd1, //src1
            ConstantInt::get(Type::getInt8Ty(Ctx), 2),//op_type = INT32
@@ -1157,7 +1157,7 @@ bool TPCSelectorPreshaperLegacyPass::runOnFunction(Function &Func) {
           else {
             llvm_unreachable("bad type");
           }
-          Function *ExtF = Intrinsic::getDeclaration(F->getParent()
+          Function *ExtF = Intrinsic::getOrInsertDeclaration(F->getParent()
             , Intrinsic::tpc_extract_exp,
             {TExp,TNear,Type::getInt1Ty(Ctx) });
           ExtrExp = Builder.CreateCall(ExtF,
@@ -1173,7 +1173,7 @@ bool TPCSelectorPreshaperLegacyPass::runOnFunction(Function &Func) {
           Value* cmp_32;
           Value* NewPred;
           /// round mode extraction
-          ExtF = Intrinsic::getDeclaration(F->getParent(), Intrinsic::tpc_ld_l, Type::getInt32Ty(Ctx));
+          ExtF = Intrinsic::getOrInsertDeclaration(F->getParent(), Intrinsic::tpc_ld_l, Type::getInt32Ty(Ctx));
           Value* roundmode = Builder.CreateCall(ExtF,
           { ConstantInt::get(Type::getInt32Ty(Ctx), 2044),
             ConstantInt::get(Type::getInt32Ty(Ctx), 1),
@@ -1184,7 +1184,7 @@ bool TPCSelectorPreshaperLegacyPass::runOnFunction(Function &Func) {
           Value* cmp0 = Builder.CreateICmpNE(roundmode, ConstantInt::get(Type::getInt32Ty(Ctx), 0));
 
           if (TNear->isVectorTy()) {
-            ExtF = Intrinsic::getDeclaration(F->getParent()
+            ExtF = Intrinsic::getOrInsertDeclaration(F->getParent()
               , Intrinsic::tpc_cmp_neq,
               { FixedVectorType::get(Type::getInt1Ty(Ctx), 256),TExp,TExp,Type::getInt1Ty(Ctx) });
             cmp_32 = Builder.CreateCall(ExtF,
@@ -1225,7 +1225,7 @@ bool TPCSelectorPreshaperLegacyPass::runOnFunction(Function &Func) {
             I.setOperand(3, ConstantFP::get(TNear, 0.0));
             I.setOperand(4, NewPred);
             // need to reconfigure call, as pred become vector
-            ExtF = Intrinsic::getDeclaration(F->getParent(), Intrinsic::tpc_nearbyint,
+            ExtF = Intrinsic::getOrInsertDeclaration(F->getParent(), Intrinsic::tpc_nearbyint,
             { TNear,TNear,predic_opnd->getType() }
             );
             Value* newnear = Builder.CreateCall(ExtF,

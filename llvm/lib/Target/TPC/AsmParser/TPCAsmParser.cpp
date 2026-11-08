@@ -1222,7 +1222,7 @@ private:
                                  SlotParser Slot);
 
 
-  bool Error(SMLoc L, const Twine &Msg, SMRange Range = std::nullopt,
+  bool Error(SMLoc L, const Twine &Msg, SMRange Range = {},
              bool MatchingInlineAsm = false) {
     MCAsmParser &Parser = getParser();
     if (MatchingInlineAsm) {

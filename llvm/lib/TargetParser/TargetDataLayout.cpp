@@ -11,6 +11,9 @@
 #include "llvm/TargetParser/ARMTargetParser.h"
 #include "llvm/TargetParser/Triple.h"
 #include <cstring>
+#ifdef LLVM_TPC_COMPILER
+#include "llvm/Target/TargetInfoTPC.h"
+#endif
 using namespace llvm;
 
 static StringRef getManglingComponent(const Triple &T) {
@@ -625,6 +628,10 @@ std::string Triple::computeDataLayout(StringRef ABIName) const {
     return computeWebAssemblyDataLayout(*this);
   case Triple::ve:
     return computeVEDataLayout(*this);
+#ifdef LLVM_TPC_COMPILER
+  case Triple::tpc:
+    return DataLayoutStringTPC;
+#endif
 
   case Triple::amdil:
   case Triple::amdil64:

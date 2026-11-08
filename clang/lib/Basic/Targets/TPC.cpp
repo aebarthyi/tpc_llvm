@@ -104,7 +104,7 @@ TPCTargetInfo::TPCTargetInfo(const llvm::Triple &Triple, const TargetOptions &TO
   TLSSupported = false;
   VLASupported = false;
   NoAsmVariants = true;
-  HasLegalHalfType = true;
+  HasFastHalfType = true;
   HasFloat128 = false;
   HasFloat16 = true;
   HasBFloat16 = true;
@@ -302,7 +302,7 @@ bool TPCTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
 
 ArrayRef<TargetInfo::GCCRegAlias> TPCTargetInfo::getGCCRegAliases() const {
   // TODO: implement
-  return std::nullopt;
+  return {};
 }
 
 std::string_view TPCTargetInfo::getClobbers() const {
