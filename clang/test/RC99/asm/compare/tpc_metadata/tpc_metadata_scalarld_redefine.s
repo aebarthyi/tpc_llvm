@@ -1,4 +1,4 @@
-// RUN: not %clang -cc1as -triple tpc-none-none -filetype obj %s -o /dev/null 2>&1 1>/dev/null | FileCheck %s
+// RUN: not %clang -cc1as -triple tpc-none-none -filetype obj %s -o /dev/null 2>&1 >/dev/null | FileCheck %s
 
 .tpc_metadata
 scalarld:				DH	0101001011100011
