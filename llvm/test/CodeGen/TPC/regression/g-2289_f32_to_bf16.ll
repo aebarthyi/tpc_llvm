@@ -16,7 +16,7 @@ declare <5 x i32> @llvm.tpc.get.index.space.size() #0
 
 define void @main() #3 {
 bb:
-  %tmp = alloca i32, i32 mul (i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32), i32 5), align 4
+  %tmp = alloca i32, i32 20, align 4 ; 5 * sizeof(i32); mul constexprs are gone
   %tmp1 = insertvalue { i32*, i32*, i32, [1 x i32], [1 x i32] } undef, i32* %tmp, 0
   %tmp2 = insertvalue { i32*, i32*, i32, [1 x i32], [1 x i32] } %tmp1, i32* %tmp, 1
   %tmp3 = insertvalue { i32*, i32*, i32, [1 x i32], [1 x i32] } %tmp2, i32 0, 2
@@ -26,7 +26,7 @@ bb:
   %tmp7 = getelementptr i32, i32* %tmp6, i32 0
   %tmp8 = bitcast i32* %tmp7 to <5 x i32>*
   store <5 x i32> zeroinitializer, <5 x i32>* %tmp8, align 4
-  %tmp9 = alloca i32, i32 mul (i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32), i32 5), align 4
+  %tmp9 = alloca i32, i32 20, align 4 ; 5 * sizeof(i32); mul constexprs are gone
   %tmp10 = insertvalue { i32*, i32*, i32, [1 x i32], [1 x i32] } undef, i32* %tmp9, 0
   %tmp11 = insertvalue { i32*, i32*, i32, [1 x i32], [1 x i32] } %tmp10, i32* %tmp9, 1
   %tmp12 = insertvalue { i32*, i32*, i32, [1 x i32], [1 x i32] } %tmp11, i32 0, 2
@@ -36,7 +36,7 @@ bb:
   %tmp16 = getelementptr i32, i32* %tmp15, i32 0
   %tmp17 = bitcast i32* %tmp16 to <5 x i32>*
   store <5 x i32> zeroinitializer, <5 x i32>* %tmp17, align 4
-  %tmp18 = alloca i32, i32 mul (i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32), i32 5), align 4
+  %tmp18 = alloca i32, i32 20, align 4 ; 5 * sizeof(i32); mul constexprs are gone
   %tmp19 = insertvalue { i32*, i32*, i32, [1 x i32], [1 x i32] } undef, i32* %tmp18, 0
   %tmp20 = insertvalue { i32*, i32*, i32, [1 x i32], [1 x i32] } %tmp19, i32* %tmp18, 1
   %tmp21 = insertvalue { i32*, i32*, i32, [1 x i32], [1 x i32] } %tmp20, i32 0, 2

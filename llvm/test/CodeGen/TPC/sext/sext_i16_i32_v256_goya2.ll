@@ -62,7 +62,7 @@ define dso_local void @main() #0 {
 ; CHECK-NEXT:    NOP
 ; CHECK-NEXT:    NOP
 ; CHECK-NEXT:  $func_end0:
-; CHECK-NEXT:    .size main, ($func_end0)-main
+; CHECK-NEXT:    .size main, $func_end0-main
 entry:
   ; prepare input
   %loaded_i16 = load <256 x i16>, <256 x i16> addrspace(2)* zeroinitializer, align 256
