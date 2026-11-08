@@ -877,6 +877,8 @@ SDValue TPCTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
     return lowerSDIV(Op, DAG);
   case ISD::UREM:
     return lowerUREM(Op, DAG);
+  case ISD::SREM:
+    return lowerSREM(Op, DAG);
   case ISD::FADD:
     return lowerFADD(Op, DAG);
   case ISD::FSUB:

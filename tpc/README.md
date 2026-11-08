@@ -94,8 +94,13 @@ Keep each kernel focused on one feature, so a failure points at a cause.
   `duplicateTensors`, `exclusiveSwitch` and `unsetSmallVLM` stay 0, and
   `hashedISA` does not match Habana's values. The simulator accepts this, but
   nothing has checked it against the graph compiler or hardware.
-* **`srem_var_i32`.** The fork crashes on signed scalar remainder by a
-  non-constant divisor; expected `KNOWN` until fixed.
+* **Vector `/` and `%` on gaudi and gaudib.** The fork stops with "Cannot copy VRF
+  to VPRF on this platform", while Habana's compiler builds them. `srem_vec_i32`
+  runs only on gaudi2 until this is fixed.
+* **`INT_MIN` in signed `/` and `%`.** With a non-constant divisor, both compilers
+  take the absolute value with `abs.i32`, which saturates, so the results are off
+  for `INT_MIN`: `INT_MIN % 3` gives -1 rather than -2. The kernels avoid this
+  input, which would pass while recording a wrong result.
 * **`scalar_math_i32` at `-O0` on gaudi2.** The fork miscompiles it: every output
   element is wrong against a host computation, while Habana's compiler is
   correct. Reproduce with `--cflags=-O0`; expected `KNOWN` until fixed.
