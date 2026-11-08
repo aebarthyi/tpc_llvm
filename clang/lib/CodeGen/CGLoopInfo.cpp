@@ -21,9 +21,8 @@
 using namespace clang::CodeGen;
 using namespace llvm;
 
-MDNode *
-LoopInfo::createFollowupMetadata(const char *FollowupName,
-                                 ArrayRef<llvm::Metadata *> LoopProperties) {
+MDNode *clang::CodeGen::LoopInfo::createFollowupMetadata(
+    const char *FollowupName, ArrayRef<llvm::Metadata *> LoopProperties) {
   LLVMContext &Ctx = Header->getContext();
 
   SmallVector<Metadata *, 4> Args;
@@ -32,10 +31,9 @@ LoopInfo::createFollowupMetadata(const char *FollowupName,
   return MDNode::get(Ctx, Args);
 }
 
-SmallVector<Metadata *, 4>
-LoopInfo::createPipeliningMetadata(const LoopAttributes &Attrs,
-                                   ArrayRef<Metadata *> LoopProperties,
-                                   bool &HasUserTransforms) {
+SmallVector<Metadata *, 4> clang::CodeGen::LoopInfo::createPipeliningMetadata(
+    const LoopAttributes &Attrs, ArrayRef<Metadata *> LoopProperties,
+    bool &HasUserTransforms) {
   LLVMContext &Ctx = Header->getContext();
 
   std::optional<bool> Enabled;
@@ -72,9 +70,9 @@ LoopInfo::createPipeliningMetadata(const LoopAttributes &Attrs,
 }
 
 SmallVector<Metadata *, 4>
-LoopInfo::createPartialUnrollMetadata(const LoopAttributes &Attrs,
-                                      ArrayRef<Metadata *> LoopProperties,
-                                      bool &HasUserTransforms) {
+clang::CodeGen::LoopInfo::createPartialUnrollMetadata(
+    const LoopAttributes &Attrs, ArrayRef<Metadata *> LoopProperties,
+    bool &HasUserTransforms) {
   LLVMContext &Ctx = Header->getContext();
 
   std::optional<bool> Enabled;
@@ -130,10 +128,9 @@ LoopInfo::createPartialUnrollMetadata(const LoopAttributes &Attrs,
   return Args;
 }
 
-SmallVector<Metadata *, 4>
-LoopInfo::createUnrollAndJamMetadata(const LoopAttributes &Attrs,
-                                     ArrayRef<Metadata *> LoopProperties,
-                                     bool &HasUserTransforms) {
+SmallVector<Metadata *, 4> clang::CodeGen::LoopInfo::createUnrollAndJamMetadata(
+    const LoopAttributes &Attrs, ArrayRef<Metadata *> LoopProperties,
+    bool &HasUserTransforms) {
   LLVMContext &Ctx = Header->getContext();
 
   std::optional<bool> Enabled;
@@ -194,9 +191,9 @@ LoopInfo::createUnrollAndJamMetadata(const LoopAttributes &Attrs,
 }
 
 SmallVector<Metadata *, 4>
-LoopInfo::createLoopVectorizeMetadata(const LoopAttributes &Attrs,
-                                      ArrayRef<Metadata *> LoopProperties,
-                                      bool &HasUserTransforms) {
+clang::CodeGen::LoopInfo::createLoopVectorizeMetadata(
+    const LoopAttributes &Attrs, ArrayRef<Metadata *> LoopProperties,
+    bool &HasUserTransforms) {
   LLVMContext &Ctx = Header->getContext();
 
   std::optional<bool> Enabled;
@@ -320,9 +317,9 @@ LoopInfo::createLoopVectorizeMetadata(const LoopAttributes &Attrs,
 }
 
 SmallVector<Metadata *, 4>
-LoopInfo::createLoopDistributeMetadata(const LoopAttributes &Attrs,
-                                       ArrayRef<Metadata *> LoopProperties,
-                                       bool &HasUserTransforms) {
+clang::CodeGen::LoopInfo::createLoopDistributeMetadata(
+    const LoopAttributes &Attrs, ArrayRef<Metadata *> LoopProperties,
+    bool &HasUserTransforms) {
   LLVMContext &Ctx = Header->getContext();
 
   std::optional<bool> Enabled;
@@ -366,10 +363,9 @@ LoopInfo::createLoopDistributeMetadata(const LoopAttributes &Attrs,
   return Args;
 }
 
-SmallVector<Metadata *, 4>
-LoopInfo::createFullUnrollMetadata(const LoopAttributes &Attrs,
-                                   ArrayRef<Metadata *> LoopProperties,
-                                   bool &HasUserTransforms) {
+SmallVector<Metadata *, 4> clang::CodeGen::LoopInfo::createFullUnrollMetadata(
+    const LoopAttributes &Attrs, ArrayRef<Metadata *> LoopProperties,
+    bool &HasUserTransforms) {
   LLVMContext &Ctx = Header->getContext();
 
   std::optional<bool> Enabled;
@@ -401,7 +397,7 @@ LoopInfo::createFullUnrollMetadata(const LoopAttributes &Attrs,
   return Args;
 }
 
-SmallVector<Metadata *, 4> LoopInfo::createMetadata(
+SmallVector<Metadata *, 4> clang::CodeGen::LoopInfo::createMetadata(
     const LoopAttributes &Attrs,
     llvm::ArrayRef<llvm::Metadata *> AdditionalLoopProperties,
     bool &HasUserTransforms) {
@@ -420,6 +416,10 @@ SmallVector<Metadata *, 4> LoopInfo::createMetadata(
   if (Attrs.MustProgress)
     LoopProperties.push_back(
         MDNode::get(Ctx, MDString::get(Ctx, "llvm.loop.mustprogress")));
+
+  if (Attrs.LICMDisabled)
+    LoopProperties.push_back(
+        MDNode::get(Ctx, MDString::get(Ctx, "llvm.licm.disable")));
 
   assert(!!AccGroup == Attrs.IsParallel &&
          "There must be an access group iff the loop is parallel");
@@ -500,7 +500,8 @@ LoopAttributes::LoopAttributes(bool IsParallel)
       LoopPipeline(LoopAttributes::Unspecified),
 #endif
       DistributeEnable(LoopAttributes::Unspecified), PipelineDisabled(false),
-      PipelineInitiationInterval(0), CodeAlign(0), MustProgress(false) {}
+      LICMDisabled(false), PipelineInitiationInterval(0), CodeAlign(0),
+      MustProgress(false) {}
 
 void LoopAttributes::clear() {
   IsParallel = false;
@@ -521,14 +522,17 @@ void LoopAttributes::clear() {
   VectorizePredicateEnable = LoopAttributes::Unspecified;
   DistributeEnable = LoopAttributes::Unspecified;
   PipelineDisabled = false;
+  LICMDisabled = false;
   PipelineInitiationInterval = 0;
   CodeAlign = 0;
   MustProgress = false;
 }
 
-LoopInfo::LoopInfo(BasicBlock *Header, const LoopAttributes &Attrs,
-                   const llvm::DebugLoc &StartLoc, const llvm::DebugLoc &EndLoc,
-                   LoopInfo *Parent)
+clang::CodeGen::LoopInfo::LoopInfo(BasicBlock *Header,
+                                   const LoopAttributes &Attrs,
+                                   const llvm::DebugLoc &StartLoc,
+                                   const llvm::DebugLoc &EndLoc,
+                                   LoopInfo *Parent)
     : Header(Header), Attrs(Attrs), StartLoc(StartLoc), EndLoc(EndLoc),
       Parent(Parent) {
 
@@ -542,7 +546,7 @@ LoopInfo::LoopInfo(BasicBlock *Header, const LoopAttributes &Attrs,
       Attrs.VectorizeScalable == LoopAttributes::Unspecified &&
       Attrs.InterleaveCount == 0 && Attrs.UnrollCount == 0 &&
       Attrs.UnrollAndJamCount == 0 && !Attrs.PipelineDisabled &&
-      Attrs.PipelineInitiationInterval == 0 &&
+      !Attrs.LICMDisabled && Attrs.PipelineInitiationInterval == 0 &&
       Attrs.VectorizePredicateEnable == LoopAttributes::Unspecified &&
       Attrs.VectorizeEnable == LoopAttributes::Unspecified &&
       Attrs.UnrollEnable == LoopAttributes::Unspecified &&
@@ -563,7 +567,7 @@ LoopInfo::LoopInfo(BasicBlock *Header, const LoopAttributes &Attrs,
   TempLoopID = MDNode::getTemporary(Header->getContext(), {});
 }
 
-void LoopInfo::finish() {
+void clang::CodeGen::LoopInfo::finish() {
   // We did not annotate the loop body instructions because there are no
   // attributes for this loop.
   if (!TempLoopID)
@@ -589,6 +593,7 @@ void LoopInfo::finish() {
     BeforeJam.VectorizeEnable = Attrs.VectorizeEnable;
     BeforeJam.DistributeEnable = Attrs.DistributeEnable;
     BeforeJam.VectorizePredicateEnable = Attrs.VectorizePredicateEnable;
+    BeforeJam.LICMDisabled = Attrs.LICMDisabled;
 
     switch (Attrs.UnrollEnable) {
     case LoopAttributes::Unspecified:
@@ -744,6 +749,9 @@ void LoopInfoStack::push(BasicBlock *Header, clang::ASTContext &Ctx,
       case LoopHintAttr::PipelineDisabled:
         setPipelineDisabled(true);
         break;
+      case LoopHintAttr::LICMDisabled:
+        setLICMDisabled(true);
+        break;
 #ifdef LLVM_TPC_COMPILER
       case LoopHintAttr::Divide:
         setSkipRemainder(false);
@@ -813,6 +821,7 @@ void LoopInfoStack::push(BasicBlock *Header, clang::ASTContext &Ctx,
       case LoopHintAttr::InterleaveCount:
       case LoopHintAttr::PipelineDisabled:
       case LoopHintAttr::PipelineInitiationInterval:
+      case LoopHintAttr::LICMDisabled:
         llvm_unreachable("Options cannot enabled.");
         break;
       }
@@ -843,6 +852,7 @@ void LoopInfoStack::push(BasicBlock *Header, clang::ASTContext &Ctx,
 #endif
       case LoopHintAttr::PipelineDisabled:
       case LoopHintAttr::PipelineInitiationInterval:
+      case LoopHintAttr::LICMDisabled:
         llvm_unreachable("Options cannot be used to assume mem safety.");
         break;
       }
@@ -873,6 +883,7 @@ void LoopInfoStack::push(BasicBlock *Header, clang::ASTContext &Ctx,
       case LoopHintAttr::PipelineDisabled:
       case LoopHintAttr::PipelineInitiationInterval:
       case LoopHintAttr::VectorizePredicate:
+      case LoopHintAttr::LICMDisabled:
         llvm_unreachable("Options cannot be used with 'full' hint.");
         break;
       }
@@ -924,6 +935,7 @@ void LoopInfoStack::push(BasicBlock *Header, clang::ASTContext &Ctx,
       case LoopHintAttr::Interleave:
       case LoopHintAttr::Distribute:
       case LoopHintAttr::PipelineDisabled:
+      case LoopHintAttr::LICMDisabled:
         llvm_unreachable("Options cannot be assigned a value.");
         break;
       }

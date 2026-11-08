@@ -38,6 +38,18 @@ static Attr *handleFallThroughAttr(Sema &S, Stmt *St, const ParsedAttr &A,
     return nullptr;
   }
 
+  // CWG 3045: The innermost enclosing switch statement of a fallthrough
+  // statement S shall be contained in the innermost enclosing expansion
+  // statement (8.7 [stmt.expand]) of S, if any.
+  for (Scope *Sc = S.getCurScope();
+       Sc && !Sc->isFunctionScope() && !Sc->isSwitchScope();
+       Sc = Sc->getParent()) {
+    if (Sc->isExpansionStmtScope()) {
+      S.Diag(A.getLoc(), diag::err_fallthrough_attr_invalid_placement);
+      return nullptr;
+    }
+  }
+
   // If this is spelled as the standard C++17 attribute, but not in C++17, warn
   // about using it as an extension.
   if (!S.getLangOpts().CPlusPlus17 && A.isCXX11Attribute() &&
@@ -188,6 +200,7 @@ static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const ParsedAttr &A,
                  .Case("pipeline_initiation_interval",
                        LoopHintAttr::PipelineInitiationInterval)
                  .Case("distribute", LoopHintAttr::Distribute)
+                 .Case("licm", LoopHintAttr::LICMDisabled)
 #ifdef LLVM_TPC_COMPILER
                  .Case("machine_unroll_count", LoopHintAttr::MachineUnrollCount)
                  .Case("divide", LoopHintAttr::Divide)
@@ -229,7 +242,8 @@ static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const ParsedAttr &A,
                Option == LoopHintAttr::UnalignedTripCount ||
 #endif
                Option == LoopHintAttr::Distribute ||
-               Option == LoopHintAttr::PipelineDisabled) {
+               Option == LoopHintAttr::PipelineDisabled ||
+               Option == LoopHintAttr::LICMDisabled) {
       assert(StateLoc && StateLoc->getIdentifierInfo() &&
              "Loop hint must have an argument");
       if (StateLoc->getIdentifierInfo()->isStr("disable"))
@@ -373,7 +387,17 @@ static Attr *handleNoInlineAttr(Sema &S, Stmt *St, const ParsedAttr &A,
 static Attr *handleAlwaysInlineAttr(Sema &S, Stmt *St, const ParsedAttr &A,
                                     SourceRange Range) {
   AlwaysInlineAttr AIA(S.Context, A);
-  if (!AIA.isClangAlwaysInline()) {
+  if (!S.getLangOpts().MicrosoftExt &&
+      (AIA.isMSVCForceInline() || AIA.isMSVCForceInlineCalls())) {
+    S.Diag(St->getBeginLoc(), diag::warn_attribute_ignored) << A;
+    return nullptr;
+  }
+  if (AIA.isMSVCForceInline()) {
+    S.Diag(St->getBeginLoc(), diag::warn_function_attribute_ignored_in_stmt)
+        << "[[msvc::forceinline_calls]]";
+    return nullptr;
+  }
+  if (!AIA.isClangAlwaysInline() && !AIA.isMSVCForceInlineCalls()) {
     S.Diag(St->getBeginLoc(), diag::warn_function_attribute_ignored_in_stmt)
         << "[[clang::always_inline]]";
     return nullptr;
@@ -483,11 +507,12 @@ static void CheckForDuplicateLoopAttrs(Sema &S, ArrayRef<const Attr *> Attrs) {
     if (!FirstValue)
       FirstValue = CAFA->getResultAsAPSInt();
 
-    if (FirstValue != SecondValue) {
-      S.Diag((*LastFoundItr)->getLocation(), diag::err_loop_attr_conflict)
-          << *FirstItr;
-      S.Diag((*FirstItr)->getLocation(), diag::note_previous_attribute);
-    }
+    if (llvm::APSInt::isSameValue(*FirstValue, SecondValue))
+      continue;
+
+    S.Diag((*LastFoundItr)->getLocation(), diag::err_loop_attr_conflict)
+        << *FirstItr;
+    S.Diag((*FirstItr)->getLocation(), diag::note_previous_attribute);
   }
 }
 
@@ -535,6 +560,9 @@ CheckForIncompatibleAttributes(Sema &S,
     // The vector predication only has a state form that is exposed by
     // #pragma clang loop vectorize_predicate (enable | disable).
     VectorizePredicate,
+    // The LICM transformation only has a disable state form that is
+    // exposed by #pragma clang loop licm(disable).
+    LICM,
 #ifdef LLVM_TPC_COMPILER
     MachineUnroll,
     LoopTaken,
@@ -587,6 +615,9 @@ CheckForIncompatibleAttributes(Sema &S,
     case LoopHintAttr::VectorizePredicate:
       Category = VectorizePredicate;
       break;
+    case LoopHintAttr::LICMDisabled:
+      Category = LICM;
+      break;
 #ifdef LLVM_TPC_COMPILER
     case LoopHintAttr::MachineUnrollCount:
     case LoopHintAttr::Divide:
@@ -614,6 +645,7 @@ CheckForIncompatibleAttributes(Sema &S,
         Option == LoopHintAttr::UnrollAndJam ||
         Option == LoopHintAttr::VectorizePredicate ||
         Option == LoopHintAttr::PipelineDisabled ||
+        Option == LoopHintAttr::LICMDisabled ||
 #ifdef LLVM_TPC_COMPILER
         Option == LoopHintAttr::Divide || Option == LoopHintAttr::Taken ||
         Option == LoopHintAttr::Pipelined ||

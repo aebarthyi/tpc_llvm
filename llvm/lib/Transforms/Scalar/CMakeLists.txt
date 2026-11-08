@@ -16,6 +16,7 @@ add_llvm_component_library(LLVMScalarOpts
   DropUnnecessaryAssumes.cpp
   EarlyCSE.cpp
   EvalSpecialFunctionPass.cpp
+  ExpandMemCmp.cpp
   FlattenCFGPass.cpp
   Float2Int.cpp
   GuardWidening.cpp

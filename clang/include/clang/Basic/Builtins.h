@@ -46,7 +46,8 @@ enum LanguageID : uint16_t {
   ALL_OCL_LANGUAGES = 0x800, // builtin for OCL languages.
   HLSL_LANG = 0x1000,        // builtin requires HLSL.
   C23_LANG = 0x2000,         // builtin requires C23 or later.
-  RC99_LANG = 0x4000,        // builtin for RC99 only.
+  C2Y_LANG = 0x4000,         // builtin requires C2y or later.
+  RC99_LANG = 0x8000,        // builtin for RC99 only.
   ALL_LANGUAGES = C_LANG | CXX_LANG | OBJC_LANG, // builtin for all languages.
   ALL_LANGUAGES_AND_RC99 = ALL_LANGUAGES | RC99_LANG,
   ALL_GNU_LANGUAGES = ALL_LANGUAGES | GNU_LANG,  // builtin requires GNU mode.

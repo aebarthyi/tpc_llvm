@@ -42,6 +42,13 @@ namespace objdump {
 
 enum DebugFormat { DFASCII, DFDisabled, DFInvalid, DFLimitsOnly, DFUnicode };
 
+enum class ColorOutput {
+  Auto,
+  Enable,
+  Disable,
+  Invalid,
+};
+
 extern bool ArchiveHeaders;
 extern int DbgIndent;
 extern DebugFormat DbgVariables;
@@ -50,6 +57,7 @@ extern bool Demangle;
 extern bool Disassemble;
 extern bool DisassembleAll;
 extern std::vector<std::string> DisassemblerOptions;
+extern ColorOutput DisassemblyColor;
 extern DIDumpType DwarfDumpType;
 extern std::vector<std::string> FilterSections;
 extern bool LeadingAddr;
@@ -57,6 +65,8 @@ extern std::vector<std::string> MAttrs;
 extern std::string MCPU;
 extern std::string Prefix;
 extern uint32_t PrefixStrip;
+extern std::vector<std::string> SourceDirs;
+extern std::vector<std::pair<std::string, std::string>> SubstitutePaths;
 extern bool PrintImmHex;
 extern bool PrintLines;
 extern bool PrintSource;
@@ -70,6 +80,7 @@ extern bool TracebackTable;
 extern bool SymbolTable;
 extern std::string TripleName;
 extern bool UnwindInfo;
+extern bool UnwindShowWODPool;
 
 extern StringSet<> FoundSectionSet;
 

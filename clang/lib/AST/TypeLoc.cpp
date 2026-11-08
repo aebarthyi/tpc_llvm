@@ -602,6 +602,10 @@ SourceRange BTFTagAttributedTypeLoc::getLocalSourceRange() const {
   return getAttr() ? getAttr()->getRange() : SourceRange();
 }
 
+SourceRange OverflowBehaviorTypeLoc::getLocalSourceRange() const {
+  return SourceRange();
+}
+
 void TypeOfTypeLoc::initializeLocal(ASTContext &Context,
                                        SourceLocation Loc) {
   TypeofLikeTypeLoc<TypeOfTypeLoc, TypeOfType, TypeOfTypeLocInfo>
@@ -723,11 +727,12 @@ void TemplateSpecializationTypeLoc::initializeArgLocs(
     case TemplateArgument::Null:
       llvm_unreachable("Impossible TemplateArgument");
 
+    case TemplateArgument::Pack:
     case TemplateArgument::Integral:
     case TemplateArgument::Declaration:
     case TemplateArgument::NullPtr:
     case TemplateArgument::StructuralValue:
-      ArgInfos[i] = TemplateArgumentLocInfo();
+      ArgInfos[i] = TemplateArgumentLocInfo(Context, Loc);
       break;
 
     case TemplateArgument::Expression:
@@ -755,10 +760,6 @@ void TemplateSpecializationTypeLoc::initializeArgLocs(
                                                           : Loc);
       break;
     }
-
-    case TemplateArgument::Pack:
-      ArgInfos[i] = TemplateArgumentLocInfo();
-      break;
     }
   }
 }
@@ -857,6 +858,10 @@ namespace {
     }
 
     TypeLoc VisitBTFTagAttributedTypeLoc(BTFTagAttributedTypeLoc T) {
+      return Visit(T.getWrappedLoc());
+    }
+
+    TypeLoc VisitOverflowBehaviorTypeLoc(OverflowBehaviorTypeLoc T) {
       return Visit(T.getWrappedLoc());
     }
 

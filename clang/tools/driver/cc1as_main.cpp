@@ -190,6 +190,8 @@ struct AssemblerInvocation {
   LLVM_PREFERRED_TYPE(bool)
   unsigned X86Sse2Avx : 1;
 
+  RelocSectionSymType RelocSectionSym = RelocSectionSymType::All;
+
   /// The name of the relocation model to use.
   std::string RelocationModel;
 
@@ -410,6 +412,7 @@ bool AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
         llvm::StringSwitch<EmitDwarfUnwindType>(A->getValue())
             .Case("always", EmitDwarfUnwindType::Always)
             .Case("no-compact-unwind", EmitDwarfUnwindType::NoCompactUnwind)
+            .Case("dwarf-only", EmitDwarfUnwindType::DwarfOnly)
             .Case("default", EmitDwarfUnwindType::Default);
   }
 
@@ -417,6 +420,12 @@ bool AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
       Args.hasArg(OPT_femit_compact_unwind_non_canonical);
   Opts.EmitSFrameUnwind = Args.hasArg(OPT_gsframe);
   Opts.Crel = Args.hasArg(OPT_crel);
+  Opts.RelocSectionSym = RelocSectionSymType::All;
+  if (auto *A = Args.getLastArg(OPT_reloc_section_sym))
+    Opts.RelocSectionSym = StringSwitch<RelocSectionSymType>(A->getValue())
+                               .Case("internal", RelocSectionSymType::Internal)
+                               .Case("none", RelocSectionSymType::None)
+                               .Default(RelocSectionSymType::All);
   Opts.ImplicitMapsyms = Args.hasArg(OPT_mmapsyms_implicit);
   Opts.X86RelaxRelocations = !Args.hasArg(OPT_mrelax_relocations_no);
   Opts.X86Sse2Avx = Args.hasArg(OPT_msse2avx);
@@ -484,12 +493,17 @@ static bool ExecuteAssemblerImpl(AssemblerInvocation &Opts,
   MCOptions.EmitSFrameUnwind = Opts.EmitSFrameUnwind;
   MCOptions.MCSaveTempLabels = Opts.SaveTemporaryLabels;
   MCOptions.Crel = Opts.Crel;
+  MCOptions.RelocSectionSym = Opts.RelocSectionSym;
   MCOptions.ImplicitMapSyms = Opts.ImplicitMapsyms;
   MCOptions.X86RelaxRelocations = Opts.X86RelaxRelocations;
   MCOptions.X86Sse2Avx = Opts.X86Sse2Avx;
   MCOptions.MCNoExecStack = Opts.NoExecStack;
   MCOptions.CompressDebugSections = Opts.CompressDebugSections;
   MCOptions.AsSecureLogFile = Opts.AsSecureLogFile;
+#ifdef LLVM_TPC_COMPILER
+  // The TPC asm parser reads this from the MCAsmInfo's options.
+  MCOptions.MCCompressInst = Opts.CompressInstructions;
+#endif
 
   std::unique_ptr<MCAsmInfo> MAI(
       TheTarget->createMCAsmInfo(*MRI, Opts.Triple, MCOptions));
@@ -520,8 +534,7 @@ static bool ExecuteAssemblerImpl(AssemblerInvocation &Opts,
            << Opts.CPU << FS.empty() << FS;
   }
 
-  MCContext Ctx(Triple(Opts.Triple), MAI.get(), MRI.get(), STI.get(), &SrcMgr,
-                &MCOptions);
+  MCContext Ctx(Triple(Opts.Triple), *MAI, *MRI, *STI, &SrcMgr);
 
   bool PIC = false;
   if (Opts.RelocationModel == "static") {
@@ -643,10 +656,7 @@ static bool ExecuteAssemblerImpl(AssemblerInvocation &Opts,
   std::unique_ptr<MCAsmParser> Parser(
       createMCAsmParser(SrcMgr, Ctx, *Str, *MAI));
 
-  // FIXME: init MCTargetOptions from sanitizer flags here.
 #ifdef LLVM_TPC_COMPILER
-    MCOptions.MCCompressInst = Opts.CompressInstructions;
-
     if (Opts.Triple.getArch() == llvm::Triple::tpc) {
       Str->pushSection();
       MCSectionELF *TpcCompilerSection = Ctx.getELFSection(
@@ -662,8 +672,9 @@ static bool ExecuteAssemblerImpl(AssemblerInvocation &Opts,
         Str->popSection();
     }
 #endif
+
   std::unique_ptr<MCTargetAsmParser> TAP(
-      TheTarget->createMCAsmParser(*STI, *Parser, *MCII, MCOptions));
+      TheTarget->createMCAsmParser(*STI, *Parser, *MCII));
   if (!TAP)
     Failed = Diags.Report(diag::err_target_unknown_triple) << Opts.Triple.str();
 

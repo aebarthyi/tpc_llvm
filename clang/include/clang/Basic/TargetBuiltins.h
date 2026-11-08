@@ -84,7 +84,6 @@ namespace clang {
   };
   }
 
-  /// AArch64 builtins
   namespace AArch64 {
   enum {
     LastTIBuiltin = clang::Builtin::FirstTSBuiltin - 1,
@@ -93,8 +92,9 @@ namespace clang {
     LastSVEBuiltin = SVE::FirstTSBuiltin - 1,
     FirstSMEBuiltin = SVE::FirstTSBuiltin,
     LastSMEBuiltin = SME::FirstTSBuiltin - 1,
-  #define BUILTIN(ID, TYPE, ATTRS) BI##ID,
-  #include "clang/Basic/BuiltinsAArch64.def"
+#define GET_BUILTIN_ENUMERATORS
+#include "clang/Basic/BuiltinsAArch64.inc"
+#undef GET_BUILTIN_ENUMERATORS
     LastTSBuiltin
   };
   }
@@ -135,8 +135,9 @@ namespace clang {
   namespace AMDGPU {
   enum {
     LastTIBuiltin = clang::Builtin::FirstTSBuiltin - 1,
-  #define BUILTIN(ID, TYPE, ATTRS) BI##ID,
-  #include "clang/Basic/BuiltinsAMDGPU.def"
+#define GET_BUILTIN_ENUMERATORS
+#include "clang/Basic/BuiltinsAMDGPU.inc"
+#undef GET_BUILTIN_ENUMERATORS
     LastTSBuiltin
   };
   }
@@ -400,6 +401,9 @@ namespace clang {
     bool isOverloadFirstandLast() const {
       return Flags & IsOverloadFirstandLast;
     }
+    bool isOverloadDefaultAndOp0() const {
+      return Flags & IsOverloadDefaultAndOp0;
+    }
     bool isPrefetch() const { return Flags & IsPrefetch; }
     bool isReverseCompare() const { return Flags & ReverseCompare; }
     bool isAppendSVALL() const { return Flags & IsAppendSVALL; }
@@ -453,12 +457,18 @@ namespace clang {
 
   /// SystemZ builtins
   namespace SystemZ {
-    enum {
-        LastTIBuiltin = clang::Builtin::FirstTSBuiltin-1,
-#define BUILTIN(ID, TYPE, ATTRS) BI##ID,
-#include "clang/Basic/BuiltinsSystemZ.def"
-        LastTSBuiltin
-    };
+  enum {
+    LastTIBuiltin = clang::Builtin::FirstTSBuiltin - 1,
+#define GET_BUILTIN_ENUMERATORS
+#include "clang/Basic/BuiltinsSystemZ.inc"
+#undef GET_BUILTIN_ENUMERATORS
+    FirstZOSBuiltin,
+    LastSystemZBuiltin = FirstZOSBuiltin - 1,
+#define GET_BUILTIN_ENUMERATORS
+#include "clang/Basic/BuiltinsZOS.inc"
+#undef GET_BUILTIN_ENUMERATORS
+    LastTSBuiltin
+  };
   }
 
   /// WebAssembly builtins
@@ -470,6 +480,16 @@ namespace clang {
       LastTSBuiltin
     };
   }
+
+  /// AVR builtins
+  namespace AVR {
+  enum {
+    LastTIBuiltin = clang::Builtin::FirstTSBuiltin - 1,
+#define BUILTIN(ID, TYPE, ATTRS) BI##ID,
+#include "clang/Basic/BuiltinsAVR.def"
+    LastTSBuiltin
+  };
+  } // namespace AVR
 
 #ifdef LLVM_TPC_COMPILER
   /// \brief TPC builtins
@@ -488,7 +508,7 @@ namespace clang {
        PPC::LastTSBuiltin, NVPTX::LastTSBuiltin, AMDGPU::LastTSBuiltin,
        X86::LastTSBuiltin, VE::LastTSBuiltin, RISCV::LastTSBuiltin,
        Hexagon::LastTSBuiltin, Mips::LastTSBuiltin, XCore::LastTSBuiltin,
-       SystemZ::LastTSBuiltin, WebAssembly::LastTSBuiltin,
+       SystemZ::LastTSBuiltin, WebAssembly::LastTSBuiltin, AVR::LastTSBuiltin,
        TPC::LastTSBuiltin});
 
 } // end namespace clang.
