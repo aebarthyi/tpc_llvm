@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -S -O2  -emit-llvm -triple tpc -std=rc99 -target-cpu goya2 -mllvm -tpc-trans-intr=0 %s -o - | FileCheck %s
+// RUN: %clang_cc1 -O2  -emit-llvm -triple tpc -std=rc99 -target-cpu goya2 -mllvm -tpc-trans-intr=0 %s -o - | FileCheck %s
 
 void main(int dest, int x, int y) {
   int __local *dptr = (int __local *)dest;

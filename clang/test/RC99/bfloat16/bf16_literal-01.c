@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -S -triple tpc-none-none -std=rc99 -emit-llvm -disable-llvm-passes -bfloat16 -target-cpu gaudi %s -o - | FileCheck %s
+// RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -emit-llvm -disable-llvm-passes -bfloat16 -target-cpu gaudi %s -o - | FileCheck %s
 
 _BFloat16 BF16_zero_01 = 0;
 // CHECK: @BF16_zero_01 = {{.*}} bfloat 0xR0000

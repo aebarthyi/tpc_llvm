@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -S -emit-llvm -O1 %s -o - | FileCheck %s
+// RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -emit-llvm -O1 %s -o - | FileCheck %s
 
 // CHECK: define {{.*}}void @main() {{.*}} !index_space_b [[METADATA:.*]] {
 // CHECK: [[METADATA]] = !{i32 0, i32 1, !"x * y", !"1", !"1", !"8"}

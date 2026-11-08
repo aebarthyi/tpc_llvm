@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -S -triple tpc-none-none -std=rc99 -emit-llvm -O1 %s -o - | FileCheck %s
+// RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -emit-llvm -O1 %s -o - | FileCheck %s
 // CHECK: define dso_local void @main(i32 noundef %arg0, i32 noundef %arg1, i32 noundef %arg2, i32 noundef %arg3, i32 noundef %arg4, i32 noundef %arg5, i32 noundef %arg6, i32 noundef %arg7, i32 noundef %arg8, i32 noundef %arg9, i32 noundef %arg10, i32 noundef %arg11, i32 noundef %arg12, i32 noundef %arg13, i32 noundef %arg14, i32 noundef %arg15, i32 noundef %arg16, i32 noundef %arg17, i32 noundef %arg18, i32 noundef %arg19, i32 noundef %arg20, i32 noundef %arg21, i32 noundef %arg22, i32 noundef %arg23, i32 noundef %arg24, i32 noundef %arg25, i32 noundef %arg26, i32 noundef %arg27, i32 noundef %arg28, i32 noundef %arg29, i32 noundef %arg30, float noundef %float34) local_unnamed_addr #0 { 
 
 #pragma tpc_printf (enable)

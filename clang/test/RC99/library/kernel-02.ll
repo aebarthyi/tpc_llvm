@@ -1,5 +1,5 @@
 ; RUN: %clang_cc1 -emit-llvm-bc -std=rc99 -triple tpc -tpc-library -DLIB %S/library-01.c -o %t.bc
-; RUN: %clang_cc1 -S -emit-llvm -std=rc99 -triple tpc -mlink-bitcode-file %t.bc %s -o - | FileCheck %s
+; RUN: %clang_cc1 -emit-llvm -std=rc99 -triple tpc -mlink-bitcode-file %t.bc %s -o - | FileCheck %s
 
 define void @main(i32 %dest, i32 %src) {
 entry:

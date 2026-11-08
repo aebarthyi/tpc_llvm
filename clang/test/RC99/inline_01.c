@@ -1,4 +1,4 @@
-// RUN: not %clang_cc1 -S -emit-llvm -triple tpc-none-none -std=rc99 %s -o - 2>&1 | FileCheck %s
+// RUN: not %clang_cc1 -emit-llvm -triple tpc-none-none -std=rc99 %s -o - 2>&1 | FileCheck %s
 // XFAIL: *
 // GAUDI-2444
 

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -S -emit-llvm -disable-llvm-passes %s -o - | FileCheck %s
+// RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -emit-llvm -disable-llvm-passes %s -o - | FileCheck %s
 
 char var_char = 'a';
 short var_short = 12;

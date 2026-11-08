@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -S -triple tpc-none-none -std=rc99 -emit-llvm -O1 -main-function main_entry %s -o - | FileCheck %s
+// RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -emit-llvm -O1 -main-function main_entry %s -o - | FileCheck %s
 
 void main_entry(int arg0, tensor ifm, tensor ofm, int dest, tensor t1) {
 }

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -S -triple tpc-none-none -std=rc99 -emit-llvm -main-function qqq -O1 %s -o - | FileCheck %s
+// RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -emit-llvm -main-function qqq -O1 %s -o - | FileCheck %s
 
 void qqq(int I){
 }

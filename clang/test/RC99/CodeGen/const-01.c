@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -S -O1 -emit-llvm %s -o - | FileCheck %s
+// RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -O1 -emit-llvm %s -o - | FileCheck %s
 
 
 void main(int dest, int src) {

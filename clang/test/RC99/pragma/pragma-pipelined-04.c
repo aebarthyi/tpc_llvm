@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=rc99 -triple tpc -S -emit-llvm -O2 %s -o - | FileCheck %s
+// RUN: %clang_cc1 -std=rc99 -triple tpc -emit-llvm -O2 %s -o - | FileCheck %s
 
 void main(int dest, float value, int start, int end, int stride) {
   __local__ float* res=(__local float *)dest;

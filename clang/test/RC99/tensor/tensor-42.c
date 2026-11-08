@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -S -triple tpc-none-none -std=rc99 -emit-llvm -O1 -tpc-special %s -o - | FileCheck %s
+// RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -emit-llvm -O1 -tpc-special %s -o - | FileCheck %s
 
 void main(int dest) {
   unsigned __local *ptr = (unsigned __local *)dest;

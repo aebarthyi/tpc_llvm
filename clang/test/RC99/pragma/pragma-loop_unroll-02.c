@@ -1,5 +1,5 @@
 // RUN: %clang_cc1 -fsyntax-only -ast-dump -std=rc99 -triple tpc %s | FileCheck %s
-// RUN: %clang_cc1 -std=rc99 -S -emit-llvm -triple tpc -O2 %s -o - | FileCheck -check-prefix=LLVMIR %s
+// RUN: %clang_cc1 -std=rc99 -emit-llvm -triple tpc -O2 %s -o - | FileCheck -check-prefix=LLVMIR %s
 
 void main(int dest, float value, int start, int end, int stride) {
   __local__ float* res=(__local float *)dest;

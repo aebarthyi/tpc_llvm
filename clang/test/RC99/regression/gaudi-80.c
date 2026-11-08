@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -S -emit-llvm -triple tpc-none-none -std=rc99 -O1 %s -o -
+// RUN: %clang_cc1 -emit-llvm -triple tpc-none-none -std=rc99 -O1 %s -o -
 // RUN: %clang_cc1 -S -triple tpc-none-none -std=rc99 -O1 %s -o - | FileCheck %s
 
 volatile int a = 124089;

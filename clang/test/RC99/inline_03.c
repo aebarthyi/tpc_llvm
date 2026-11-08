@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -S -emit-llvm -triple tpc-none-none -std=rc99 %s -o - | FileCheck %s
+// RUN: %clang_cc1 -emit-llvm -triple tpc-none-none -std=rc99 %s -o - | FileCheck %s
 
 int factorial(int n)
 {

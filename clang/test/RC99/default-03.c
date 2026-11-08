@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -S -O2  -emit-llvm -triple tpc -std=rc99 -target-cpu gaudi2 -mllvm -tpc-trans-intr=0 %s -o - | FileCheck %s
-// RUN: %clang_cc1 -S -O2  -emit-llvm -triple tpc -std=rc99 -target-cpu doron1 -mllvm -tpc-trans-intr=0 %s -o - | FileCheck %s
+// RUN: %clang_cc1 -O2  -emit-llvm -triple tpc -std=rc99 -target-cpu gaudi2 -mllvm -tpc-trans-intr=0 %s -o - | FileCheck %s
+// RUN: %clang_cc1 -O2  -emit-llvm -triple tpc -std=rc99 -target-cpu doron1 -mllvm -tpc-trans-intr=0 %s -o - | FileCheck %s
 
 void main(int dest, int src, int src2) {
   float128 __local *dptr = (float128 __local *)dest;

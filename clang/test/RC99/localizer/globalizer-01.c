@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -S -emit-llvm -O0 %s -o %t
+// RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -emit-llvm -O0 %s -o %t
 // RUN: opt -S < %t -o %t.out 
 
 struct ABC {

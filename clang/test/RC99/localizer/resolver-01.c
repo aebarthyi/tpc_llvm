@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -S -emit-llvm -O1 %s -o - | FileCheck %s 
+// RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -emit-llvm -O1 %s -o - | FileCheck %s 
 // RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -S -O1 %s -o - | FileCheck --check-prefix=CHECK-ASM %s
 
 // NB! Assume that globals are ordered as in source file.
@@ -11,7 +11,7 @@ void main(int x) {
 }
 
 
-// CHECK: store i32 11, ptr addrspace(1) getelementptr inbounds ([12 x i32], ptr addrspace(1) null, i32 0, i32 1)
+// CHECK: store i32 11, ptr addrspace(1) getelementptr inbounds (i8, ptr addrspace(1) null, i32 4)
 // CHECK: store i32 777, ptr addrspace(1) inttoptr (i32 48 to ptr addrspace(1))
 
 

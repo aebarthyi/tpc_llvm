@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -S -emit-llvm -O1 %s -o - | FileCheck %s 
+// RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -emit-llvm -O1 %s -o - | FileCheck %s 
 // RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -S -O1 %s -o - | FileCheck --check-prefix=CHECK-ASM %s
 
 struct ABC {
@@ -15,7 +15,7 @@ void main(int x) {
 
 
 // CHECK: store float 1.000000e+00, ptr addrspace(1) null
-// CHECK: store i32 777, ptr addrspace(1) getelementptr inbounds (%struct.ABC, ptr addrspace(1) null, i32 0, i32 1, i32 1)
+// CHECK: store i32 777, ptr addrspace(1) getelementptr inbounds (i8, ptr addrspace(1) null, i32 8)
 
 
 // CHECK: !llvm.tpc.scalar_data = !{![[SSZ:[0-9]+]]}

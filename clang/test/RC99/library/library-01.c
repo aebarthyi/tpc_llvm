@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -S -emit-llvm -std=rc99 -triple tpc -tpc-library %s -o - | FileCheck %s
+// RUN: %clang_cc1 -emit-llvm -std=rc99 -triple tpc -tpc-library %s -o - | FileCheck %s
 
 int qqq(int x) {
   return x + 22;
