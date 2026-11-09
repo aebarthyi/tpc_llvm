@@ -83,11 +83,11 @@ output elements keep the fill byte `0xCD`.
 
 Keep each kernel focused on one feature, so a failure points at a cause.
 
-Where the hardware and C disagree, Habana's compiler is the reference, since it
-knows the hardware. For example, with a non-constant divisor both compilers take
-the absolute value with `abs.i32`, which saturates, so `INT_MIN % 3` gives -1
-rather than the -2 that C expects. `sdiv_vec_edge_i32` and `srem_vec_edge_i32`
-cover such inputs.
+Habana's compiler is the reference for all behaviour, including where it differs
+from C. For example, with a non-constant divisor both compilers take the absolute
+value with `abs.i32`, which saturates, so `INT_MIN % 3` gives -1 rather than the
+-2 that C expects. `abs_i32`, `sdiv_vec_edge_i32` and `srem_vec_edge_i32` cover
+such inputs.
 
 ### Known issues
 

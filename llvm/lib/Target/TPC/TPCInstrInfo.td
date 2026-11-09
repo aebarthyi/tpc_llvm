@@ -8014,25 +8014,29 @@ def : Pat<(i32 (anyext i8:$src)), (COPY SRF:$src)>;
 def : Pat<(i16 (anyext i8:$src)), (COPY SRF:$src)>;
 
 
+// ISD::ABS stays Expand, so these must match what TargetLowering::expandABS emits:
+// Y = sra(X, size(X)-1); sub(xor(X, Y), Y). Marking it Legal instead would also
+// form abs from code that Habana's compiler leaves as shifts, and abs.i32 saturates
+// on INT_MIN where those shifts do not.
 def srac32  : PatFrag<(ops node:$src), (i32 (sra node:$src,(i32 31))) >;
-def addsra32 :PatFrag<(ops node:$src), (i32 (add node:$src,(srac32 node:$src)))>;
-def : Pat<( xor (addsra32 i32:$src1), (srac32 i32:$src1) 
+def xorsra32 :PatFrag<(ops node:$src), (i32 (xor node:$src,(srac32 node:$src)))>;
+def : Pat<( sub (xorsra32 i32:$src1), (srac32 i32:$src1)
            )
            ,(i32  (ABSssp i32:$src1, OpType.INT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0)
              ))
         >;
 
 def srac16  : PatFrag<(ops node:$src), (i16 (sra node:$src,(i32 15))) >;
-def addsra16 :PatFrag<(ops node:$src), (i16 (add node:$src,(srac16 node:$src)))>;
-def : Pat<( xor (addsra16 i16:$src1), (srac16 i16:$src1) 
+def xorsra16 :PatFrag<(ops node:$src), (i16 (xor node:$src,(srac16 node:$src)))>;
+def : Pat<( sub (xorsra16 i16:$src1), (srac16 i16:$src1)
            )
            ,(i16  (ABSssp i16:$src1, OpType.INT16, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0)
              ))
         >;
 
 def srac8  : PatFrag<(ops node:$src), (i8 (sra node:$src,(i32 7))) >;
-def addsra8 :PatFrag<(ops node:$src), (i8 (add node:$src,(srac8 node:$src)))>;
-def : Pat<( xor (addsra8 i8:$src1), (srac8 i8:$src1) 
+def xorsra8 :PatFrag<(ops node:$src), (i8 (xor node:$src,(srac8 node:$src)))>;
+def : Pat<( sub (xorsra8 i8:$src1), (srac8 i8:$src1)
            )
            ,(i8  (ABSssp i8:$src1, OpType.INT8, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0)
              ))
