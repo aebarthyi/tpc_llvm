@@ -661,7 +661,7 @@ void TPCInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
 
   RegScavenger RS;
   RS.enterBasicBlockEnd(MBB);
-  RS.backward(I);
+  RS.backward(std::next(I));
 
   MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
 
