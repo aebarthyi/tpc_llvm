@@ -20,6 +20,7 @@ add_public_tablegen_target(TPCCommonTableGen)
 
 set(sources
   AttributeAdjuster.cpp
+  MemoryToReg.cpp
   Globalizer.cpp
   GlobalResolver.cpp
   latencies.cpp

@@ -80,6 +80,14 @@ public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 };
 
+/// Pass "tpcmem2reg".
+class TPCMemoryToRegPass : public PassInfoMixin<TPCMemoryToRegPass> {
+public:
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+  // Runs at -O0, where functions are optnone.
+  static bool isRequired() { return true; }
+};
+
 /// Pass "adjust-attr".
 class AttributeAdjusterPass : public PassInfoMixin<AttributeAdjusterPass> {
 public:
@@ -112,6 +120,8 @@ class TPCMarkupDirectMMIOAccessPass
     : public PassInfoMixin<TPCMarkupDirectMMIOAccessPass> {
 public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+  // .tpc_metadata depends on it at all optimization levels.
+  static bool isRequired() { return true; }
 };
 
 FunctionPass *createTPCPredicateOptimizer();

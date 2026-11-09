@@ -27,7 +27,6 @@
 #include "llvm/Transforms/Scalar/LoopPassManager.h"
 #include "llvm/Transforms/Scalar/SROA.h"
 #include "llvm/Transforms/Scalar/SimplifyCFG.h"
-#include "llvm/Transforms/Utils/Mem2Reg.h"
 #include <optional>
 
 using namespace llvm;
@@ -268,6 +267,10 @@ void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
           FPM.addPass(AttributeAdjusterPass());
           return true;
         }
+        if (Name == "tpcmem2reg") {
+          FPM.addPass(TPCMemoryToRegPass());
+          return true;
+        }
         if (Name == "tpc-trans-intr") {
           FPM.addPass(TPCTransformIntrinPass());
           return true;
@@ -339,7 +342,7 @@ void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
         if (Level == OptimizationLevel::O0) {
           // We cannot keep global pointers in memory, so promote them to
           // registers early.
-          FPM.addPass(PromotePass());
+          FPM.addPass(TPCMemoryToRegPass());
           // Remove 'optnone' so that instruction combining can run.
           FPM.addPass(AttributeAdjusterPass());
           // Instruction combining greatly simplifies instruction selection.
