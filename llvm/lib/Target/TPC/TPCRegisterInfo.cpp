@@ -210,10 +210,14 @@ BitVector TPCRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
       bool is_doron1 = MF.getSubtarget<TPCSubtarget>().hasDoron1ISA();
       unsigned i2 = (is_doron1)? mriLocal->createVirtualRegister(&TPC::IRFRegClass)
                         : TPC::I2;
+      // The income is tied to the destination, and the two-address pass cannot
+      // tie a virtual destination to a physical register.
+      unsigned i2_income = (is_doron1)? mriLocal->createVirtualRegister(&TPC::IRFRegClass)
+                        : TPC::I2;
 
       MIB = BuildMI(*MBB, firstInst, FI->getDebugLoc(),
                     TII->get(TPC::SET_INDX_spu_ip), i2)
-                .addReg(TPC::I2, RegState::Undef)
+                .addReg(i2_income, RegState::Undef)
                 .addImm(0)
                 .addImm(31)
                 .addImm(0)

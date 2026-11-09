@@ -1,7 +1,6 @@
 // RUN: %codegen -S -O1 -triple tpc-none-none -std=rc99 -target-cpu gaudi2 %s -o - | FileCheck %s
 // RUN: %codegen -S -O1 -triple tpc-none-none -std=rc99 -target-cpu doron1 %s -o - | FileCheck %s
 
-// XFAIL: *
 // GAUDI-2176
 void main(int x0, int x1, _Bool pred, int dest)
 {

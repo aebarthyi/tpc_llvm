@@ -108,5 +108,6 @@ such inputs.
 * **`scalar_math_i32` at `-O0` on gaudi2.** The fork miscompiles it: every output
   element is wrong against a host computation, while Habana's compiler is
   correct. Reproduce with `--cflags=-O0`; expected `KNOWN` until fixed.
-* **`doron1`.** The fork asserts (`hasDoron1()`) for this arch, which accounts
-  for nearly all failures in the fork's own lit suite.
+* **`doron1`.** Its lit tests pass, but nothing checks its output against a
+  reference. Habana's compiler has no `doron1`: its closest target is `gaudi3`,
+  which writes the same `march` value but uses a different register map.

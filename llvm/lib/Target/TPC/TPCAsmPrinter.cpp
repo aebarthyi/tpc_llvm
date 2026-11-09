@@ -60,6 +60,7 @@ void TPCAsmPrinter::emitInstruction(const MachineInstr* MI) {
     {
       if (MII->getOpcode() == TargetOpcode::DBG_VALUE ||
           MII->getOpcode() == TargetOpcode::IMPLICIT_DEF ||
+          MII->getOpcode() == TargetOpcode::INIT_UNDEF ||
           MII->getOpcode() == TPC::LOOPEND)
         ++IgnoreCount;
       else

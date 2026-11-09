@@ -76,7 +76,6 @@ private:
   bool HasGen2BPlus = false;
   bool HasGen3Plus = false;
   bool HasGen4Plus = false;
-  bool HasDoron1 = false;
   bool HasConvertFpFlex = false;
   bool HasVectStMask = false;
 
@@ -184,7 +183,7 @@ public:
   bool hasGen2BPlus() const { return HasGen2BPlus; }
   bool hasGen3Plus() const { return HasGen3Plus; }
   bool hasGen4Plus() const { return HasGen4Plus; }
-  bool hasDoron1() const { return HasDoron1; }
+  bool hasDoron1() const { return HasDoron1ISA; }
   bool hasConvertFpFlex() const { return HasConvertFpFlex; }
   bool isPriorGen3() const { return HasGoyaISA || HasGaudiISA || HasGaudiBISA; }
   bool isPriorGen4() const { return HasGoyaISA || HasGaudiISA || HasGaudiBISA ||
