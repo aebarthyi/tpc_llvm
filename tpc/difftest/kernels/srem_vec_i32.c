@@ -1,7 +1,6 @@
-// Signed vector remainder. Only on gaudi2: the fork cannot compile vector division
-// or remainder for gaudi (see README.md).
+// Signed vector remainder.
 //
-// DIFFTEST: arch gaudi2
+// DIFFTEST: arch gaudi gaudi2
 // DIFFTEST: in  i32 256 6 1 range=-2000000000,2000000000
 // DIFFTEST: in  i32 256 6 1 range=-100000,100000
 // DIFFTEST: out i32 256 6 1

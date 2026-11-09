@@ -630,7 +630,7 @@ void TPCInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     if (!Subtarget.hasGrecoISA() && !Subtarget.hasGaudi2ISA() &&
         !Subtarget.hasDoron1ISA())
       report_fatal_error("Cannot copy VRF to VPRF on this platform");
-    CopyReg(TPC::MOVmvm);
+    CopyReg(TPC::MOVmvp);
     return;
   }
   if (SrcVRF && DstVRF) {

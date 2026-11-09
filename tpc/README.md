@@ -83,6 +83,12 @@ output elements keep the fill byte `0xCD`.
 
 Keep each kernel focused on one feature, so a failure points at a cause.
 
+Where the hardware and C disagree, Habana's compiler is the reference, since it
+knows the hardware. For example, with a non-constant divisor both compilers take
+the absolute value with `abs.i32`, which saturates, so `INT_MIN % 3` gives -1
+rather than the -2 that C expects. `sdiv_vec_edge_i32` and `srem_vec_edge_i32`
+cover such inputs.
+
 ### Known issues
 
 * **Old baselines.** Fork compilers older than the version 20 `.tpc_metadata`
@@ -94,13 +100,11 @@ Keep each kernel focused on one feature, so a failure points at a cause.
   `duplicateTensors`, `exclusiveSwitch` and `unsetSmallVLM` stay 0, and
   `hashedISA` does not match Habana's values. The simulator accepts this, but
   nothing has checked it against the graph compiler or hardware.
-* **Vector `/` and `%` on gaudi and gaudib.** The fork stops with "Cannot copy VRF
-  to VPRF on this platform", while Habana's compiler builds them. `srem_vec_i32`
-  runs only on gaudi2 until this is fixed.
-* **`INT_MIN` in signed `/` and `%`.** With a non-constant divisor, both compilers
-  take the absolute value with `abs.i32`, which saturates, so the results are off
-  for `INT_MIN`: `INT_MIN % 3` gives -1 rather than -2. The kernels avoid this
-  input, which would pass while recording a wrong result.
+* **Unsigned vector `/` and `%` with an operand of 2^31 or more.** Both compilers
+  take the absolute value of the operands with `abs.i32`, as they do for signed
+  values, so these operands act as negative numbers and the results differ from C.
+  Scalar unsigned `/` and `%` are correct. `udiv_vec_u32` and `urem_vec_u32` record
+  Habana's behaviour.
 * **`scalar_math_i32` at `-O0` on gaudi2.** The fork miscompiles it: every output
   element is wrong against a host computation, while Habana's compiler is
   correct. Reproduce with `--cflags=-O0`; expected `KNOWN` until fixed.

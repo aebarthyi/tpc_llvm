@@ -12135,6 +12135,7 @@ static void MakeVectorDivOneIterarton(unsigned IterationNum,
                                       SDValue IsEquals1,
                                       SelectionDAG &DAG, const SDLoc &DL) {
   EVT Type = MVT::v64i32;
+  EVT MaskType = MVT::v256i1;
   Z = SDValue(
     DAG.getMachineNode(
       TPC::SHLvim, DL, Type,
@@ -12173,28 +12174,27 @@ static void MakeVectorDivOneIterarton(unsigned IterationNum,
 
   SDValue Equal21 = SDValue(
     DAG.getMachineNode(
-      TPC::CMP_EQvip, DL, Type,
+      TPC::CMP_EQvip, DL, MaskType,
       {BR, /*Src1*/
        DAG.getTargetConstant(0, DL, MVT::i32), /*Src2*/
        DAG.getTargetConstant(TPCII::OpType::UINT32, DL, MVT::i8), /*Optype*/
        DAG.getTargetConstant(0, DL, MVT::i32), /*Switch*/
-       DAG.getUNDEF(Type), /*Income*/
+       DAG.getUNDEF(MaskType), /*Income*/
        DAG.getRegister(TPC::SPRF_TRUE, MVT::i1), /*Predicate*/
        DAG.getTargetConstant(0, DL, MVT::i1)}), /*Polarity*/
     0);
   SDValue Zeros = SDValue(
     DAG.getMachineNode(
-      TPC::MOV_ld_vip, DL, Type,
-      {DAG.getTargetConstant(0, DL, MVT::i1), /*Src*/
-       DAG.getTargetConstant(TPCII::OpType::BOOL, DL, MVT::i8), /*Optype*/
+      TPC::MOVB_ld_mip, DL, MaskType,
+      {DAG.getTargetConstant(0, DL, MVT::i32), /*Src*/
        DAG.getTargetConstant(0, DL, MVT::i32), /*Switch*/
-       DAG.getUNDEF(Type), /*Income*/
+       DAG.getUNDEF(MaskType), /*Income*/
        DAG.getRegister(TPC::SPRF_TRUE, MVT::i1), /*Predicate*/
        DAG.getTargetConstant(0, DL, MVT::i1)}), /*Polarity*/
     0);
   SDValue Equal2 = SDValue(
     DAG.getMachineNode(
-      TPC::CMP_GEQvvm, DL, Type,
+      TPC::CMP_GEQvvm, DL, MaskType,
       {AbsLHO, /*Src1*/
        B, /*Src2*/
        DAG.getTargetConstant(TPCII::OpType::UINT32, DL, MVT::i8), /*Optype*/
@@ -12233,6 +12233,7 @@ static std::pair<SDValue, SDValue> MakeVectorDivI32(SDValue LHO, SDValue RHO,
                                                     SelectionDAG &DAG,
                                                     const SDLoc &DL) {
   EVT Type = MVT::v64i32;
+  EVT MaskType = MVT::v256i1;
   SDValue B = SDValue(
     DAG.getMachineNode(
       TPC::MOV_ld_vip, DL, Type,
@@ -12313,23 +12314,23 @@ static std::pair<SDValue, SDValue> MakeVectorDivI32(SDValue LHO, SDValue RHO,
 
   SDValue IsEqual1 = SDValue(
     DAG.getMachineNode(
-      TPC::CMP_GEQvip, DL, Type,
+      TPC::CMP_GEQvip, DL, MaskType,
       {AbsRHO, /*Src1*/
        DAG.getTargetConstant(1, DL, MVT::i32), /*Src2*/
        DAG.getTargetConstant(TPCII::OpType::UINT32, DL, MVT::i8), /*Optype*/
        DAG.getTargetConstant(0, DL, MVT::i32), /*Switch*/
-       DAG.getUNDEF(Type), /*Income*/
+       DAG.getUNDEF(MaskType), /*Income*/
        DAG.getRegister(TPC::SPRF_TRUE, MVT::i1), /*Predicate*/
        DAG.getTargetConstant(0, DL, MVT::i1)}), /*Polarity*/
     0);
   SDValue IsEqual0 = SDValue(
     DAG.getMachineNode(
-      TPC::CMP_EQvip, DL, Type,
+      TPC::CMP_EQvip, DL, MaskType,
       {AbsRHO, /*Src1*/
        DAG.getTargetConstant(0, DL, MVT::i32), /*Src2*/
        DAG.getTargetConstant(TPCII::OpType::UINT32, DL, MVT::i8), /*Optype*/
        DAG.getTargetConstant(0, DL, MVT::i32), /*Switch*/
-       DAG.getUNDEF(Type), /*Income*/
+       DAG.getUNDEF(MaskType), /*Income*/
        DAG.getRegister(TPC::SPRF_TRUE, MVT::i1), /*Predicate*/
        DAG.getTargetConstant(0, DL, MVT::i1)}), /*Polarity*/
     0);
@@ -12355,12 +12356,12 @@ static std::pair<SDValue, SDValue> MakeVectorDivI32(SDValue LHO, SDValue RHO,
   if (IsSign) {
     SDValue DividePred = SDValue(
       DAG.getMachineNode(
-        TPC::CMP_NEQvip, DL, Type,
+        TPC::CMP_NEQvip, DL, MaskType,
         {AndResult, /*Src1*/
          DAG.getTargetConstant(0, DL, MVT::i32), /*Src2*/
          DAG.getTargetConstant(TPCII::OpType::UINT32, DL, MVT::i8), /*Optype*/
          DAG.getTargetConstant(0, DL, MVT::i32), /*Switch*/
-         DAG.getUNDEF(Type), /*Income*/
+         DAG.getUNDEF(MaskType), /*Income*/
          DAG.getRegister(TPC::SPRF_TRUE, MVT::i1), /*Predicate*/
          DAG.getTargetConstant(0, DL, MVT::i1)}), /*Polarity*/
       0);
@@ -12378,12 +12379,12 @@ static std::pair<SDValue, SDValue> MakeVectorDivI32(SDValue LHO, SDValue RHO,
 
     SDValue RemainPred = SDValue(
       DAG.getMachineNode(
-        TPC::CMP_LESSvip, DL, Type,
+        TPC::CMP_LESSvip, DL, MaskType,
         {LHO, /*Src1*/
          DAG.getTargetConstant(0, DL, MVT::i32), /*Src2*/
          DAG.getTargetConstant(TPCII::OpType::INT32, DL, MVT::i8), /*Optype*/
          DAG.getTargetConstant(0, DL, MVT::i32), /*Switch*/
-         DAG.getUNDEF(Type), /*Income*/
+         DAG.getUNDEF(MaskType), /*Income*/
          DAG.getRegister(TPC::SPRF_TRUE, MVT::i1), /*Predicate*/
          DAG.getTargetConstant(0, DL, MVT::i1)}), /*Polarity*/
       0);
