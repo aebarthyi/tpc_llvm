@@ -1567,8 +1567,9 @@ VarDecl *Sema::CreateTensorOffsetForExtraArgs() {
   E->setType(Type); 
   AddInitializerToDecl(NewVD, E, false);
 
-//  NewVD->setDeclContext(CurContext);                  
-//  PushOnScopeChains(NewVD, getCurScope(), true);
+  // Not visible to the kernel, but the uninitialized variable analysis expects
+  // to find every local variable in the list of declarations.
+  CurContext->addHiddenDecl(NewVD);
   return NewVD;
 }
 
@@ -1628,6 +1629,8 @@ VarDecl *Sema::CreateGlobPointer() {
   Type = Context.getAddrSpaceQualType(Type, LangAS::rc99_global);
   Type = Context.getPointerType(Type);
   VarDecl *NewVD = VarDecl::Create(getASTContext(), CurContext, Loc, Loc, II, Type, nullptr, SC_None);
+  // See CreateTensorOffsetForExtraArgs.
+  CurContext->addHiddenDecl(NewVD);
   return NewVD;
 }
 
