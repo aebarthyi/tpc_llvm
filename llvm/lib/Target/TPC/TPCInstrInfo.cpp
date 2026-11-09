@@ -3527,8 +3527,12 @@ void TPCInstrInfo::reMaterialize(MachineBasicBlock &MBB,
 
   // TODO: this is not a fix, it's just a workaround.
   //       Sometimes llvm adds subregisters to vrfs for some reason
-  const TargetRegisterClass* RC = MRI.getRegClass(DefMI->getOperand(0).getReg());
-  if (TPC::VRFRegClass.hasSubClassEq(RC)) {
+  // The destination is physical for an asm register variable, and IMPLICIT_DEF
+  // has no income operand.
+  Register DefReg = DefMI->getOperand(0).getReg();
+  if (!DefMI->isImplicitDef() &&
+      (DefReg.isVirtual() ? TPC::VRFRegClass.hasSubClassEq(MRI.getRegClass(DefReg))
+                          : TPC::VRFRegClass.contains(DefReg))) {
     const MCInstrDesc &MCI = DefMI->getDesc();
     DefMI->getOperand(MCI.getNumOperands() - 3).setSubReg(0);
   }
