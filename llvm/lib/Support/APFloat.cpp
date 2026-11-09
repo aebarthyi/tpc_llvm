@@ -3574,8 +3574,8 @@ APInt IEEEFloat::convertFloat8_143APFloatToAPInt() const {
     mysignificand = (uint32_t)*significandParts();
   }
 
-  return APInt(16, (((sign & 1) << 7) | ((myexponent & 0xf) << 3) |
-                    (mysignificand & 0x07)));
+  return APInt(8, (((sign & 1) << 7) | ((myexponent & 0xf) << 3) |
+                   (mysignificand & 0x07)));
 }
 
 APInt IEEEFloat::convertFloat8_152APFloatToAPInt() const {
@@ -3601,8 +3601,8 @@ APInt IEEEFloat::convertFloat8_152APFloatToAPInt() const {
     mysignificand = (uint32_t)*significandParts();
   }
 
-  return APInt(16, (((sign & 1) << 7) | ((myexponent & 0x1f) << 2) |
-                    (mysignificand & 0x03)));
+  return APInt(8, (((sign & 1) << 7) | ((myexponent & 0x1f) << 2) |
+                   (mysignificand & 0x03)));
 }
 #endif
 APInt IEEEFloat::convertFloat8E5M2APFloatToAPInt() const {
