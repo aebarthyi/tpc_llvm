@@ -39,6 +39,6 @@ bb:
 ; DORON1: convert.i32 all_lanes target_type=int16 rhne %V[[STT:[0-9]+]], %D[[MUL]]
 
 ; CHECK: st_tnsr  0x2, %I{{[0-9]+}}, %V[[STT]]
-; CHECK_NOT: convert.i32 
+; CHECK-NOT: convert.i32 
 
 

@@ -56,5 +56,5 @@ void main(int mem_inp, int mem_out) {
 
   *p_out = cast(*p_inp);
 }
-// CHECK_NOT: convert 
+// CHECK-NOT: convert 
 // CHECK-NOT: all_lanes

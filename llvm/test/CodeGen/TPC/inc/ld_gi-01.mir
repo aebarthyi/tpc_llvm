@@ -61,7 +61,7 @@ body:             |
     ; CHECK: [[DEF2:%[0-9]+]]:irf = IMPLICIT_DEF
     ; CHECK: [[DEF3:%[0-9]+]]:adrf = IMPLICIT_DEF
     ; CHECK: [[DEF4:%[0-9]+]]:srf = IMPLICIT_DEF
-    ; CHECK: [[LD_Gsap:%[0-9]+]]:srf = LD_Gsap killed %11, 0, [[DEF4]], $sprf_true, 0 :: (load 4 from %ir.5, addrspace 3)
+    ; CHECK: [[LD_Gsap:%[0-9]+]]:srf = LD_Gsap killed %11, 0, [[DEF4]], $sprf_true, 0 :: (load (s32) from %ir.5, addrspace 3)
     ; CHECK: HALTs
     %1:irf = COPY $i0
     %5:adrf = IMPLICIT_DEF
@@ -73,7 +73,7 @@ body:             |
     %29:adrf = IMPLICIT_DEF
     %28:adrf = GEN_ADDR_st 0, killed %27, 0, %29, $sprf_true, 0
     %31:srf = IMPLICIT_DEF
-    %30:srf = LD_Gsap killed %28, 0, %31, $sprf_true, 0 :: (load 4 from %ir.5, addrspace 3)
+    %30:srf = LD_Gsap killed %28, 0, %31, $sprf_true, 0 :: (load (s32) from %ir.5, addrspace 3)
     HALTs
 
 ...

@@ -31,7 +31,8 @@ declare < 256 x bfloat > @llvm.tpc.convert.v256bf16.v256i8.i1(< 256 x i8 >, i8, 
 ; GAUDI:  convert.i8 target_type=int16 rhne [[VRF1:%V[0-9]+]], %V1
 ; GAUDI:  convert.i16 target_type=bf16 rhne [[VRF0]], [[VRF0]]
 ; GAUDI:  st_tnsr 0x1, %I{{[0-9]+}}, [[VRF0]]
-; GAUDI:  st_tnsr 0x1, %I{{[0-9]+}}, [[VRF1]]
+; GAUDI:  convert.i16 target_type=bf16 rhne [[VRF2:%V[0-9]+]], [[VRF1]]
+; GAUDI:  st_tnsr 0x1, %I{{[0-9]+}}, [[VRF2]]
 
 ; GRECO:  convert.i8 all_lanes target_type=bf16 rhne %D0, %V0
 ; GAUDI2: convert.i8 all_lanes target_type=bf16 rhne %D0, %V0

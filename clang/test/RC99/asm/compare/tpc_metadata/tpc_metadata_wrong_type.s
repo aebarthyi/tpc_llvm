@@ -2,6 +2,7 @@
 
 .tpc_metadata
 specialFunctionUsed:	WRONG_TYPE	3
-// CHECK: [[@LINE-1]]:22: error: Unexpected token during parse tpc metadata: 'WRONG_TYPE'. Expected one of 'DT', 'DD', 'DH', 'DW', 'DQ', 'DB'.
+// The tokens come from a map, so their order is not stable.
+// CHECK: 4:22: error: Unexpected token during parse tpc metadata: 'WRONG_TYPE'. Expected one of
 
 NOP;

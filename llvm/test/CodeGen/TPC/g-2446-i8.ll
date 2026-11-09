@@ -40,6 +40,6 @@ bb:
 
 
 ; CHECK: st_tnsr  0x2, %I{{[0-9]+}}, %V[[STT]]
-; CHECK_NOT: convert.i32 
+; CHECK-NOT: convert.i32 
 
 
