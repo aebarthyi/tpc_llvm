@@ -1,6 +1,12 @@
 // RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -emit-llvm -O1 %s -o - | FileCheck %s
+// The driver embeds the unoptimized bitcode in every object (-c), so the
+// pragma's function attribute must survive a bitcode round trip.
+// RUN: %clang_cc1 -triple tpc-none-none -std=rc99 -emit-obj -fembed-bitcode=bitcode -O1 %s -o %t.o
+// RUN: llvm-objcopy --dump-section=.llvmbc=%t.bc %t.o /dev/null
+// RUN: llvm-dis %t.bc -o - | FileCheck %s
 
-// CHECK: define {{.*}}void @main() {{.*}} !index_space_b [[METADATA:.*]] {
+// CHECK: define {{.*}}void @main() {{.*}}[[ATTRS:#[0-9]+]] {{.*}}!index_space_b [[METADATA:.*]] {
+// CHECK: attributes [[ATTRS]] = { {{.*}}index_space_b{{ }}
 // CHECK: [[METADATA]] = !{i32 0, i32 1, !"x * y", !"1", !"1", !"8"}
 
 void main(tensor Tensor0_T, tensor Tensor1_T) {

@@ -988,6 +988,12 @@ static uint64_t getAttrKindEncoding(Attribute::AttrKind Kind) {
     return bitc::ATTR_KIND_MUSTPROGRESS;
   case Attribute::UnrollInfo:
     return bitc::ATTR_KIND_UNROLL_INFO;
+  case Attribute::IndexSpace:
+    return bitc::ATTR_KIND_INDEX_SPACE;
+  case Attribute::IndexSpaceb:
+    return bitc::ATTR_KIND_INDEX_SPACE_B;
+  case Attribute::ReductionOrNormAxes:
+    return bitc::ATTR_KIND_REDUCTION_OR_NORM_AXES;
   case Attribute::PresplitCoroutine:
     return bitc::ATTR_KIND_PRESPLIT_COROUTINE;
   case Attribute::Writable:
@@ -1023,12 +1029,6 @@ static uint64_t getAttrKindEncoding(Attribute::AttrKind Kind) {
   case Attribute::EmptyKey:
   case Attribute::TombstoneKey:
     llvm_unreachable("Trying to encode EmptyKey/TombstoneKey");
-#ifdef LLVM_TPC_COMPILER
-  case Attribute::IndexSpace:
-  case Attribute::IndexSpaceb:
-  case Attribute::ReductionOrNormAxes:
-    llvm_unreachable("Unsupported TPC attribute");
-#endif
   }
 
   llvm_unreachable("Trying to encode unknown attribute");

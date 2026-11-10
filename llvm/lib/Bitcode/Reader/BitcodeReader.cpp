@@ -2308,6 +2308,12 @@ static Attribute::AttrKind getAttrFromCode(uint64_t Code) {
     return Attribute::Hot;
   case bitc::ATTR_KIND_UNROLL_INFO:
     return Attribute::UnrollInfo;
+  case bitc::ATTR_KIND_INDEX_SPACE:
+    return Attribute::IndexSpace;
+  case bitc::ATTR_KIND_INDEX_SPACE_B:
+    return Attribute::IndexSpaceb;
+  case bitc::ATTR_KIND_REDUCTION_OR_NORM_AXES:
+    return Attribute::ReductionOrNormAxes;
   case bitc::ATTR_KIND_PRESPLIT_COROUTINE:
     return Attribute::PresplitCoroutine;
   case bitc::ATTR_KIND_WRITABLE:
