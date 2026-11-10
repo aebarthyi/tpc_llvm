@@ -285,19 +285,16 @@ bool TPCLatencyResolver::runOnMachineFunction(MachineFunction &Fn) {
     if (MBB.empty()) {
       continue;
     }
-    if (TPCNumDebugNops) {
+    // The debug NOPs give every instruction a fixed distance from the one
+    // before it, but some latencies are longer (UDIV on gaudi2 needs 12
+    // cycles), so the usual resolution still runs on top of them.
+    if (TPCNumDebugNops)
       insertDebugNops(MBB, TPCNumDebugNops);
-    }
-    else {
-      resolveBlockLatency(MBB);
-      fixSmallLoops(MBB);
-    }
+    resolveBlockLatency(MBB);
+    fixSmallLoops(MBB);
   }
 
-  if (TPCNumDebugNops) {
-    return true;
-  } else
-    resolveFunctionLatency(Fn);
+  resolveFunctionLatency(Fn);
 
   for (auto &MBB : Fn) {
     if (!MBB.empty()) {
