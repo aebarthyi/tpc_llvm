@@ -1000,6 +1000,17 @@ int TPCLatencyResolver::getRequiredDistance(const MachineInstr& DefMI,
     }
   }
 
+  // The gaudi2 kernel prologue (TPCPrologueMMIO.cpp) ends with a write to
+  // KERNEL_CONFIG. Habana's compiler starts the kernel 5 cycles after it, and
+  // halts no sooner than 7 cycles after it.
+  if (!isNopInstr(&UseMI) &&
+      llvm::any_of(DefInstrs, [](const MachineInstr *MI) {
+        return MI->getFlag(MachineInstr::FrameSetup) &&
+               TPCII::isStoreInst(MI->getDesc()) &&
+               TPCII::getSlotOpCode(MI->getDesc()) == TPCII::ST_L;
+      }))
+    alatency = std::max(alatency, isHaltInstr(&UseMI) ? 7 : 5);
+
   // ST_L_V cannot be scheduled 2 or 3 cycles before LOOKUP instruction
   // (i.e. ST_L_V, 1 or 2 instructions, then LOOKUP*)
   if (hasGaudi2StlvLookupRestrict) {

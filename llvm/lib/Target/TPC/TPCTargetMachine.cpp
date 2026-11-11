@@ -400,6 +400,7 @@ void TPCPassConfig::addPreEmitPass() {
   bool NoOpt = (getOptLevel() == CodeGenOptLevel::None);
 
   addPass(createTPCLutCacheCounter());
+  addPass(createTPCPrologueMMIO());
   // Create Packets.
 #if !defined(TPC_DISABLE_PACKETIZER) && !defined(TPC_DISABLE_ALL_SCHED)
   if (!NoOpt) {

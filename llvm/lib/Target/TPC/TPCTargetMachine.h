@@ -151,6 +151,7 @@ FunctionPass *createTPCRegisterBalancer();
 FunctionPass *createTPCRegisterCounter();
 FunctionPass *createTPCElfSpecSet();
 FunctionPass *createTPCLutCacheCounter();
+FunctionPass *createTPCPrologueMMIO();
 FunctionPass *createTPCLatencyResolver();
 FunctionPass *createTPCCostModelEmitter();
 FunctionPass *createEventProfilerInject();

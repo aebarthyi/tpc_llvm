@@ -50,6 +50,7 @@ set(sources
   TPCRegisterInfo.cpp
   TPCRegisterCounter.cpp
   TPCLutCacheCounter.cpp
+  TPCPrologueMMIO.cpp
   TPCSelectionDAGInfo.cpp
   TPCTargetObjectFile.cpp
   TPCHardwareLoops.cpp

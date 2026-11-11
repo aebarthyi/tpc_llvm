@@ -246,6 +246,9 @@ bool TPCHWWAGeneral::lookupWorkAround(MachineFunction &Func) {
       cacheIns->addOperand(*MF, MachineOperand::CreateImm(0));
     cacheIns->addOperand(*MF, MachineOperand::CreateReg(TPC::SPRF_TRUE, false));
     cacheIns->addOperand(*MF, MachineOperand::CreateImm(0));
+    // On gaudi2 it belongs to the kernel prologue (TPCPrologueMMIO.cpp).
+    if (Func.getSubtarget<TPCSubtarget>().hasGaudi2ISA())
+      cacheIns->setFlag(MachineInstr::FrameSetup);
     MachineBasicBlock *MBB = firstInst->getParent();
     MBB->insert(firstInst, cacheIns);
     return true;

@@ -894,6 +894,15 @@ bool TPCPacketizerList::isLegalToPacketizeTogether(SUnit *SUI, SUnit *SUJ) {
     return false;
   }
 
+  // Each instruction of the gaudi2 kernel prologue (TPCPrologueMMIO.cpp) gets
+  // a VLIW of its own, as in Habana's compiler. Not solo: solo instructions
+  // are not padded into bundles, and only bundles can be compressed.
+  if (I.getFlag(MachineInstr::FrameSetup) ||
+      J.getFlag(MachineInstr::FrameSetup)) {
+    LLVM_DEBUG(dbgs() << "Failed: kernel prologue" << "\n");
+    return false;
+  }
+
   // TODO: We currently do not allow JMPR to bundle with any instr:
   // this is because it breaks kernel tests.
   if (I.isTerminator()) {
