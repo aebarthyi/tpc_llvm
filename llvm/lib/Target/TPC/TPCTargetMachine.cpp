@@ -65,6 +65,8 @@ static StringRef normalizeCPUName(StringRef CPU) {
     return "goya";
   if (CPU == "goya2")
     return "greco";
+  if (CPU == "gaudi3")
+    return "doron1";
   return CPU;
 }
 

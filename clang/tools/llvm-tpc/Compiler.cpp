@@ -195,6 +195,7 @@ unsigned llvm_tpc_compileModule(const char *moduleBuf, unsigned moduleSize,
                                     .Case("greco", 2 * 1024)
                                     .Case("gaudi2", 16 * 1024)
                                     .Case("doron1", 16 * 1024)
+                                    .Case("gaudi3", 16 * 1024)
                                     .Default(1024);
 
   cgOptions.LutWarn = true;

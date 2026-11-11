@@ -68,6 +68,8 @@ createTPCMCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
     CPU = "goya";
   else if (CPU == "goya2")
     CPU = "greco";
+  else if (CPU == "gaudi3")
+    CPU = "doron1";
 
   if (CPU == "goya" ||
       CPU == "gaudi" ||

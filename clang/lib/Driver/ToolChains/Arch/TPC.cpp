@@ -28,6 +28,9 @@ const char *tpc::getTPCTargetCPU(const ArgList &Args) {
     return "goya";
   if (CPU == "goya2")
     return "greco";
+  // Habana's name for the chip; the fork calls the target doron1.
+  if (CPU == "gaudi3")
+    return "doron1";
   if (!CPU.empty())
     return CPU.data();
 

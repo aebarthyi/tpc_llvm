@@ -5,6 +5,8 @@
 // RUN: %clang -target tpc -std=rc99 -c -march=goya2 %s -o - -### 2>&1 | FileCheck --check-prefix=GRECO %s
 // RUN: %clang -target tpc -std=rc99 -c -march=greco %s -o - -### 2>&1 | FileCheck --check-prefix=GRECO %s
 // RUN: %clang -target tpc -std=rc99 -c -march=gaudi2 %s -o - -### 2>&1 | FileCheck --check-prefix=GAUDI2 %s
+// RUN: %clang -target tpc -std=rc99 -c -march=doron1 %s -o - -### 2>&1 | FileCheck --check-prefix=DORON1 %s
+// RUN: %clang -target tpc -std=rc99 -c -march=gaudi3 %s -o - -### 2>&1 | FileCheck --check-prefix=DORON1 %s
 
 // RUN: %clang -target tpc -std=rc99 -c -mtune=dali %s -o - -### 2>&1 | FileCheck --check-prefix=GOYA %s
 // RUN: %clang -target tpc -std=rc99 -c -mtune=goya %s -o - -### 2>&1 | FileCheck --check-prefix=GOYA %s
@@ -13,6 +15,8 @@
 // RUN: %clang -target tpc -std=rc99 -c -mtune=goya2 %s -o - -### 2>&1 | FileCheck --check-prefix=GRECO %s
 // RUN: %clang -target tpc -std=rc99 -c -mtune=greco %s -o - -### 2>&1 | FileCheck --check-prefix=GRECO %s
 // RUN: %clang -target tpc -std=rc99 -c -mtune=gaudi2 %s -o - -### 2>&1 | FileCheck --check-prefix=GAUDI2 %s
+// RUN: %clang -target tpc -std=rc99 -c -mtune=doron1 %s -o - -### 2>&1 | FileCheck --check-prefix=DORON1 %s
+// RUN: %clang -target tpc -std=rc99 -c -mtune=gaudi3 %s -o - -### 2>&1 | FileCheck --check-prefix=DORON1 %s
 
 // RUN: %clang -target tpc -std=rc99 -c -mcpu=dali %s -o - -### 2>&1 | FileCheck --check-prefix=GOYA %s
 // RUN: %clang -target tpc -std=rc99 -c -mcpu=goya %s -o - -### 2>&1 | FileCheck --check-prefix=GOYA %s
@@ -21,6 +25,8 @@
 // RUN: %clang -target tpc -std=rc99 -c -mcpu=goya2 %s -o - -### 2>&1 | FileCheck --check-prefix=GRECO %s
 // RUN: %clang -target tpc -std=rc99 -c -mcpu=greco %s -o - -### 2>&1 | FileCheck --check-prefix=GRECO %s
 // RUN: %clang -target tpc -std=rc99 -c -mcpu=gaudi2 %s -o - -### 2>&1 | FileCheck --check-prefix=GAUDI2 %s
+// RUN: %clang -target tpc -std=rc99 -c -mcpu=doron1 %s -o - -### 2>&1 | FileCheck --check-prefix=DORON1 %s
+// RUN: %clang -target tpc -std=rc99 -c -mcpu=gaudi3 %s -o - -### 2>&1 | FileCheck --check-prefix=DORON1 %s
 
 void main() {
 }
@@ -30,3 +36,4 @@ void main() {
 // GAUDIB: "-target-cpu" "gaudib"
 // GRECO: "-target-cpu" "greco"
 // GAUDI2: "-target-cpu" "gaudi2"
+// DORON1: "-target-cpu" "doron1"

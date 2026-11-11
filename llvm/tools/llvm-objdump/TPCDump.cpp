@@ -59,7 +59,7 @@ static TPCArch MCPUToTPCArch() {
     return Greco;
   else if (MCPU.compare("gaudi2") == 0)
     return Gaudi2;
-  else if (MCPU.compare("doron1") == 0)
+  else if (MCPU.compare("doron1") == 0 || MCPU.compare("gaudi3") == 0)
     return Doron1;
   else
     reportError("", "'" + MCPU + "' is not a recognized processor for this target");

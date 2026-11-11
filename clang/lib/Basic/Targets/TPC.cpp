@@ -149,7 +149,7 @@ TPCTargetInfo::CPUKind TPCTargetInfo::getCPUKind(StringRef Name) const {
     .Case("gaudib", CPUKind::GaudiB)
     .Cases({"goya2", "greco"}, CPUKind::Greco)
     .Case("gaudi2", CPUKind::Gaudi2)
-    .Case("doron1", CPUKind::Doron1)
+    .Cases({"doron1", "gaudi3"}, CPUKind::Doron1)
     .Default(CPUKind::Generic);
 }
 
@@ -182,6 +182,7 @@ void TPCTargetInfo::fillValidCPUList(SmallVectorImpl<StringRef> &Values) const {
   Values.emplace_back("greco");
   Values.emplace_back("gaudi2");
   Values.emplace_back("doron1");
+  Values.emplace_back("gaudi3");
 }
 
 bool TPCTargetInfo::setCPU(StringRef Name) {
@@ -225,9 +226,12 @@ void TPCTargetInfo::getTargetDefines(const LangOptions &Opts,
     break;
   case CPUKind::Doron1:
     Builder.defineMacro("__doron1__");
+    // Habana's compiler defines these for gaudi3.
+    Builder.defineMacro("__gaudi3__");
     Builder.defineMacro("__gaudi_plus__");
     Builder.defineMacro("__greco_plus__");
     Builder.defineMacro("__gaudi2_plus__");
+    Builder.defineMacro("__gaudi3_plus__");
     break;
   default:
     llvm_unreachable("Invalid processor");
@@ -278,7 +282,7 @@ bool TPCTargetInfo::initFeatureMap(llvm::StringMap<bool> &Features,
     Features["greco"] = true;
   else if (CPU == "gaudi2")
     Features["gaudi2"] = true;
-  else if (CPU == "doron1")
+  else if (CPU == "doron1" || CPU == "gaudi3")
     Features["doron1"] = true;
 
   return TargetInfo::initFeatureMap(Features, Diags, CPU, FeaturesVec);

@@ -264,6 +264,7 @@ public:
     ArchMap["greco"] = ArchTy::Greco;
     ArchMap["gaudi2"] = ArchTy::Gaudi2;
     ArchMap["doron1"] = ArchTy::Doron1;
+    ArchMap["gaudi3"] = ArchTy::Doron1;
 
     // Check if user supplied a path to shared library.
     // todo: fix this to support windows

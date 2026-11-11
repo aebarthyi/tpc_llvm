@@ -5309,6 +5309,12 @@ static void applyTPCDefaults(CompilerInvocation &Res,
     llvm::TPCCompilerArguments.append(
         llvm::makeTPCCompilerArgumentsString(CommandLineArgs));
 
+  // gaudi3 is Habana's name for the doron1 target. The driver passes doron1,
+  // and this does the same for -cc1 -target-cpu gaudi3, so the CPU checks
+  // after this point only need to know doron1.
+  if (T.getArch() == llvm::Triple::tpc && Res.getTargetOpts().CPU == "gaudi3")
+    Res.getTargetOpts().CPU = "doron1";
+
   if (LangOpts.RC99) {
     PreprocessorOptions &PPOpts = Res.getPreprocessorOpts();
     bool IncludeTpcSpecial = Args.hasArg(OPT_tpc_special);
