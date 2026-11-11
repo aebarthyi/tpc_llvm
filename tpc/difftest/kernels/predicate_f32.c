@@ -1,6 +1,6 @@
 // Vector predicates: out = a > b ? a * 2 : b, using CMP + predicated MOV.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  f32 256 6 3
 // DIFFTEST: in  f32 256 6 3
 // DIFFTEST: out f32 256 6 3

@@ -1,6 +1,6 @@
 // out = min(max(a, 0), 6): max/min against broadcast scalar immediates.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  f32 256 6 3 range=-10,10
 // DIFFTEST: out f32 256 6 3
 // DIFFTEST: index-space 4 6 3

@@ -3,7 +3,7 @@
 // broadcast into vector arithmetic. Signed remainder by a variable divisor
 // is covered separately by srem_var_i32.c.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  i32 256 6 3 range=-100000,100000
 // DIFFTEST: out i32 256 6 3
 // DIFFTEST: index-space 4 6 3

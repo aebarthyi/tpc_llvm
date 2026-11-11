@@ -1,6 +1,6 @@
 // out = acc + a * b through the MAC intrinsic (accumulator operand).
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  f32 256 6 3
 // DIFFTEST: in  f32 256 6 3
 // DIFFTEST: in  f32 256 6 3

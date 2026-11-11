@@ -1,7 +1,7 @@
 // SEL2 on f8 with its two-vector result written to and read back from vector
 // local memory, which exercises storing a whole 512 x f8 register pair.
 //
-// DIFFTEST: arch gaudi2
+// DIFFTEST: arch gaudi2 gaudi3
 // DIFFTEST: in  f8_143 256 4 3
 // DIFFTEST: in  f8_143 256 4 3
 // DIFFTEST: in  f8_143 256 4 3

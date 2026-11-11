@@ -54,7 +54,7 @@ Results, one line per kernel and architecture:
 | Verdict | Meaning |
 |---------|---------|
 | `PASS`  | Candidate output equals the reference output. |
-| `KNOWN` | Candidate differs from the reference exactly like the baseline does (a pre-existing difference). |
+| `KNOWN` | Candidate differs from the reference exactly like the baseline does (a pre-existing difference), or, in compile parity, as `KNOWN_PARITY` records. |
 | `FAIL`  | Anything else, including a change in the candidate's `.tpc_metadata` relative to a baseline with the same metadata version. |
 | `SKIP`  | The reference compiler cannot build the kernel for that architecture. |
 
@@ -105,9 +105,10 @@ such inputs.
   values, so these operands act as negative numbers and the results differ from C.
   Scalar unsigned `/` and `%` are correct. `udiv_vec_u32` and `urem_vec_u32` record
   Habana's behaviour.
-* **`scalar_math_i32` at `-O0` on gaudi2.** The fork miscompiles it: every output
-  element is wrong against a host computation, while Habana's compiler is
-  correct. Reproduce with `--cflags=-O0`; expected `KNOWN` until fixed.
-* **`doron1`.** Its lit tests pass, but nothing checks its output against a
-  reference. Habana's compiler has no `doron1`: its closest target is `gaudi3`,
-  which writes the same `march` value but uses a different register map.
+* **`gaudi3`.** The fork's name for it is `doron1`, and it accepts both. The
+  kernels run as `gaudi3`; compile parity builds the sources whose RUN lines name
+  `doron1` or `gaudi3` with `-march=gaudi3`, since Habana's compiler has no
+  `doron1`. The LLVM 12 baseline cannot build `gaudi3`, so differences from
+  Habana that predate the fork's `gaudi3` support are listed in `KNOWN_PARITY`
+  in `run.py`. Habana's compiler uses V40-V47 as ordinary vector registers on
+  `gaudi3`; the fork does not yet.

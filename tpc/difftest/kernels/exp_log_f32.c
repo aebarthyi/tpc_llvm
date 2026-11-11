@@ -1,6 +1,6 @@
 // tpclib special functions: exp(a) and log(b) (b strictly positive).
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  f32 256 6 3 range=-20,20
 // DIFFTEST: in  f32 256 6 3 range=0.001,1000
 // DIFFTEST: out f32 256 6 3

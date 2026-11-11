@@ -1,6 +1,6 @@
 // out = nearbyint(|a| * scale + bias) with scalar kernel parameters.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  f32 256 6 3
 // DIFFTEST: out f32 256 6 3
 // DIFFTEST: index-space 4 6 3

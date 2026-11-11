@@ -1,7 +1,7 @@
 // f32 -> bf16 (round to nearest even) -> f32. One bf16 vector covers two
 // f32 vectors, so dim 0 steps by 128 elements.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  f32  256 6 3
 // DIFFTEST: out bf16 256 6 3
 // DIFFTEST: out f32  256 6 3

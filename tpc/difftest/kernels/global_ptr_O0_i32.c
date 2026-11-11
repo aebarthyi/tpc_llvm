@@ -1,7 +1,7 @@
 // A global pointer made in one block and used in a later one. At -O0 it has to stay
 // in a register, since nothing can load or store it.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  i32 256 6 1 range=-1000,1000
 // DIFFTEST: out i32 256 6 1
 // DIFFTEST: index-space 4 6 1

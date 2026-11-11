@@ -1,6 +1,6 @@
 // Elementwise bf16 add; 128 lanes per vector.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  bf16 512 4 2
 // DIFFTEST: in  bf16 512 4 2
 // DIFFTEST: out bf16 512 4 2

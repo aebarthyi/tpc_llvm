@@ -1,7 +1,7 @@
 // Count, per lane, how many rows exceed a threshold: a predicated i32 add
 // driven by an f32 compare.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  f32 256 20 2
 // DIFFTEST: out i32 256 1 2
 // DIFFTEST: index-space 4 1 2

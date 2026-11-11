@@ -9,7 +9,7 @@
 // includes 0 and -1. Even rows divide by those same numerator values, which
 // includes 0 and INT_MIN.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  i32 256 6 1 range=-2147483648,2147483647
 // DIFFTEST: in  i32 256 6 1 range=-2147483648,2147483647
 // DIFFTEST: out i32 256 6 1

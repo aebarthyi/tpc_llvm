@@ -1,7 +1,7 @@
 // Dim 0 (100) is not a multiple of the vector width: the last vector reads
 // padding and its out-of-bounds lanes must not be stored.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  f32 100 3 5
 // DIFFTEST: out f32 100 3 5
 // DIFFTEST: index-space 2 3 5

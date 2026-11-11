@@ -1,6 +1,6 @@
 // bf16 multiply-accumulate: out = acc + a * b.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  bf16 512 4 2 range=-4,4
 // DIFFTEST: in  bf16 512 4 2 range=-4,4
 // DIFFTEST: in  bf16 512 4 2

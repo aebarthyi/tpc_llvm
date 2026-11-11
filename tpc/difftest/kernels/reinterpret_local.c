@@ -3,7 +3,7 @@
 // a vector bf16 -> f8 reinterpretation, and a scalar f32 -> f8 one, which goes
 // through an integer truncation.
 //
-// DIFFTEST: arch gaudi2
+// DIFFTEST: arch gaudi2 gaudi3
 // DIFFTEST: cflags -fno-strict-aliasing
 // DIFFTEST: in  bf16 128 4 3 range=-4,4
 // DIFFTEST: out f8_143 256 4 3

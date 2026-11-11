@@ -1,6 +1,6 @@
 // tpclib activations: sigmoid(a) and tanh(a).
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  f32 256 6 3 range=-12,12
 // DIFFTEST: out f32 256 6 3
 // DIFFTEST: out f32 256 6 3

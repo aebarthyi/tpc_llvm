@@ -1,7 +1,7 @@
 // Unsigned vector division. Operands of 2^31 or more follow Habana's compiler, not
 // C (see README.md).
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  u32 256 6 1 range=0,4294967295
 // DIFFTEST: in  u32 256 6 1 range=0,4294967295
 // DIFFTEST: out u32 256 6 1

@@ -1,6 +1,6 @@
 // tpclib reciprocal, sqrt and rsqrt over positive inputs.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  f32 256 6 3 range=0.01,10000
 // DIFFTEST: out f32 256 6 3
 // DIFFTEST: out f32 256 6 3

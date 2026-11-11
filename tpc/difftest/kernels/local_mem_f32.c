@@ -1,7 +1,7 @@
 // Vector local memory: stage a column of 8 vectors in VLM, then combine each
 // row with its mirror: out[y] = a[y] - a[7 - y].
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  f32 256 8 3
 // DIFFTEST: out f32 256 8 3
 // DIFFTEST: index-space 4 1 3

@@ -1,7 +1,7 @@
 // Sum over dim 1 with a loop-carried vector accumulator. Dim 1 is not split
 // across the index space, so each member reduces a whole column.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  f32 256 16 2
 // DIFFTEST: out f32 256 1 2
 // DIFFTEST: index-space 4 1 2

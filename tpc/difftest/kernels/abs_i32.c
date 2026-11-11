@@ -3,7 +3,7 @@
 // abs.i32, which saturates, so -O levels can differ. Habana's compiler is the
 // reference.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: out i32 256 6 1
 // DIFFTEST: out i32 256 6 1
 // DIFFTEST: index-space 4 6 1

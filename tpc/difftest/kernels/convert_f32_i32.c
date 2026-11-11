@@ -1,6 +1,6 @@
 // f32 <-> i32 conversions with explicit rounding; two outputs.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  f32 256 6 3 range=-1000,1000
 // DIFFTEST: out i32 256 6 3
 // DIFFTEST: out f32 256 6 3

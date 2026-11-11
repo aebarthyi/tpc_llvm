@@ -49,7 +49,18 @@ DTYPES = {
 }
 FLOAT_DTYPES = {"f32", "bf16", "f16"}
 SIM_ARCHS = {"gaudi", "gaudi2", "gaudi3"}
-PARITY_ARCHS = ["gaudi", "gaudib", "greco", "goya2", "gaudi2"]
+PARITY_ARCHS = ["gaudi", "gaudib", "greco", "goya2", "gaudi2", "gaudi3"]
+# The names in RUN lines that select a source for each parity arch. The lit tests
+# call gaudi3 doron1, the fork's name for it, which Habana's compiler rejects.
+PARITY_RUN_NAMES = {"gaudi3": {"gaudi3", "doron1"}}
+# Known compile-parity differences on archs the baseline cannot build (the
+# LLVM 12 baseline has no gaudi3), with the (reference, candidate) statuses they
+# have. Reported as KNOWN, like a difference the baseline shares.
+KNOWN_PARITY = {
+    # Habana does not declare s_bf16_st_tnsr_s and the fork does; on gaudi2
+    # the baseline shares it.
+    ("clang/test/RC99/Intrinsics/st_tnsr_s-04.c", "gaudi3"): ("error", "ok"),
+}
 METADATA = b".tpc_metadata"
 METADATA_VERSION = 20
 
@@ -407,7 +418,7 @@ def parity_cases(paths, archs):
             text = f.read_text(errors="replace")
             marchs = set(re.findall(r"RUN:.*?(?:-march=|-mcpu=|-target-cpu\s+)([a-z0-9]+)", text))
             for arch in archs:
-                if arch in marchs:
+                if marchs & PARITY_RUN_NAMES.get(arch, {arch}):
                     yield f, arch
 
 
@@ -417,7 +428,9 @@ def run_parity_case(src, arch, compilers):
         status[cc.role], _ = compile_kernel(cc, src, arch, "/dev/null", ["-O2"])
     if status["candidate"] == status["ref"]:
         return "PASS", ""
-    if status.get("baseline") == status["candidate"]:
+    rel = Path(os.path.relpath(src.resolve(), REPO)).as_posix()
+    if (status.get("baseline") == status["candidate"] or
+            KNOWN_PARITY.get((rel, arch)) == (status["ref"], status["candidate"])):
         return "KNOWN", f"reference {status['ref']}, fork {status['candidate']}"
     detail = ", ".join(f"{r} {s}" for r, s in status.items())
     return "FAIL", detail

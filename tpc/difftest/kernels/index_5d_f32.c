@@ -1,6 +1,6 @@
 // All five tensor dimensions split across the index space.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  f32 128 3 2 2 3
 // DIFFTEST: in  f32 128 3 2 2 3
 // DIFFTEST: out f32 128 3 2 2 3

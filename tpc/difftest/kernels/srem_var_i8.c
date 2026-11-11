@@ -1,6 +1,6 @@
 // Signed remainder of chars. At -O2 the backend sees a narrowed srem i16.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  i32 256 6 2 range=-1000,1000
 // DIFFTEST: out i32 256 6 2
 // DIFFTEST: index-space 4 6 2

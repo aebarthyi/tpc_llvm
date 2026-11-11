@@ -1,7 +1,7 @@
 // Running sum along dim 1: out[y] = a[0] + ... + a[y]. A loop-carried value
 // that is also stored every iteration.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  f32 256 12 3
 // DIFFTEST: out f32 256 12 3
 // DIFFTEST: index-space 4 1 3

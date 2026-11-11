@@ -1,6 +1,6 @@
 // i16 saturating add, plus |a - b| via max - min (wrapping).
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  i16 512 4 2
 // DIFFTEST: in  i16 512 4 2
 // DIFFTEST: out i16 512 4 2

@@ -1,6 +1,6 @@
 // i32 bitwise logic and wrapping add: out = ((a & b) ^ (~a | c)) + a.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  i32 256 6 3
 // DIFFTEST: in  i32 256 6 3
 // DIFFTEST: in  i32 256 6 3

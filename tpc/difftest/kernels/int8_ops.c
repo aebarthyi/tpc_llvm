@@ -1,6 +1,6 @@
 // 8-bit lanes (256 per vector): u8 saturating add and i8 wrapping subtract.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  u8 1024 2 2
 // DIFFTEST: in  u8 1024 2 2
 // DIFFTEST: in  i8 1024 2 2

@@ -1,6 +1,6 @@
 // Elementwise f16 add (fp16 vector arithmetic is Gaudi2+ only).
 //
-// DIFFTEST: arch gaudi2
+// DIFFTEST: arch gaudi2 gaudi3
 // DIFFTEST: in  f16 512 4 2
 // DIFFTEST: in  f16 512 4 2
 // DIFFTEST: out f16 512 4 2

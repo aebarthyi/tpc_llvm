@@ -1,7 +1,7 @@
 // Max-reduce over dim 1 with an unroll pragma and two independent
 // accumulators; exercises the unroller and the scheduler/packetizer.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  f32 256 32 2
 // DIFFTEST: out f32 256 1 2
 // DIFFTEST: index-space 4 1 2

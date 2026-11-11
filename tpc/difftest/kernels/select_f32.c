@@ -1,6 +1,6 @@
 // out = a < b ? c : d via the SEL_LESS instruction.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  f32 256 6 3
 // DIFFTEST: in  f32 256 6 3
 // DIFFTEST: in  f32 256 6 3

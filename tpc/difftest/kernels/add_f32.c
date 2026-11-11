@@ -1,6 +1,6 @@
 // Elementwise f32 add over a 3-D tensor; one index-space member per vector.
 //
-// DIFFTEST: arch gaudi gaudi2
+// DIFFTEST: arch gaudi gaudi2 gaudi3
 // DIFFTEST: in  f32 256 6 3
 // DIFFTEST: in  f32 256 6 3
 // DIFFTEST: out f32 256 6 3
