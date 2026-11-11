@@ -174,6 +174,16 @@ bool TPCAsmPrinter::isBlockOnlyReachableByFallthrough(
 
   assert(MBB->pred_size() <= 1 && "Fallthrough blocks can have only one predecessor");
 
+  // On doron1 a jump is followed by its delay slot (fillJmpDelaySlot in
+  // TPCLatencyResolver.cpp), so the jump is not the last instruction of the
+  // block, and the default implementation, which looks only at terminators,
+  // misses it. At -O0, where jumps to the next block are not removed, the
+  // label is then dropped although the jump refers to it.
+  for (const MachineInstr &MI : (*MBB->pred_begin())->instrs())
+    for (const MachineOperand &MO : MI.operands())
+      if (MO.isMBB() && MO.getMBB() == MBB)
+        return false;
+
   // TODO: This is an overkill. We can have maximum of 4 LOOP instructions
   //       in a method. We don't need to iterate over everything.
   for (MachineFunction::const_iterator I = MF->begin(), E = MF->end(); I != E; ++I) {
