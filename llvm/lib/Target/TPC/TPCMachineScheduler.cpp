@@ -8,6 +8,7 @@
 #include "TPCSubtarget.h"
 #include "MCTargetDesc/TPCMCTargetDesc.h"
 #include "TPCMachineScheduler.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/CodeGen/LiveInterval.h"
 #include "llvm/CodeGen/LiveIntervals.h"
 #include "llvm/CodeGen/RegisterClassInfo.h"
@@ -20,6 +21,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Target/TPCClangInfo.h"
 #include "llvm/Target/TargetMachine.h"
 using namespace llvm;
 
@@ -100,6 +102,7 @@ public:
 
   void dumpDAG();
   RegisterPressure& getCurrRegPressure();
+  int vectorsLiveThrough();
 };
 
 
@@ -471,6 +474,45 @@ bool TPCResourceModel::isResourceAvailable(SUnit *SU) {
 //------------------------------------------------------------------------------
 // Implementation of TPCMachineScheduler
 //------------------------------------------------------------------------------
+// Vector registers (a pair 2, a quad 4) of the virtual registers live across
+// the current region without being used in it.
+int TPCMachineScheduler::vectorsLiveThrough() {
+  SmallSet<Register, 32> Used;
+  for (MachineInstr &MI : *this) {
+    for (const MachineOperand &MO : MI.operands())
+      if (MO.isReg() && MO.getReg().isVirtual())
+        Used.insert(MO.getReg());
+  }
+  MachineInstr *First = nullptr, *Last = nullptr;
+  for (MachineInstr &MI : *this)
+    if (!MI.isDebugInstr()) {
+      if (!First)
+        First = &MI;
+      Last = &MI;
+    }
+  if (!First)
+    return 0;
+  SlotIndex Top = LIS->getInstructionIndex(*First).getBaseIndex();
+  SlotIndex Bot = LIS->getInstructionIndex(*Last).getDeadSlot();
+  int N = 0;
+  for (unsigned I = 0, E = MRI.getNumVirtRegs(); I != E; ++I) {
+    Register Reg = Register::index2VirtReg(I);
+    if (Used.count(Reg) || !LIS->hasInterval(Reg))
+      continue;
+    const TargetRegisterClass *RC = MRI.getRegClass(Reg);
+    int W = RC == &TPC::VRFRegClass   ? 1
+            : RC == &TPC::DRFRegClass ? 2
+            : RC == &TPC::ARFRegClass ? 4
+                                      : 0;
+    if (!W)
+      continue;
+    const LiveInterval &LI = LIS->getInterval(Reg);
+    if (LI.liveAt(Top) && LI.liveAt(Bot))
+      N += W;
+  }
+  return N;
+}
+
 RegisterPressure& TPCMachineScheduler::getCurrRegPressure() {
   const RegPressureTracker &TopRPTracker = getTopRPTracker();
   RegPressureTracker &RPTracker = const_cast<RegPressureTracker&>(TopRPTracker);
@@ -516,6 +558,13 @@ void TPCMachineScheduler::schedule() {
   LLVM_DEBUG(SchedImpl->dumpPolicy());
 
   buildDAGWithRegPressure();
+
+  // The region's vector pressure in its original order.
+  unsigned OrigVectorPressure = ~0u;
+  if (getRegPressure().MaxSetPressure.size() > TPC::RegisterPressureSets::DRF)
+    OrigVectorPressure = std::max(
+        getRegPressure().MaxSetPressure[TPC::RegisterPressureSets::VRF],
+        getRegPressure().MaxSetPressure[TPC::RegisterPressureSets::DRF]);
 
   postProcessDAG();
 
@@ -634,6 +683,7 @@ void TPCMachineScheduler::schedule() {
   }
   unsigned VlmLimit  = RCI->getRegPressureSetLimit(TPC::RegisterPressureSets::VRF);
   unsigned VlmSpills = VlmSpillsAllowed;
+  bool ShortOfVlm = false;
   if (VlmSpillsAllowed < 0) {
     TPCFrameLowering &FL = *const_cast<TPCFrameLowering *>(
       MF.getSubtarget<TPCSubtarget>().getFrameLowering());
@@ -643,10 +693,35 @@ void TPCMachineScheduler::schedule() {
     LLVM_DEBUG(dbgs() << "VlmUsed   =" << VlmUsed << " (" << (VlmUsed / 256) << " VRF)\n");
     VlmSpills = ((MaxVlm - VlmUsed) / 256) - 1;
   }
+  // Each block may exceed the vector registers by as many spills as fit in
+  // the VLM the kernel's data leaves, but the spills of all the blocks share
+  // that space, and the extra pressure evicts the values live through the
+  // loops too: wright's gdn_fused_f8_pf (41 slots, 4 blocks asking 72, 36
+  // values spilled before its token loop against 23 unscheduled) failed with
+  // "Too many vector spills". Nothing here tells which kernels fail, so the
+  // backend reports the overflow and clang generates the code again with
+  // TPCShortOfVlmAttr: every block must then fit the vector registers, and
+  // one that still does not after the reschedule for the fewest registers
+  // keeps its original order when that needs fewer. Applied to every kernel
+  // with less than 16 KB of VLM left, the mode made the 27 corpus kernels it
+  // changed 0.81x as fast (those using a lookup table, whose VLM is 16 KB,
+  // 2.2x slower).
+  if (MF.getFunction().hasFnAttribute(TPCShortOfVlmAttr)) {
+    ShortOfVlm = true;
+    VlmSpills = 0;
+  }
   unsigned curVrfPressure = pressureAfterSched.MaxSetPressure[TPC::RegisterPressureSets::VRF];
   unsigned curDrfPressure = pressureAfterSched.MaxSetPressure[TPC::RegisterPressureSets::DRF];
   unsigned VectorPressure = std::max(curVrfPressure, curDrfPressure);
   int VlmOccupancy = liveInVRF + (int)VectorPressure - (int)VlmLimit;
+  // The pressure counts only the registers the region uses. Short of VLM,
+  // the vectors live through it unused count too: they are what the
+  // register allocator spills when the region needs more registers.
+  if (ShortOfVlm) {
+    int Through = vectorsLiveThrough();
+    LLVM_DEBUG(dbgs() << "   liveThrough =" << Through << "\n");
+    VlmOccupancy += Through;
+  }
   //int VlmOccupancy = (int)VectorPressure - (int)VlmLimit;
   LLVM_DEBUG(dbgs() << "   Limit       =" << VlmLimit << "\n");
   LLVM_DEBUG(dbgs() << "   Pressure    =" << VectorPressure << "\n");
@@ -674,9 +749,16 @@ void TPCMachineScheduler::schedule() {
     // If we do not stop here and restore the original order as final order
     // the code can be so bad that the number of VLIW instructions in a loop block
     // will be more than allowed (the number must fit in 16-bit field)
-    placeDebugValues();
-    return;
-  } 
+    // Short of VLM for spills, though (the retry for "Too many vector
+    // spills"), the original order is restored when it needs fewer vector
+    // registers.
+    if (!ShortOfVlm || OrigVectorPressure >= VectorPressure) {
+      placeDebugValues();
+      return;
+    }
+    LLVM_DEBUG(dbgs() << "Original order needs fewer registers ("
+                      << OrigVectorPressure << ")\n");
+  }
 
   //
   // The scheduling done does not meet regpressure criteria.
@@ -684,7 +766,7 @@ void TPCMachineScheduler::schedule() {
   //
   LLVM_DEBUG(dbgs() << "Attempting to revert scheduling BB#" << BB->getNumber() << "\n");
   initRegPressure();
-  RescheduleRegions[RegionIdx] = true;
+  RescheduleRegions[RegionIdx] = Stage != LastStage;
   RegionEnd = RegionBegin;
   for (MachineInstr *MI : Unsched) {
 

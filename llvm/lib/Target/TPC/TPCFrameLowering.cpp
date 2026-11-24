@@ -22,6 +22,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/TypeSize.h"
+#include "llvm/Target/TPCClangInfo.h"
 #include "llvm/Target/TargetOptions.h"
 
 using namespace llvm;
@@ -162,7 +163,11 @@ unsigned TPCFrameLowering::getSpillObject(int FrameIndex,
 
   if (TopFrame > MemLimit) {
     StringRef Msg = UsesVLM ? "Too many vector spills\n" : "Too many scalar spills\n";
-    if (!IgnoreMemOverflow) {
+    Function &F = MF.getFunction();
+    if (UsesVLM && F.hasFnAttribute(TPCSpillRetryAttr)) {
+      // clang generates the code again, scheduled for fewer registers.
+      F.addFnAttr(TPCSpillOverflowAttr);
+    } else if (!IgnoreMemOverflow) {
       report_fatal_error(Msg, false);
     } else {
       errs() << "Warning: " << Msg.str();

@@ -154,6 +154,8 @@ getConstantAddressExtents(const MachineFunction &MF) {
 
 bool TPCMemorySize::runOnMachineFunction(MachineFunction &MF) {
   Subtarget = &MF.getSubtarget<TPCSubtarget>();
+  const_cast<TPCFrameLowering *>(Subtarget->getFrameLowering())
+      ->resetSpillObjects();
   if(!Subtarget->getTargetLowering()->getTargetMachine().Options.LocalVectorMemory) {
     for (auto &BB : MF) {
       for (auto &MI : BB) {

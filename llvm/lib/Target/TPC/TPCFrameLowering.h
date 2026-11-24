@@ -61,6 +61,14 @@ public:
   void setSpillVectorDataSize(unsigned Sz) const { SpillVectorDataSize = Sz; }
 
 
+  /// Forget the spill slots of a previous function, or of a previous code
+  /// generation of the same one (the vector spill retry).
+  void resetSpillObjects() {
+    FrameObjects.clear();
+    TopVectorFrame = TopScalarFrame = 0;
+    SpillScalarDataSize = SpillVectorDataSize = 0;
+  }
+
   unsigned getSpillObject(int FrameIndex, const TargetRegisterClass *RC,
                           MachineFunction &MF, unsigned Sz);
   unsigned getFrameObjectOffset(int FrameIndex) const;
