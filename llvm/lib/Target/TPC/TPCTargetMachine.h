@@ -55,6 +55,15 @@ public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 };
 
+/// Pass "tpcmemalign": vector loads and stores in private and vector local
+/// memory get their type's alignment (see TPCMemoryAlign.cpp).
+class TPCMemoryAlignPass : public PassInfoMixin<TPCMemoryAlignPass> {
+public:
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+  // Instruction selection depends on it at all optimization levels.
+  static bool isRequired() { return true; }
+};
+
 /// Pass "scalar2irf".
 class TPCScalarToIRFPass : public PassInfoMixin<TPCScalarToIRFPass> {
   bool FoldCmp;

@@ -60,6 +60,7 @@ set(sources
   TPCPragmaChainUnroll.cpp
   TPCRemainderLoops.cpp
   TPCSelectIntoFOp.cpp
+  TPCMemoryAlign.cpp
   TPCCarryDeps.cpp
   TPCCarryPairs.cpp
   TPCModuloScheduling.cpp

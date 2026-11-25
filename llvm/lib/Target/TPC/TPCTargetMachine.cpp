@@ -295,6 +295,10 @@ void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
           FPM.addPass(TPCSelectIntoFOpPass());
           return true;
         }
+        if (Name == "tpcmemalign") {
+          FPM.addPass(TPCMemoryAlignPass());
+          return true;
+        }
         if (Name == "scalar2irf") {
           FPM.addPass(TPCScalarToIRFPass());
           return true;
@@ -333,6 +337,7 @@ void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
         if (!Options.CompileForLibrary)
           FPM.addPass(TpcCopyElisionPass());
         FPM.addPass(TPCMarkupDirectMMIOAccessPass());
+        FPM.addPass(TPCMemoryAlignPass());
         // Before any pass can separate a carry read from its add.
         FPM.addPass(TPCCarryPairsPass());
         if (Level != OptimizationLevel::O0) {
