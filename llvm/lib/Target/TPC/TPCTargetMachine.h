@@ -38,6 +38,15 @@ public:
                         LoopStandardAnalysisResults &AR, LPMUpdater &U);
 };
 
+/// Loop pass "tpc-remainder-loops": a loop that the branches before it show
+/// runs at most 8 times is kept from the runtime unroller (see
+/// TPCRemainderLoops.cpp).
+class TPCRemainderLoopPass : public PassInfoMixin<TPCRemainderLoopPass> {
+public:
+  PreservedAnalyses run(Loop &L, LoopAnalysisManager &AM,
+                        LoopStandardAnalysisResults &AR, LPMUpdater &U);
+};
+
 /// Pass "scalar2irf".
 class TPCScalarToIRFPass : public PassInfoMixin<TPCScalarToIRFPass> {
   bool FoldCmp;
