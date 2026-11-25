@@ -7987,6 +7987,20 @@ def : Pat<(v256i8 (zext v256i1:$x)),
                           (MOVvim (i32 1), OpType.INT8, (i32 0), (IMPLICIT_DEF), v256i1:$x, (i1 0)),
                           v256i1:$x, (i1 1)))>;
 
+// A vector compare used as a value (int64 m = a <= b): -1 where it holds.
+def : Pat<(v64i32 (sext v64i1:$x)),
+          (v64i32 (MOVvim (i32 0), OpType.INT32, (i32 0),
+                          (MOVvim (i32 -1), OpType.INT32, (i32 0), (IMPLICIT_DEF), v64i1:$x, (i1 0)),
+                          v64i1:$x, (i1 1)))>;
+def : Pat<(v128i16 (sext v128i1:$x)),
+          (v128i16 (MOVvim (i32 0), OpType.INT16, (i32 0),
+                          (MOVvim (i32 -1), OpType.INT16, (i32 0), (IMPLICIT_DEF), v128i1:$x, (i1 0)),
+                          v128i1:$x, (i1 1)))>;
+def : Pat<(v256i8 (sext v256i1:$x)),
+          (v256i8 (MOVvim (i32 0), OpType.INT8, (i32 0),
+                          (MOVvim (i32 -1), OpType.INT8, (i32 0), (IMPLICIT_DEF), v256i1:$x, (i1 0)),
+                          v256i1:$x, (i1 1)))>;
+
 // Select instruction.
 foreach T = [v64f32, v128bf16, v128f16, v256f8_143, v256f8_152, v64i32, v128i16, v256i8] in {
   def : Pat<(vselect VectorPredicate<T>.Type:$p, T:$vtrue, T:$vfalse),

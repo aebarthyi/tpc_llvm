@@ -5671,6 +5671,10 @@ SDValue TPCTargetLowering::lowerSIGN_EXTEND(SDValue Op,
   SDLoc DL(Op);
   const SDValue &Src = Op.getOperand(0);
 
+  // A vector compare used as a value: a pattern selects -1 and 0 from it.
+  if (Src.getValueType().getScalarType() == MVT::i1)
+    return Op;
+
   if (Op.getValueType() == MVT::v128i32) {
     if (Src.getValueType() == MVT::v128i16) {
       auto ExtArg = extend_16_to_32(Op, DAG, DL, TPCII::OpType::INT16);
