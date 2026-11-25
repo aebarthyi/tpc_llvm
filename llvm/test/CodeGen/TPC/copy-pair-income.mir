@@ -1,0 +1,27 @@
+# RUN: llc -mtriple=tpc -mcpu=gaudi2 -run-pass=postrapseudos -verify-machineinstrs %s -o - | FileCheck %s
+
+# A copy of a register pair or quad (DRF, ARF, ZRF) is a MOV per part. Each
+# MOV's income was the whole destination (`undef $d8` on a MOVvvp of $v8),
+# which the machine verifier rejects: the income is the part it writes.
+
+---
+name:            main
+tracksRegLiveness: true
+body:             |
+  bb.0:
+    liveins: $d2, $a4, $z2
+    $d8 = COPY killed $d2
+    $a12 = COPY killed $a4
+    $z4 = COPY killed $z2
+    FAKE_USE $d8, $a12, $z4
+    HALTs
+...
+
+# CHECK:      $v8 = MOVvvp killed $v2, 0, undef $v8, $sprf_true, 0
+# CHECK-NEXT: $v9 = MOVvvp killed $v3, 0, undef $v9, $sprf_true, 0
+# CHECK-NEXT: $v12 = MOVvvp killed $v4, 0, undef $v12, $sprf_true, 0
+# CHECK-NEXT: $v13 = MOVvvp killed $v5, 0, undef $v13, $sprf_true, 0
+# CHECK-NEXT: $v14 = MOVvvp killed $v6, 0, undef $v14, $sprf_true, 0
+# CHECK-NEXT: $v15 = MOVvvp killed $v7, 0, undef $v15, $sprf_true, 0
+# CHECK-NEXT: $s4 = MOVssp killed $s2, 0, 0, undef $s4, $sprf_true, 0
+# CHECK-NEXT: $s5 = MOVssp killed $s3, 0, 0, undef $s5, $sprf_true, 0

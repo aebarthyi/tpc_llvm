@@ -495,7 +495,7 @@ void TPCInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
       .addReg(SrcSubReg, getKillRegState(KillSrc))
       .addImm(TPCII::OpType::FP32)
       .addImm(0)  // Switches
-      .addReg(DestReg, RegState::Undef)
+      .addReg(DestSubReg, RegState::Undef)
       .addReg(TPC::SPRF_TRUE)
       .addImm(0);
   };
@@ -515,7 +515,7 @@ void TPCInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     BuildMI(MBB, I, DL, get(Opc), DestSubReg)
       .addReg(SrcSubReg, getKillRegState(KillSrc))
       .addImm(0)  // Switches
-      .addReg(DestReg, RegState::Undef)
+      .addReg(DestSubReg, RegState::Undef)
       .addReg(TPC::SPRF_TRUE)
       .addImm(0);
   };
