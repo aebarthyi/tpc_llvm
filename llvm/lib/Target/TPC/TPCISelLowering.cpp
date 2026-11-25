@@ -11484,36 +11484,30 @@ static SDValue performVSelectCombine(SDNode *N, SelectionDAG &DAG,
     if (CmpTy.isFloatingPoint())
       return SDValue();
 
-    bool SwappedCond = false;
-
-    if (isSplatValue(OpTrue)) {
-      std::swap(OpTrue, OpFalse);
-      SwappedCond = true;
-    }
-    if (isSplatValue(Op1)) {
-      std::swap(Op1, Op2);
-      SwappedCond = !SwappedCond;
-    }
+    // SEL takes a scalar or immediate only as its second compare operand and
+    // its false value, so move a splat there. Swapping the values inverts the
+    // condition (a < b ? s : x is a >= b ? x : s); swapping the compared
+    // operands swaps it (s < b is b > s). The old code swapped the condition
+    // in both cases, which turned a < b ? s : x into a > b ? x : s, wrong
+    // where a == b (Habana's compiler does the same), and when both values
+    // were splats it swapped them back and forth forever.
+    bool SwapValues = isSplatValue(OpTrue) && !isSplatValue(OpFalse);
+    bool SwapOperands = isSplatValue(Op1) && !isSplatValue(Op2);
+    if (!SwapValues && !SwapOperands)
+      return SDValue();
 
     ISD::CondCode NewCond = Cond;
-    if (SwappedCond)
-      switch (Cond) {
-      case ISD::CondCode::SETEQ:
-      case ISD::CondCode::SETNE:
-        break;
-      case ISD::CondCode::SETLT: NewCond = ISD::CondCode::SETGT; break;
-      case ISD::CondCode::SETGT: NewCond = ISD::CondCode::SETLT; break;
-      case ISD::CondCode::SETLE: NewCond = ISD::CondCode::SETGE; break;
-      case ISD::CondCode::SETGE: NewCond = ISD::CondCode::SETLE; break;
-      default:
-        llvm_unreachable("Invalid condition code");
-      }
-
-    if (NewCond != Cond) {
-      SDValue NewCmp = DAG.getSetCC(DL, SelectCond.getValueType(), Op1, Op2, NewCond);
-      SDValue NewSel = DAG.getSelect(DL, ResultTy, NewCmp, OpTrue, OpFalse);
-      return NewSel;
+    if (SwapValues) {
+      NewCond = ISD::getSetCCInverse(NewCond, CmpTy);
+      std::swap(OpTrue, OpFalse);
     }
+    if (SwapOperands) {
+      NewCond = ISD::getSetCCSwappedOperands(NewCond);
+      std::swap(Op1, Op2);
+    }
+    SDValue NewCmp =
+        DAG.getSetCC(DL, SelectCond.getValueType(), Op1, Op2, NewCond);
+    return DAG.getSelect(DL, ResultTy, NewCmp, OpTrue, OpFalse);
   }
 
   return SDValue();
