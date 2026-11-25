@@ -47,6 +47,14 @@ public:
                         LoopStandardAnalysisResults &AR, LPMUpdater &U);
 };
 
+/// Pass "tpc-select-into-fop": `select c, s + m, s` becomes
+/// `s + select c, m, -0.0`, also where s may be a NaN (see
+/// TPCSelectIntoFOp.cpp).
+class TPCSelectIntoFOpPass : public PassInfoMixin<TPCSelectIntoFOpPass> {
+public:
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+};
+
 /// Pass "scalar2irf".
 class TPCScalarToIRFPass : public PassInfoMixin<TPCScalarToIRFPass> {
   bool FoldCmp;

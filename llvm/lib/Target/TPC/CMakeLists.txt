@@ -59,6 +59,7 @@ set(sources
   TPCMulAddCombine.cpp
   TPCPragmaChainUnroll.cpp
   TPCRemainderLoops.cpp
+  TPCSelectIntoFOp.cpp
   TPCCarryDeps.cpp
   TPCCarryPairs.cpp
   TPCModuloScheduling.cpp

@@ -291,6 +291,10 @@ void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
           FPM.addPass(TPCCarryPairsPass());
           return true;
         }
+        if (Name == "tpc-select-into-fop") {
+          FPM.addPass(TPCSelectIntoFOpPass());
+          return true;
+        }
         if (Name == "scalar2irf") {
           FPM.addPass(TPCScalarToIRFPass());
           return true;
@@ -342,6 +346,14 @@ void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
         // Legacy: first pass of PassManagerBuilder::populateModulePassManager.
         MPM.addPass(LinkTPCHeadersPass());
 #endif
+      });
+
+  // After each InstCombine, the select of a float add it leaves where the sum
+  // may be a NaN.
+  PB.registerPeepholeEPCallback(
+      [](FunctionPassManager &FPM, OptimizationLevel Level) {
+        if (Level != OptimizationLevel::O0)
+          FPM.addPass(TPCSelectIntoFOpPass());
       });
 
   // Before the IR unrollers: a loop_unroll pragma loop the backend unroller
