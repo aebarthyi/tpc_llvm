@@ -436,6 +436,28 @@ static SDValue helperExtractSubRegSDValue(unsigned subReg, const SDLoc &DL,
   for (auto VT : {MVT::v256bf16, MVT::v256f16, MVT::v128f32, MVT::v256f32})
     setOperationAction(ISD::FP_EXTEND, VT, Custom);
 
+  // Operations on register pairs and quads that have no pattern: split them
+  // (splitWideVectorOp).
+  for (auto VT : {MVT::v128f32, MVT::v256f32, MVT::v256bf16, MVT::v256f16})
+    for (unsigned Opc : {ISD::FABS, ISD::FNEG})
+      setOperationAction(Opc, VT, Custom);
+  for (auto VT : {MVT::v256f32, MVT::v256bf16, MVT::v256f16})
+    setOperationAction(ISD::FMUL, VT, Custom);
+  // FMINNUM/FMAXNUM are MIN/MAX in one register (patterns), split in two or
+  // four.
+  for (unsigned Opc : {ISD::FMINNUM, ISD::FMAXNUM}) {
+    for (auto VT : {MVT::v128bf16, MVT::v128f16})
+      setOperationAction(Opc, VT, Legal);
+    for (auto VT : {MVT::v256f32, MVT::v256bf16, MVT::v256f16})
+      setOperationAction(Opc, VT, Custom);
+  }
+  for (auto VT : {MVT::v128i32, MVT::v256i32, MVT::v256i16})
+    for (unsigned Opc : {ISD::OR, ISD::XOR, ISD::SRA, ISD::SMIN, ISD::SMAX,
+                         ISD::UMIN, ISD::UMAX})
+      setOperationAction(Opc, VT, Custom);
+  for (unsigned Opc : {ISD::MUL, ISD::AND, ISD::SHL, ISD::SRL})
+    setOperationAction(Opc, MVT::v256i16, Custom);
+
   setOperationAction(ISD::TRUNCATE, MVT::v256i16, Custom);
   setOperationAction(ISD::TRUNCATE, MVT::v128i16, Custom);
   setOperationAction(ISD::TRUNCATE, MVT::v256i8, Custom);
@@ -571,6 +593,7 @@ static SDValue helperExtractSubRegSDValue(unsigned subReg, const SDLoc &DL,
   setTargetDAGCombine(ISD::VECTOR_SHUFFLE);
   setTargetDAGCombine(ISD::VSELECT);
   setTargetDAGCombine(ISD::EXTRACT_VECTOR_ELT);
+  setTargetDAGCombine(ISD::INSERT_VECTOR_ELT);
 
   setMinFunctionAlignment(Align(2));
   computeRegisterProperties(Subtarget->getRegisterInfo());
@@ -831,6 +854,56 @@ TPCTargetLowering::getConstraintType(StringRef Constraint) const {
   return C_Unknown;
 }
 
+// Vector types wider than a register live in register pairs or quads, and
+// many operations have no pattern for them. InstCombine still forms them, for
+// instance the fabs of both halves of a float128 becomes one <128 x float>
+// fabs. Split such an operation into one per register.
+static SDValue splitWideVectorOp(SDValue Op, SelectionDAG &DAG) {
+  SDLoc DL(Op);
+  EVT ResTy = Op.getValueType();
+  if (!ResTy.isSimple())
+    return SDValue();
+  EVT SubTy;
+  switch (ResTy.getSimpleVT().SimpleTy) {
+  case MVT::v128f32:
+  case MVT::v256f32:
+    SubTy = MVT::v64f32;
+    break;
+  case MVT::v256bf16:
+    SubTy = MVT::v128bf16;
+    break;
+  case MVT::v256f16:
+    SubTy = MVT::v128f16;
+    break;
+  case MVT::v128i32:
+  case MVT::v256i32:
+    SubTy = MVT::v64i32;
+    break;
+  case MVT::v256i16:
+    SubTy = MVT::v128i16;
+    break;
+  default:
+    return SDValue();
+  }
+  unsigned Parts = ResTy.getSizeInBits().getFixedValue() /
+                   SubTy.getSizeInBits().getFixedValue();
+  static const unsigned SubRegs[] = {TPC::sub_0, TPC::sub_1, TPC::sub_2,
+                                     TPC::sub_3};
+  SmallVector<SDValue, 4> Pieces;
+  for (unsigned P = 0; P < Parts; ++P) {
+    SDValue Idx = DAG.getTargetConstant(SubRegs[P], DL, MVT::i32);
+    SmallVector<SDValue, 2> Ops;
+    for (const SDValue &O : Op->op_values()) {
+      assert(O.getValueType() == ResTy && "operand of another type");
+      Ops.push_back(SDValue(
+          DAG.getMachineNode(TargetOpcode::EXTRACT_SUBREG, DL, SubTy, O, Idx),
+          0));
+    }
+    Pieces.push_back(DAG.getNode(Op.getOpcode(), DL, SubTy, Ops, Op->getFlags()));
+  }
+  return DAG.getNode(ISD::CONCAT_VECTORS, DL, ResTy, Pieces);
+}
+
 SDValue TPCTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   LLVM_DEBUG(dbgs() << "TPC custom lowering:\n    "; Op.dump(&DAG););
   switch (Op.getOpcode()) {
@@ -888,7 +961,25 @@ SDValue TPCTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::INSERT_VECTOR_ELT:
     return lowerINSERT_VECTOR_ELT(Op, DAG);
   case ISD::MUL:
+    if (SDValue Split = splitWideVectorOp(Op, DAG))
+      return Split;
     return lowerMUL(Op, DAG);
+  case ISD::FABS:
+  case ISD::FNEG:
+  case ISD::FMUL:
+  case ISD::FMINNUM:
+  case ISD::FMAXNUM:
+  case ISD::AND:
+  case ISD::OR:
+  case ISD::XOR:
+  case ISD::SHL:
+  case ISD::SRL:
+  case ISD::SRA:
+  case ISD::SMIN:
+  case ISD::SMAX:
+  case ISD::UMIN:
+  case ISD::UMAX:
+    return splitWideVectorOp(Op, DAG);
   case ISD::MULHU:
     return lowerMULHU(Op, DAG);
   case ISD::MULHS:
@@ -1419,10 +1510,11 @@ SDValue TPCTargetLowering::LowerSELECT(SDValue Op, SelectionDAG &DAG) const {
       cond1 = cond2 = Cond;
     }
 
+    // Each half selects between the same half of the two operands.
     SDValue half1 =
-        DAG.getNode(ISD::SELECT, DL, SubregType, cond1, Op1_1, Op1_2);
+        DAG.getNode(ISD::SELECT, DL, SubregType, cond1, Op1_1, Op2_1);
     SDValue half2 =
-        DAG.getNode(ISD::SELECT, DL, SubregType, cond2, Op2_1, Op2_2);
+        DAG.getNode(ISD::SELECT, DL, SubregType, cond2, Op1_2, Op2_2);
 
     SmallVector<SDValue, 2> SubVects;
     SubVects.push_back(LowerSELECT(half1, DAG));
@@ -2552,6 +2644,43 @@ SDValue TPCTargetLowering::lowerVECTOR_SHUFFLE(SDValue Op,
     }
   }
 
+  // A result in several registers, each a whole register of an operand (or
+  // undefined), such as <128 x float> <0..63, 0..63> that SROA makes of a
+  // float128 whose halves are the same: a tuple of those registers.
+  unsigned RegElts = 2048 / EltSize;
+  if (VectWidth > RegElts && VectWidth % RegElts == 0 &&
+      OpVectSize % RegElts == 0 && ShuffleMask.size() == VectWidth) {
+    EVT RegTy = EVT::getVectorVT(*DAG.getContext(), EltT, RegElts);
+    SmallVector<SDValue, 4> Regs;
+    for (unsigned R = 0; R < VectWidth / RegElts; ++R) {
+      ArrayRef<int> Part = ShuffleMask.slice(R * RegElts, RegElts);
+      int Start = -1;
+      bool Whole = true;
+      for (unsigned I = 0; I < RegElts && Whole; ++I) {
+        if (Part[I] < 0)
+          continue;
+        int S = Part[I] - int(I);
+        if (Start < 0)
+          Start = S;
+        Whole = S == Start && S % int(RegElts) == 0;
+      }
+      if (!Whole)
+        break;
+      if (Start < 0) {
+        Regs.push_back(DAG.getUNDEF(RegTy));
+        continue;
+      }
+      SDValue Src = unsigned(Start) < OpVectSize ? V1 : V2;
+      unsigned Offset = unsigned(Start) % OpVectSize;
+      Regs.push_back(OpVectSize == RegElts
+                         ? Src
+                         : DAG.getNode(ISD::EXTRACT_SUBVECTOR, DL, RegTy, Src,
+                                       DAG.getConstant(Offset, DL, MVT::i32)));
+    }
+    if (Regs.size() == VectWidth / RegElts)
+      return createTuple(Regs, DAG);
+  }
+
   assert(false && (Op.dump(), "Unhandled shufflevector"));
   return SDValue();
 }
@@ -3618,8 +3747,110 @@ void TPCTargetLowering::getTgtMemIntrinsic(
     SmallVectorImpl<IntrinsicInfo> &Infos, const CallBase &I,
     MachineFunction &MF, unsigned Intrinsic) const {
   IntrinsicInfo Info;
-  if (getTPCTgtMemIntrinsic(Info, I, MF, Intrinsic))
+  if (getTPCTgtMemIntrinsic(Info, I, MF, Intrinsic) ||
+      getLocalOrTensorMemIntrinsic(Info, I, Intrinsic))
     Infos.push_back(Info);
+}
+
+/// A load or store of SLM or VLM, or a store to a tensor, gets a memory
+/// operand in its memory (TPC::AddressSpace) so that the schedulers order it
+/// only against the accesses that may reach the same memory
+/// (TPCInstrInfo::areMemAccessesTriviallyDisjoint). Without one, an access is
+/// a barrier to every other. MMIO accesses stay barriers: an MMIO write can
+/// change what a tensor access does.
+bool TPCTargetLowering::getLocalOrTensorMemIntrinsic(IntrinsicInfo &Info,
+                                                     const CallBase &I,
+                                                     unsigned Intrinsic) const {
+  // The stored value's argument, or -1 for a load.
+  int ValueArg;
+  unsigned AddrSpace;
+  switch (Intrinsic) {
+  default:
+    return false;
+  case Intrinsic::tpc_ld_l:
+    if (cast<ConstantInt>(I.getArgOperand(1))->getZExtValue() & TPCII::SW_MMIO)
+      return false;
+    ValueArg = -1;
+    AddrSpace = LOCAL_SCALAR;
+    break;
+  case Intrinsic::tpc_st_l:
+    if (cast<ConstantInt>(I.getArgOperand(2))->getZExtValue() & TPCII::SW_MMIO)
+      return false;
+    ValueArg = 1;
+    AddrSpace = LOCAL_SCALAR;
+    break;
+  case Intrinsic::tpc_ld_l_v:
+  case Intrinsic::tpc_ld_l_v_low:
+  case Intrinsic::tpc_ld_l_v_high:
+    ValueArg = -1;
+    AddrSpace = LOCAL_VECTOR;
+    break;
+  case Intrinsic::tpc_st_l_v:
+  case Intrinsic::tpc_st_l_v_low:
+  case Intrinsic::tpc_st_l_v_high:
+    ValueArg = 1;
+    AddrSpace = LOCAL_VECTOR;
+    break;
+  case Intrinsic::tpc_st_l_v_ofs:
+  case Intrinsic::tpc_st_l_v_low_ofs:
+  case Intrinsic::tpc_st_l_v_high_ofs:
+    ValueArg = 2;
+    AddrSpace = LOCAL_VECTOR;
+    break;
+  case Intrinsic::tpc_st_tnsr:
+  case Intrinsic::tpc_st_tnsr_direct:
+  case Intrinsic::tpc_st_tnsr_partial:
+  case Intrinsic::tpc_st_tnsr_partial_direct:
+  case Intrinsic::tpc_st_tnsr_rmw:
+  case Intrinsic::tpc_st_tnsr_rmw_direct:
+  case Intrinsic::tpc_st_tnsr_partial_rmw:
+  case Intrinsic::tpc_st_tnsr_partial_rmw_direct:
+  case Intrinsic::tpc_st_tnsr_low:
+  case Intrinsic::tpc_st_tnsr_low_direct:
+  case Intrinsic::tpc_st_tnsr_low_rmw:
+  case Intrinsic::tpc_st_tnsr_low_rmw_direct:
+  case Intrinsic::tpc_st_tnsr_high:
+  case Intrinsic::tpc_st_tnsr_high_direct:
+  case Intrinsic::tpc_st_tnsr_high_rmw:
+  case Intrinsic::tpc_st_tnsr_high_rmw_direct:
+  case Intrinsic::tpc_st_tnsr_s:
+  case Intrinsic::tpc_st_tnsr_s_rmw:
+    ValueArg = 2;
+    AddrSpace = GLOBAL;
+    break;
+  case Intrinsic::tpc_st_tnsr_sqz:
+  case Intrinsic::tpc_st_tnsr_sqz_rmw:
+    ValueArg = 3;
+    AddrSpace = GLOBAL;
+    break;
+  }
+
+  Type *Ty = ValueArg < 0 ? I.getType() : I.getArgOperand(ValueArg)->getType();
+  EVT VT = EVT::getEVT(Ty, /*HandleUnknown=*/true);
+  if (!VT.isSimple() || VT == MVT::Other)
+    return false;
+  Info.opc = ValueArg < 0 ? ISD::INTRINSIC_W_CHAIN : ISD::INTRINSIC_VOID;
+  Info.memVT = VT;
+  Info.fallbackAddressSpace = AddrSpace;
+  Info.align = Align(4);
+  Info.flags = ValueArg < 0 ? MachineMemOperand::MOLoad
+                            : MachineMemOperand::MOStore;
+  // A read-modify-write store reads the tensor too.
+  switch (Intrinsic) {
+  case Intrinsic::tpc_st_tnsr_rmw:
+  case Intrinsic::tpc_st_tnsr_rmw_direct:
+  case Intrinsic::tpc_st_tnsr_partial_rmw:
+  case Intrinsic::tpc_st_tnsr_partial_rmw_direct:
+  case Intrinsic::tpc_st_tnsr_low_rmw:
+  case Intrinsic::tpc_st_tnsr_low_rmw_direct:
+  case Intrinsic::tpc_st_tnsr_high_rmw:
+  case Intrinsic::tpc_st_tnsr_high_rmw_direct:
+  case Intrinsic::tpc_st_tnsr_s_rmw:
+  case Intrinsic::tpc_st_tnsr_sqz_rmw:
+    Info.flags |= MachineMemOperand::MOLoad;
+    break;
+  }
+  return true;
 }
 
 bool TPCTargetLowering::getTPCTgtMemIntrinsic(IntrinsicInfo &Info,
@@ -4856,9 +5087,15 @@ TPCTargetLowering::Extend_8_to_32(EVT ResultVT, SDValue Src, SelectionDAG &DAG,
 
 SmallVector<SDValue, 2>
 TPCTargetLowering::Extend_8_to_16(EVT ResultVT, SDValue Src, SelectionDAG &DAG,
-                                  const SDLoc &DL, unsigned DataType) const {
+                                  const SDLoc &DL, unsigned DataType,
+                                  bool ZeroExtend) const {
  EVT SrcVT = Src.getValueType();
  SmallVector<SDValue, 2> ExtArg;
+  // UNPACK writes every second byte and keeps the others from its income. When
+  // no convert follows, the result is the zero extension only if the income
+  // is zero (Habana's compiler zeroes it too); otherwise the convert reads
+  // only the unpacked bytes.
+  SDValue Income = ZeroExtend ? DAG.getConstant(0, DL, SrcVT) : DAG.getUNDEF(SrcVT);
   // unpack-1
   SmallVector<SDValue, 8> Ops1(6);
   Ops1[0] = Src;                                           // Source.
@@ -4868,7 +5105,7 @@ TPCTargetLowering::Extend_8_to_16(EVT ResultVT, SDValue Src, SelectionDAG &DAG,
   Ops1[2] = DAG.getTargetConstant(TPCII::SW_GROUP_0 | TPCII::SW_STRIDE_2 |
                                       TPCII::SW_GROUP_HALF_0,
                                   DL, MVT::i32);   // Switch.
-  Ops1[3] = DAG.getUNDEF(SrcVT);                   // Income.
+  Ops1[3] = Income;                                // Income.
   Ops1[4] = DAG.getRegister(TPC::SPRF_TRUE, MVT::i1);    // Predicate.
   Ops1[5] = DAG.getTargetConstant(0, DL, MVT::i1); // Polarity.
   MachineSDNode *Node1 = DAG.getMachineNode(TPC::UNPACKp, DL, SrcVT, Ops1);
@@ -4883,7 +5120,7 @@ TPCTargetLowering::Extend_8_to_16(EVT ResultVT, SDValue Src, SelectionDAG &DAG,
   Ops2[2] = DAG.getTargetConstant(
       (TPCII::SW_GROUP_1 | TPCII::SW_STRIDE_2 | TPCII::SW_GROUP_HALF_0), DL,
       MVT::i32);                                   // Switch
-  Ops2[3] = DAG.getUNDEF(SrcVT);                   // Income.
+  Ops2[3] = Income;                                // Income.
   Ops2[4] = DAG.getRegister(TPC::SPRF_TRUE, MVT::i1);    // Predicate.
   Ops2[5] = DAG.getTargetConstant(0, DL, MVT::i1); // Polarity.
   MachineSDNode *Node2 = DAG.getMachineNode(TPC::UNPACKp, DL, SrcVT, Ops2);
@@ -5433,6 +5670,10 @@ SDValue TPCTargetLowering::lowerSIGN_EXTEND(SDValue Op,
                                             SelectionDAG &DAG) const {
   SDLoc DL(Op);
   const SDValue &Src = Op.getOperand(0);
+
+  // A vector compare used as a value: a pattern selects -1 and 0 from it.
+  if (Src.getValueType().getScalarType() == MVT::i1)
+    return Op;
 
   if (Op.getValueType() == MVT::v128i32) {
     if (Src.getValueType() == MVT::v128i16) {
@@ -7398,7 +7639,8 @@ SDValue TPCTargetLowering::ConversionEntity(EVT DestVT, SDValue Source,
           ExtArg =
               helperExtend_16_32(Source, DataType, SrcVT, DAG, DL, Subtarget);
         } else if (DestElBitsize == 16 && SrcElBitsize == 8) {
-          ExtArg = Extend_8_to_16(SrcVT, Source, DAG, DL, DataTypeVal);
+          ExtArg = Extend_8_to_16(SrcVT, Source, DAG, DL, DataTypeVal,
+                                  SrcIsUnsigned && DestIsUnsigned);
         } else {
           assert(false && "impossible extend conversion");
           return SDValue();
@@ -11246,36 +11488,30 @@ static SDValue performVSelectCombine(SDNode *N, SelectionDAG &DAG,
     if (CmpTy.isFloatingPoint())
       return SDValue();
 
-    bool SwappedCond = false;
-
-    if (isSplatValue(OpTrue)) {
-      std::swap(OpTrue, OpFalse);
-      SwappedCond = true;
-    }
-    if (isSplatValue(Op1)) {
-      std::swap(Op1, Op2);
-      SwappedCond = !SwappedCond;
-    }
+    // SEL takes a scalar or immediate only as its second compare operand and
+    // its false value, so move a splat there. Swapping the values inverts the
+    // condition (a < b ? s : x is a >= b ? x : s); swapping the compared
+    // operands swaps it (s < b is b > s). The old code swapped the condition
+    // in both cases, which turned a < b ? s : x into a > b ? x : s, wrong
+    // where a == b (Habana's compiler does the same), and when both values
+    // were splats it swapped them back and forth forever.
+    bool SwapValues = isSplatValue(OpTrue) && !isSplatValue(OpFalse);
+    bool SwapOperands = isSplatValue(Op1) && !isSplatValue(Op2);
+    if (!SwapValues && !SwapOperands)
+      return SDValue();
 
     ISD::CondCode NewCond = Cond;
-    if (SwappedCond)
-      switch (Cond) {
-      case ISD::CondCode::SETEQ:
-      case ISD::CondCode::SETNE:
-        break;
-      case ISD::CondCode::SETLT: NewCond = ISD::CondCode::SETGT; break;
-      case ISD::CondCode::SETGT: NewCond = ISD::CondCode::SETLT; break;
-      case ISD::CondCode::SETLE: NewCond = ISD::CondCode::SETGE; break;
-      case ISD::CondCode::SETGE: NewCond = ISD::CondCode::SETLE; break;
-      default:
-        llvm_unreachable("Invalid condition code");
-      }
-
-    if (NewCond != Cond) {
-      SDValue NewCmp = DAG.getSetCC(DL, SelectCond.getValueType(), Op1, Op2, NewCond);
-      SDValue NewSel = DAG.getSelect(DL, ResultTy, NewCmp, OpTrue, OpFalse);
-      return NewSel;
+    if (SwapValues) {
+      NewCond = ISD::getSetCCInverse(NewCond, CmpTy);
+      std::swap(OpTrue, OpFalse);
     }
+    if (SwapOperands) {
+      NewCond = ISD::getSetCCSwappedOperands(NewCond);
+      std::swap(Op1, Op2);
+    }
+    SDValue NewCmp =
+        DAG.getSetCC(DL, SelectCond.getValueType(), Op1, Op2, NewCond);
+    return DAG.getSelect(DL, ResultTy, NewCmp, OpTrue, OpFalse);
   }
 
   return SDValue();
@@ -11345,6 +11581,11 @@ static SDValue performExtractVectorEltCombine(SDNode *N, SelectionDAG &DAG) {
   return DAG.getAnyExtOrTrunc(X, DL, ResVT);
 }
 
+static cl::opt<bool> EnableCoordInsertCombine(
+    "tpc-coord-insert-combine", cl::Hidden, cl::init(true),
+    cl::desc("Set a coordinate lane from the coordinate before an earlier "
+             "set of the same lane"));
+
 SDValue TPCTargetLowering::PerformDAGCombine(SDNode *N,
                                              DAGCombinerInfo &DCI) const {
   SelectionDAG &DAG = DCI.DAG;
@@ -11364,6 +11605,33 @@ SDValue TPCTargetLowering::PerformDAGCombine(SDNode *N,
     return performVSelectCombine(N, DAG, DCI, Subtarget);
   case ISD::EXTRACT_VECTOR_ELT:
     return performExtractVectorEltCombine(N, DAG);
+  case ISD::INSERT_VECTOR_ELT: {
+    // insert (insert V, a, i), b, i -> insert V, b, i for a coordinate
+    // (int5) that a store also uses. The copies of an unrolled loop body set
+    // a coordinate lane each from the previous copy's coordinate; when a copy
+    // stores at its coordinate, late, the next copy's SET_INDX often ends up
+    // in the same register after it, and the copies run one after another.
+    // Setting the lane from V lets them overlap. Without a store, the chain
+    // costs nothing and the extra copies of V would.
+    SDValue Inner = N->getOperand(0);
+    auto UsedByStore = [](SDValue V) {
+      return any_of(V->users(), [](const SDNode *U) {
+        return U->getOpcode() == ISD::INTRINSIC_VOID;
+      });
+    };
+    if (EnableCoordInsertCombine &&
+        DAG.getOptLevel() != CodeGenOptLevel::None &&
+        N->getValueType(0) == MVT::v5i32 &&
+        Inner.getOpcode() == ISD::INSERT_VECTOR_ELT &&
+        isa<ConstantSDNode>(N->getOperand(2)) &&
+        isa<ConstantSDNode>(Inner.getOperand(2)) &&
+        N->getConstantOperandVal(2) == Inner.getConstantOperandVal(2) &&
+        UsedByStore(Inner))
+      return DAG.getNode(ISD::INSERT_VECTOR_ELT, SDLoc(N), MVT::v5i32,
+                         Inner.getOperand(0), N->getOperand(1),
+                         N->getOperand(2));
+    break;
+  }
   }
 
   return SDValue();

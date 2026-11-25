@@ -811,6 +811,15 @@ public:
       TOptions(SemaRef.getASTContext().getTargetInfo().getTargetOpts()) {
   }
 
+  // An expression with an error in it (a use of an undeclared name, say) is
+  // already diagnosed and value-dependent, and the checks below evaluate
+  // expressions, which asserts on a dependent one. Skip it.
+  bool TraverseStmt(Stmt *S, DataRecursionQueue *Queue = nullptr) {
+    if (auto *E = dyn_cast_or_null<Expr>(S); E && E->containsErrors())
+      return true;
+    return BaseType::TraverseStmt(S, Queue);
+  }
+
   bool VisitVarDecl(VarDecl *VD) {
     QualType Ty = VD->getType();
 

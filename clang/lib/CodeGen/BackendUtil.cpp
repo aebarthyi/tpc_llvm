@@ -58,6 +58,7 @@
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TPCClangInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/TargetParser/SubtargetFeature.h"
@@ -91,6 +92,7 @@
 #include "llvm/Transforms/Scalar/EarlyCSE.h"
 #include "llvm/Transforms/Scalar/GVN.h"
 #include "llvm/Transforms/Scalar/JumpThreading.h"
+#include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/Debugify.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 #include <limits>
@@ -1275,38 +1277,73 @@ void EmitAssemblyHelper::RunCodegenPipeline(
 void EmitAssemblyHelper::RunCodegenPipelineLegacy(
     BackendAction Action, std::unique_ptr<raw_pwrite_stream> &OS,
     std::unique_ptr<llvm::ToolOutputFile> &DwoOS, CodeGenFileType CGFT) {
-  // We still use the legacy PM to run the codegen pipeline since the new PM
-  // does not work with the codegen pipeline.
-  // FIXME: make the new PM work with the codegen pipeline.
-  legacy::PassManager CodeGenPasses;
+  // Generates the code of M into Out; false if it did not run.
+  auto Run = [&](llvm::Module &M, raw_pwrite_stream &Out) {
+    // We still use the legacy PM to run the codegen pipeline since the new PM
+    // does not work with the codegen pipeline.
+    // FIXME: make the new PM work with the codegen pipeline.
+    legacy::PassManager CodeGenPasses;
 
-  CodeGenPasses.add(
-      createTargetTransformInfoWrapperPass(getTargetIRAnalysis()));
-  // Add LibraryInfo.
-  std::unique_ptr<TargetLibraryInfoImpl> TLII(
-      llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
-  CodeGenPasses.add(new TargetLibraryInfoWrapperPass(*TLII));
+    CodeGenPasses.add(
+        createTargetTransformInfoWrapperPass(getTargetIRAnalysis()));
+    // Add LibraryInfo.
+    std::unique_ptr<TargetLibraryInfoImpl> TLII(
+        llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
+    CodeGenPasses.add(new TargetLibraryInfoWrapperPass(*TLII));
 
-  const llvm::TargetOptions &Options = TM->Options;
-  CodeGenPasses.add(new RuntimeLibraryInfoWrapper(
-      TargetTriple, Options.ExceptionModel, Options.FloatABIType,
-      Options.EABIVersion, Options.MCOptions.ABIName, Options.VecLib));
+    const llvm::TargetOptions &Options = TM->Options;
+    CodeGenPasses.add(new RuntimeLibraryInfoWrapper(
+        TargetTriple, Options.ExceptionModel, Options.FloatABIType,
+        Options.EABIVersion, Options.MCOptions.ABIName, Options.VecLib));
 
-  if (TM->addPassesToEmitFile(CodeGenPasses, *OS,
-                              DwoOS ? &DwoOS->os() : nullptr, CGFT,
-                              /*DisableVerify=*/!CodeGenOpts.VerifyModule)) {
-    Diags.Report(diag::err_fe_unable_to_interface_with_target);
+    if (TM->addPassesToEmitFile(CodeGenPasses, Out,
+                                DwoOS ? &DwoOS->os() : nullptr, CGFT,
+                                /*DisableVerify=*/!CodeGenOpts.VerifyModule)) {
+      Diags.Report(diag::err_fe_unable_to_interface_with_target);
+      return false;
+    }
+
+    // If -print-pipeline-passes is requested, don't run the legacy pass
+    // manager.
+    // FIXME: when codegen is switched to use the new pass manager, it should
+    // also emit pass names here.
+    if (PrintPipelinePasses)
+      return false;
+
+    TimeCodegenPasses([&] { CodeGenPasses.run(M); });
+    return true;
+  };
+
+#ifdef LLVM_TPC_COMPILER
+  // A kernel whose vector spills do not fit in the VLM its data leaves gets
+  // its code generated again, from a copy of the module made before, with
+  // every block scheduled within the vector registers (see TPCClangInfo.h);
+  // the first output is kept only if it fits.
+  if (TargetTriple.getArch() == llvm::Triple::tpc && !DwoOS &&
+      !PrintPipelinePasses) {
+    auto Mark = [](llvm::Module &M, StringRef Attr) {
+      for (Function &F : M)
+        if (!F.isDeclaration())
+          F.addFnAttr(Attr);
+    };
+    std::unique_ptr<llvm::Module> Copy = CloneModule(*TheModule);
+    Mark(*TheModule, TPCSpillRetryAttr);
+    SmallString<0> Buf;
+    raw_svector_ostream BufOS(Buf);
+    if (!Run(*TheModule, BufOS))
+      return;
+    if (none_of(*TheModule, [](const Function &F) {
+          return F.hasFnAttribute(TPCSpillOverflowAttr);
+        })) {
+      *OS << Buf;
+      return;
+    }
+    Mark(*Copy, TPCShortOfVlmAttr);
+    Run(*Copy, *OS);
     return;
   }
-
-  // If -print-pipeline-passes is requested, don't run the legacy pass manager.
-  // FIXME: when codegen is switched to use the new pass manager, it should also
-  // emit pass names here.
-  if (PrintPipelinePasses) {
-    return;
-  }
-
-  TimeCodegenPasses([&] { CodeGenPasses.run(*TheModule); });
+#endif
+  Run(*TheModule, *OS);
 }
 
 void EmitAssemblyHelper::RunCodegenPipelineNewPM(

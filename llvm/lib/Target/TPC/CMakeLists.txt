@@ -54,9 +54,16 @@ set(sources
   TPCSelectionDAGInfo.cpp
   TPCTargetObjectFile.cpp
   TPCHardwareLoops.cpp
+  TPCLoopBoundaryImm.cpp
+  TPCAddressRemat.cpp
   TPCMulAddCombine.cpp
+  TPCPragmaChainUnroll.cpp
+  TPCRemainderLoops.cpp
+  TPCSelectIntoFOp.cpp
+  TPCMemoryAlign.cpp
   TPCCarryDeps.cpp
   TPCCarryPairs.cpp
+  TPCModuloScheduling.cpp
   TPCOptimizeHWLoopsGuards.cpp
   TPCSelectorPreshaper.cpp
   TPCSingleUseScalarOptimizer.cpp
@@ -88,6 +95,7 @@ set(sources
   TPCCostModelEmitter.cpp
   TPCEventProfiler.cpp
   TPCLoopData.cpp
+  TPCLocalMemoryForwarding.cpp
   TPCMachineInstrTools.cpp
   TPCMachineLoopDependencyAnalysis.cpp
   TPCMachineLoopLinearIV.cpp

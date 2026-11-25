@@ -4364,6 +4364,8 @@ class LoadInst_LD_G_INC<bits<6> opc, RegisterClass Rdst, string asmstr, Operand 
   : LoadInst_LD_G<opc, Rdst, asmstr, Pred> {
   let isCodeGenOnly = 1;
   let OutOperandList = (outs Rdst:$dest, ADRF:$iaddr);
+  // The instruction steps the address register it reads.
+  let Constraints = "$dest = $income, $iaddr = $addr";
   let Switches{0} = 1; // AUTO_INC
 }
 
@@ -4371,6 +4373,8 @@ class LoadInst_LD_Gg4_INC<bits<6> opc, RegisterClass Rdst, string asmstr, Operan
   : LoadInst_LD_Gg4<opc, Rdst, asmstr, Pred> {
   let isCodeGenOnly = 1;
   let OutOperandList = (outs Rdst:$dest, ADRF:$iaddr);
+  // The instruction steps the address register it reads.
+  let Constraints = "$dest = $income, $iaddr = $addr";
 }
 
 class LoadInst_LD_G64_INC<bits<6> opc, RegisterClass Rdst, string asmstr, Operand Pred>
@@ -4413,19 +4417,23 @@ class LoadInst_LD_GI_INC<bits<6> opc, RegisterClass Rdst, string asmstr, bit Mas
   : LoadInst_LD_GI<opc, Rdst, asmstr, MaskInReg> {
   let isCodeGenOnly = 1;
   let OutOperandList = (outs Rdst:$dest, ADRF:$iaddr);
+  // The instruction steps the address register it reads.
+  let Constraints = "$dest = $income, $iaddr = $addr";
   let Switches{0} = 1; // AUTO_INC
-}
-
-class LoadInst_LD_GI_INCg4<bits<6> opc, RegisterClass Rdst, string asmstr, bit MaskInReg>
-  : LoadInst_LD_GI<opc, Rdst, asmstr, MaskInReg> {
-  let isCodeGenOnly = 1;
-  let OutOperandList = (outs Rdst:$dest, ADRF:$iaddr);
 }
 
 class LoadInst_LD_GIg4<bits<6> opc, RegisterClass Rdst, string asmstr, bit MaskInReg, list<dag> pattern = []>
   : LoadInst_LD_GI<opc, Rdst, asmstr, MaskInReg, pattern> {
   let Switches = sw{6-0};
   let Switches{3} = MaskInReg;
+}
+
+class LoadInst_LD_GI_INCg4<bits<6> opc, RegisterClass Rdst, string asmstr, bit MaskInReg>
+  : LoadInst_LD_GIg4<opc, Rdst, asmstr, MaskInReg> {
+  let isCodeGenOnly = 1;
+  let OutOperandList = (outs Rdst:$dest, ADRF:$iaddr);
+  // The instruction steps the address register it reads.
+  let Constraints = "$dest = $income, $iaddr = $addr";
 }
 
 class LoadInst_LD_G_P<bits<6> opc, RegisterClass Rdst, string asmstr, Operand Pred>
@@ -4444,13 +4452,17 @@ class LoadInst_LD_G_P_INC<bits<6> opc, RegisterClass Rdst, string asmstr, Operan
   : LoadInst_LD_G_P<opc, Rdst, asmstr, Pred> {
   let isCodeGenOnly = 1;
   let OutOperandList = (outs Rdst:$dest, ADRF:$iaddr);
+  // The instruction steps the address register it reads.
+  let Constraints = "$dest = $income, $iaddr = $addr";
   let Switches{0} = 1; // AUTO_INC
 }
 
 class LoadInst_LD_G_P_INC_Pg4<bits<6> opc, RegisterClass Rdst, string asmstr, Operand Pred>
-  : LoadInst_LD_G_P<opc, Rdst, asmstr, Pred> {
+  : LoadInst_LD_G_Pg4<opc, Rdst, asmstr, Pred> {
   let isCodeGenOnly = 1;
   let OutOperandList = (outs Rdst:$dest, ADRF:$iaddr);
+  // The instruction steps the address register it reads.
+  let Constraints = "$dest = $income, $iaddr = $addr";
 }
 
 class LoadInstr_PREFETCH<bits<6> opc, string asmstr>
@@ -5306,11 +5318,14 @@ class StoreInst_ST_G64<bits<6> opc, RegisterClass Rsrc, string asmstr>
   let VectorPred  = 0;
 }
 
+// Gen4Plus only: the increment is the inc_val switch (bits 2-0), there is no
+// separate AUTO_INC bit as on Gen3.
 class StoreInst_ST_G_INC<bits<6> opc, RegisterClass Rsrc, string asmstr>
   : StoreInst_ST_G<opc, Rsrc, asmstr> {
   let OutOperandList  = (outs ADRF:$new_addr);
   let isCodeGenOnly = 1;
-  let Switches{0} = 1; // AUTO_INC
+  // The instruction steps the address register it reads.
+  let Constraints = "$new_addr = $addr";
 }
 
 class StoreInst_ST_G64_INC<bits<6> opc, RegisterClass Rsrc, string asmstr>

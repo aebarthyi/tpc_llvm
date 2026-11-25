@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Differential functional tests for tpc-clang.
 
-Each kernel in kernels/ is compiled by Habana's closed-source tpc-clang (the
-reference), the candidate fork compiler and, optionally, a baseline fork
-compiler. Every object runs on the TPC simulator with identical inputs and the
-output tensors are compared.
+Each kernel in kernels/ (C, or LLVM IR for paths that C cannot reach) is
+compiled by Habana's closed-source tpc-clang (the reference), the candidate
+fork compiler and, optionally, a baseline fork compiler. Every object runs on
+the TPC simulator with identical inputs and the output tensors are compared.
 
   PASS   candidate output == reference output
   KNOWN  candidate differs from reference exactly like the baseline does
@@ -60,6 +60,9 @@ KNOWN_PARITY = {
     # Habana does not declare s_bf16_st_tnsr_s and the fork does; on gaudi2
     # the baseline shares it.
     ("clang/test/RC99/Intrinsics/st_tnsr_s-04.c", "gaudi3"): ("error", "ok"),
+    # An IR unroll pragma on an inner loop of run-time trip count: Habana's
+    # compiler and the baseline crash (the fork did in TpcLoopOpt).
+    ("clang/test/RC99/regression/tpc-loopopt-unroll-pragma.c", "gaudi2"): ("crash", "ok"),
     # 512-lane f8 conversions: Habana's compiler crashes, the fork converts
     # each half (the baseline asserted).
     **{(f"clang/test/RC99/Intrinsics/convert_to/{name}.c", arch): ("crash", "ok")
@@ -115,10 +118,12 @@ def scalar_bits(kind, text):
     raise ValueError(f"unsupported scalar type '{kind}'")
 
 
-def parse_kernel(path):
+def parse_kernel(path, tag="DIFFTEST"):
+    """Read the '// <tag>:' lines of a kernel (tpc/bench uses tag BENCH); an IR
+    kernel writes them as '; <tag>:'."""
     k = Kernel(path)
     for lineno, line in enumerate(path.read_text().splitlines(), 1):
-        m = re.match(r"\s*//\s*DIFFTEST:\s*(\S+)\s*(.*)", line)
+        m = re.match(rf"\s*(?://|;)\s*{tag}:\s*(\S+)\s*(.*)", line)
         if not m:
             continue
         key, args = m.group(1), m.group(2).split()
@@ -151,7 +156,7 @@ def parse_kernel(path):
         except (ValueError, IndexError) as e:
             fatal(f"{path}:{lineno}: {e}")
     if not k.archs or not any(t.is_output for t in k.tensors):
-        fatal(f"{path}: needs a DIFFTEST 'arch' line and at least one 'out' tensor")
+        fatal(f"{path}: needs a {tag} 'arch' line and at least one 'out' tensor")
     return k
 
 
@@ -495,7 +500,8 @@ def main():
             env = dict(os.environ)
             lib = str(tpc_home / "usr/lib/habanatools")
             env["LD_LIBRARY_PATH"] = lib + os.pathsep + env.get("LD_LIBRARY_PATH", "")
-            files = args.kernels or sorted((HERE / "kernels").glob("*.c"))
+            files = args.kernels or sorted([*(HERE / "kernels").glob("*.c"),
+                                            *(HERE / "kernels").glob("*.ll")])
             for f in files:
                 k = parse_kernel(f.resolve())
                 for arch in k.archs:

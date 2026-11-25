@@ -15,8 +15,13 @@
 #undef _MSC_EXTENSIONS // Turn off iso646 mapping
 #include "TPCTargetTransformInfo.h"
 #include "MCTargetDesc/InstructionDB.h"
+#include "llvm/Analysis/IVDescriptors.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/ScalarEvolutionExpressions.h"
+#include "llvm/IR/Dominators.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 
 using namespace llvm;
@@ -45,6 +50,277 @@ static unsigned getLoopNestHeight(const Loop *L) {
 // the compare alone in loops that pass converts. The checks are the ones of
 // TPCHardwareLoops::calculateLoop that can be made on IR; the layout and size
 // checks cannot, so the answer is a prediction.
+static cl::opt<unsigned> ChainUnrollCount(
+    "tpc-chain-unroll-count", cl::Hidden, cl::init(4),
+    cl::desc("Unroll an innermost loop that carries a value other than an "
+             "induction variable from one iteration to the next up to this "
+             "many times, in order (0 or 1: no)"));
+
+static cl::opt<unsigned> ChainUnrollBudget(
+    "tpc-chain-unroll-budget", cl::Hidden, cl::init(2400),
+    cl::desc("Unroll such loops only while the function stays within this "
+             "many IR instructions, so that the kernel fits the instruction "
+             "cache (0: no limit)"));
+
+// Vector registers (VRF) a value of type Ty takes: 1 for a 256-byte vector,
+// 2 for a pair (DRF), 4 for a quad (ARF), the sum over a struct; 0 for
+// scalars, coordinates (IRF) and predicates (VPRF).
+static unsigned vectorRegsOf(Type *Ty) {
+  if (auto *ST = dyn_cast<StructType>(Ty)) {
+    unsigned N = 0;
+    for (Type *E : ST->elements())
+      N += vectorRegsOf(E);
+    return N;
+  }
+  auto *VT = dyn_cast<FixedVectorType>(Ty);
+  if (!VT || VT->getElementType()->isIntegerTy(1))
+    return 0;
+  uint64_t Bits = VT->getPrimitiveSizeInBits().getFixedValue();
+  return Bits % 2048 ? 0 : Bits / 2048;
+}
+
+static cl::opt<unsigned> ChainUnrollSpillRoom(
+    "tpc-chain-unroll-spill-room", cl::Hidden, cl::init(16 * 1024),
+    cl::desc("In a kernel whose local data leaves less than this many bytes "
+             "of vector local memory for spills, unroll such a loop only as "
+             "many times as its copies' vector values fit the registers "
+             "(0: never limit)"));
+
+static cl::opt<unsigned> ChainUnrollVectorRegs(
+    "tpc-chain-unroll-vector-regs", cl::Hidden, cl::init(40),
+    cl::desc("The registers the copies' vector values must fit in such a "
+             "kernel"));
+
+// Bytes of vector local memory (VLM) left for spills: what the kernel's local
+// vector data does not take of the VLM, which is 16 KB when the kernel uses a
+// lookup table and the size is not given (as TPCMemorySize sets it). Private
+// arrays the Globalizer moves to VLM later are not counted.
+static uint64_t freeVectorMemory(const Function &F, const TPCSubtarget &ST,
+                                 const TargetMachine &TM) {
+  uint64_t Max = ST.getFrameLowering()->getMaxVectorMemory();
+  if (!TM.Options.LocalVectorMemory &&
+      any_of(instructions(F), [](const Instruction &I) {
+        switch (auto *II = dyn_cast<IntrinsicInst>(&I);
+                II ? II->getIntrinsicID() : Intrinsic::not_intrinsic) {
+        case Intrinsic::tpc_lookup:
+        case Intrinsic::tpc_lookup_c0:
+        case Intrinsic::tpc_lookup_c1c2:
+        case Intrinsic::tpc_lookup_1c:
+        case Intrinsic::tpc_lookup_2c:
+          return true;
+        default:
+          return false;
+        }
+      }))
+    Max = ST.getDefaultSmallVLMSize();
+  const DataLayout &DL = F.getDataLayout();
+  uint64_t Used = 0;
+  for (const GlobalVariable &GV : F.getParent()->globals())
+    if (GV.getAddressSpace() == AddressSpace::LOCAL_VECTOR && !GV.use_empty())
+      Used += DL.getTypeAllocSize(GV.getValueType());
+  return Used < Max ? Max - Used : 0;
+}
+
+namespace {
+struct VectorPressure {
+  unsigned Through = 0; // defined outside the loop and live across it
+  unsigned Chain = 0;   // carried by the header phis
+  unsigned Local = 0;   // most values of the body live at one point
+  // Copies in order share the carried values, one version of each live at a
+  // time, and overlap the rest of their work.
+  unsigned unrolled(unsigned Count) const {
+    return Through + Chain + Count * (Local > Chain ? Local - Chain : 0);
+  }
+};
+} // namespace
+
+// The vector registers a single-block loop needs, counted on the IR in
+// program order: the values live across the whole loop (used in it, or used
+// after it, and defined before it) plus the most values defined in the body
+// that are live at one point.
+static VectorPressure estimateVectorPressure(const Loop *L) {
+  VectorPressure VP;
+  BasicBlock *BB = L->getHeader();
+  Function &F = *BB->getParent();
+  SmallPtrSet<const Value *, 32> Through;
+  for (Instruction &I : *BB) {
+    // A phi's value from the preheader is live only up to the loop.
+    if (isa<PHINode>(I))
+      continue;
+    for (Value *Op : I.operands())
+      if (auto *OI = dyn_cast<Instruction>(Op); OI && !L->contains(OI))
+        if (vectorRegsOf(OI->getType()) && Through.insert(OI).second)
+          VP.Through += vectorRegsOf(OI->getType());
+  }
+  // Values defined before the loop and used after it: a use the loop's exits
+  // reach without passing the definition again (around an outer loop).
+  DominatorTree DT(F);
+  SmallVector<BasicBlock *, 2> Exits;
+  L->getExitBlocks(Exits);
+  for (BasicBlock &Def : F) {
+    if (&Def == BB || !DT.dominates(&Def, BB))
+      continue;
+    SmallVector<Instruction *, 8> Candidates;
+    for (Instruction &I : Def)
+      if (vectorRegsOf(I.getType()) && !Through.count(&I))
+        Candidates.push_back(&I);
+    if (Candidates.empty())
+      continue;
+    SmallPtrSet<const BasicBlock *, 32> Reached;
+    SmallVector<BasicBlock *, 16> Work;
+    for (BasicBlock *E : Exits)
+      if (E != &Def && Reached.insert(E).second)
+        Work.push_back(E);
+    while (!Work.empty())
+      for (BasicBlock *S : successors(Work.pop_back_val()))
+        if (S != &Def && Reached.insert(S).second)
+          Work.push_back(S);
+    for (Instruction *I : Candidates)
+      for (Use &U : I->uses()) {
+        auto *UI = cast<Instruction>(U.getUser());
+        auto *Phi = dyn_cast<PHINode>(UI);
+        if (Reached.count(Phi ? Phi->getIncomingBlock(U) : UI->getParent())) {
+          Through.insert(I);
+          VP.Through += vectorRegsOf(I->getType());
+          break;
+        }
+      }
+  }
+  // Backward over the body: live out are the values the back edge carries
+  // and those used after the loop.
+  SmallPtrSet<const Value *, 32> Live;
+  unsigned Cur = 0;
+  auto Add = [&](Value *V) {
+    if (unsigned N = vectorRegsOf(V->getType()))
+      if (Live.insert(V).second)
+        Cur += N;
+  };
+  for (Instruction &I : *BB) {
+    if (auto *Phi = dyn_cast<PHINode>(&I)) {
+      VP.Chain += vectorRegsOf(Phi->getType());
+      Value *In = Phi->getIncomingValueForBlock(BB);
+      if (auto *II = dyn_cast<Instruction>(In); II && L->contains(II))
+        Add(II);
+      continue;
+    }
+    if (any_of(I.users(), [&](User *U) {
+          return !L->contains(cast<Instruction>(U));
+        }))
+      Add(&I);
+  }
+  VP.Local = Cur;
+  for (Instruction &I : reverse(*BB)) {
+    if (isa<PHINode>(I))
+      break;
+    if (Live.erase(&I))
+      Cur -= vectorRegsOf(I.getType());
+    for (Value *Op : I.operands())
+      if (auto *OI = dyn_cast<Instruction>(Op); OI && L->contains(OI))
+        Add(OI);
+    VP.Local = std::max(VP.Local, Cur + vectorRegsOf(I.getType()));
+  }
+  return VP;
+}
+
+/// The backend unroller (TPCSoftwareLoopPipelining) gives each copy of a loop
+/// body its own version of every carried value, which is right for
+/// induction variables and coordinates and is why it leaves alone a loop
+/// carrying anything else: a reduction, a running sum, a value kept from the
+/// previous iteration. Such a loop is unrolled here instead, at run time with
+/// a remainder loop. The copies stay in order (copy k reads copy k-1's
+/// value), so a float reduction adds in the same order; what the copies gain
+/// is the overlap of their independent work, such as the loads.
+void TPCTTIImpl::getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
+                                         TTI::UnrollingPreferences &UP,
+                                         OptimizationRemarkEmitter *ORE) const {
+  BaseT::getUnrollingPreferences(L, SE, UP, ORE);
+  if (ChainUnrollCount < 2 || !L->isInnermost() || L->getNumBlocks() != 1)
+    return;
+  // A machine_unroll_count pragma asks for the backend unroller, and its
+  // rules are Habana's, including when to refuse the loop with a warning.
+  if (findOptionMDForLoop(L, "llvm.loop.machine.unroll.count"))
+    return;
+  bool CarriesChain = false;
+  for (PHINode &Phi : L->getHeader()->phis()) {
+    InductionDescriptor ID;
+    if (InductionDescriptor::isInductionPHI(&Phi, L, &SE, ID))
+      continue;
+    // A coordinate (int5) updated lane by lane, as the backend unroller
+    // handles.
+    if (auto *VT = dyn_cast<FixedVectorType>(Phi.getType()))
+      if (VT->getNumElements() == 5 && VT->getElementType()->isIntegerTy(32))
+        continue;
+    CarriesChain = true;
+    break;
+  }
+  if (!CarriesChain)
+    return;
+  // The kernel's code must fit the TPC's instruction cache: a loop of more
+  // than ~64 KB runs ~10x slower per instruction on a gaudi2 card (measured
+  // 2026-11-23; 56 KB and less run at ~1.1 cycles per bundle), which the
+  // simulator does not show. Each unrolled loop adds about Count copies of its
+  // body (the remainder loop included), so the count is halved until the
+  // function stays within the budget, counted in IR instructions (about 33
+  // bytes of code each, from 19 to 49 in test_kernels, so the budget is
+  // coarse). 2400 stops GaudiInfer's gdn_state_commit_f32, whose 16 small
+  // loops took it from 53 to 104 KB and 4.2x the card time; of the 103 large
+  // test_kernels kernels, only samp_select (71 -> 68 KB) changes besides.
+  unsigned Count = ChainUnrollCount;
+  if (ChainUnrollBudget) {
+    unsigned FunctionSize = 0;
+    for (const BasicBlock &BB : *L->getHeader()->getParent())
+      FunctionSize += BB.size();
+    unsigned LoopSize = 0;
+    for (const BasicBlock *BB : L->blocks())
+      LoopSize += BB->size();
+    while (Count >= 2 && FunctionSize + LoopSize * Count > ChainUnrollBudget)
+      Count /= 2;
+    if (Count < 2)
+      return;
+  }
+  // Spills go to the VLM the kernel's local data leaves free. When little is
+  // left, the spills of a loop whose copies need more vector registers than
+  // there are compete with the loop's own local loads and stores, and all
+  // the spills together may not fit ("Too many vector spills": wright's
+  // gdn_verify keeps a 64 KB recurrent state in VLM). Such a loop is unrolled
+  // only as far as its copies fit, which also makes gdn_fused and kda_verify
+  // 11-17% faster. With room to spare, the spills cost less than the overlap
+  // of the copies gains (attn_dec_comb is 22% faster with 4 copies than with
+  // 2, despite 30 more spills).
+  if (ChainUnrollSpillRoom && ChainUnrollVectorRegs &&
+      freeVectorMemory(*L->getHeader()->getParent(), *ST,
+                       TLI->getTargetMachine()) < ChainUnrollSpillRoom) {
+    VectorPressure VP = estimateVectorPressure(L);
+    unsigned Max = Count;
+    while (Count >= 2 && VP.unrolled(Count) > ChainUnrollVectorRegs)
+      Count /= 2;
+    LLVM_DEBUG(dbgs() << "chain-unroll "
+                      << L->getHeader()->getParent()->getName() << ":"
+                      << L->getHeader()->getName() << " through "
+                      << VP.Through << " chain " << VP.Chain << " local "
+                      << VP.Local << ": count " << Max << " -> " << Count
+                      << "\n");
+    if (Count < 2)
+      return;
+  }
+  // The remainder loop needs the trip count: one SCEV cannot compute is no
+  // use, and a 64-bit one (the sign-extended count of a 'kh <= h + 1' loop)
+  // gives i64 arithmetic, which TPC cannot select.
+  const SCEV *BTC = SE.getBackedgeTakenCount(L);
+  if (isa<SCEVCouldNotCompute>(BTC) ||
+      SE.getTypeSizeInBits(BTC->getType()) > 32)
+    return;
+  UP.Partial = true;
+  UP.Runtime = true;
+  UP.UpperBound = true;
+  UP.MaxCount = Count;
+  UP.PartialThreshold = std::max(UP.PartialThreshold, 400u);
+  // A loop stepping by a vector, (n + 63) / 64 times, has a division in its
+  // trip count, which is a shift here.
+  UP.AllowExpensiveTripCount = true;
+  UP.UnrollRemainder = false;
+}
+
 bool TPCTTIImpl::canSaveCmp(Loop *L, CondBrInst **BI, ScalarEvolution *SE,
                             LoopInfo *LI, DominatorTree *DT,
                             AssumptionCache *AC,

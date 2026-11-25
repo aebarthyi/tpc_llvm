@@ -174,6 +174,8 @@ namespace llvm {
     // Fills in the single memory access of a TPC intrinsic.
     bool getTPCTgtMemIntrinsic(IntrinsicInfo &Info, const CallBase &I,
                                MachineFunction &MF, unsigned Intrinsic) const;
+    bool getLocalOrTensorMemIntrinsic(IntrinsicInfo &Info, const CallBase &I,
+                                      unsigned Intrinsic) const;
     SDValue lowerTPC_CONVERT(SDValue Op, SelectionDAG &DAG) const;
     SDValue lowerTPC_CONVERT_LINEAR(SDValue Op, SelectionDAG &DAG) const;
     SDValue lowerTPC_CONVERT_INT(SDValue Op, SelectionDAG &DAG) const;
@@ -268,7 +270,8 @@ namespace llvm {
     TConvKind FindConversionElement(CVT fromCVT, CVT toCVT) const;
 
     SmallVector<SDValue, 2> Extend_8_to_16(EVT ResultVT,SDValue Src, SelectionDAG &DAG,
-                                  const SDLoc &DL, unsigned DataType) const;
+                                  const SDLoc &DL, unsigned DataType,
+                                  bool ZeroExtend) const;
     SmallVector<SDValue, 4> Extend_8_to_32(EVT ResultVT, SDValue Src, SelectionDAG &DAG,
                                       const SDLoc &DL, unsigned DataType) const;
 

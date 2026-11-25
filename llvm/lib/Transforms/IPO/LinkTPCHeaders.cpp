@@ -415,13 +415,13 @@ public:
     KeyToInfo[fun_VF32_of_VF32(Intrinsic::log, ArchTy::Gaudi2)] =
         LinkInfo{GaudiLogF32LL, "log_f32"};
     KeyToInfo[fun_VF32_of_VF32(Intrinsic::sqrt, ArchTy::Gaudi2)] =
-        LinkInfo{GaudiSqrtF32LL, "sqrt_f32"};
+        LinkInfo{Gaudi2SqrtF32LL, "sqrt_f32"};
     KeyToInfo[fun_VF32_of_VF32(Intrinsic::tpc_tanh, ArchTy::Gaudi2)] =
         LinkInfo{GaudiTanhF32LL, "tanh_f32"};
     KeyToInfo[fun_VF32_of_VF32(Intrinsic::tpc_rsqrt, ArchTy::Gaudi2)] =
-        LinkInfo{GaudiRSqrtF32LL, "rsqrt_f32"};
+        LinkInfo{Gaudi2RSqrtF32LL, "rsqrt_f32"};
     KeyToInfo[fun_VF32_of_VF32(Intrinsic::tpc_reciprocal, ArchTy::Gaudi2)] =
-        LinkInfo{GaudiRecipF32LL, "reciprocal_f32"};
+        LinkInfo{Gaudi2RecipF32LL, "reciprocal_f32"};
 
     KeyToInfo[fun_SF32_of_VF32(Intrinsic::vector_reduce_mul,
                                ArchTy::Gaudi2)] =
@@ -908,9 +908,9 @@ static void expandFDiv(Instruction *I) {
   I->replaceAllUsesWith(FMul);
 }
 
-static bool expandSpecialCaseLLVMIR(Function *Main, ArchTy Arch) {
+static bool expandSpecialCaseLLVMIR(Function *F, ArchTy Arch) {
   SmallVector<Instruction *, 8> EraseList;
-  for (auto &BB : *Main) {
+  for (auto &BB : *F) {
     for (auto &I : BB) {
       // Handle vector FDIV case.
       if (I.getType()->isVectorTy() && I.getOpcode() == Instruction::FDiv) {
@@ -968,22 +968,34 @@ bool LinkTPCHeadersImpl::run(Module &M, bool &ExpandedFDiv) {
     return false; // Unsupported.
   ArchTy Arch = It->second;
 
+  // Every function the kernel defines, not only main: at -O2 a helper that
+  // the kernel calls is not inlined yet, and an intrinsic left in it reaches
+  // instruction selection, which cannot select it (get_dim_size, vector
+  // division, ...). Linking adds functions, so take the list first.
+  SmallVector<Function *, 8> Funcs;
+  for (Function &F : M)
+    if (!F.isDeclaration())
+      Funcs.push_back(&F);
+
   // Expand the IR to appropriate form.
-  ExpandedFDiv = expandSpecialCaseLLVMIR(Main, Arch);
+  ExpandedFDiv = false;
+  for (Function *F : Funcs)
+    ExpandedFDiv |= expandSpecialCaseLLVMIR(F, Arch);
 
   // Identify the modules that need to be linked.
   SmallVector<Instruction *, 8> ReplacementListSO;
-  for (auto &BB : *Main) {
-    for (auto &I : BB) {
-      if (callInstructionToSearch(I, IRStr)){
-        ReplacementListSO.push_back(&I);
-        if (!linkStage(M,IRStr))
-          report_fatal_error("LTO pass failed to link a dynamic LTO function");
-      }
-      else if (instructionNeedsLinking(I, IRStr)) {
-        ReplacementList.push_back(&I);
-        if (!linkStage(M,IRStr))
-          report_fatal_error("LTO pass failed to link a static LTO function");
+  for (Function *F : Funcs) {
+    for (auto &BB : *F) {
+      for (auto &I : BB) {
+        if (callInstructionToSearch(I, IRStr)) {
+          ReplacementListSO.push_back(&I);
+          if (!linkStage(M, IRStr))
+            report_fatal_error("LTO pass failed to link a dynamic LTO function");
+        } else if (instructionNeedsLinking(I, IRStr)) {
+          ReplacementList.push_back(&I);
+          if (!linkStage(M, IRStr))
+            report_fatal_error("LTO pass failed to link a static LTO function");
+        }
       }
     }
   }

@@ -495,7 +495,7 @@ void TPCInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
       .addReg(SrcSubReg, getKillRegState(KillSrc))
       .addImm(TPCII::OpType::FP32)
       .addImm(0)  // Switches
-      .addReg(DestReg, RegState::Undef)
+      .addReg(DestSubReg, RegState::Undef)
       .addReg(TPC::SPRF_TRUE)
       .addImm(0);
   };
@@ -515,7 +515,7 @@ void TPCInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     BuildMI(MBB, I, DL, get(Opc), DestSubReg)
       .addReg(SrcSubReg, getKillRegState(KillSrc))
       .addImm(0)  // Switches
-      .addReg(DestReg, RegState::Undef)
+      .addReg(DestSubReg, RegState::Undef)
       .addReg(TPC::SPRF_TRUE)
       .addImm(0);
   };
@@ -797,12 +797,13 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     StoreOpCode = TPC::SPILL_IRF_SAVE;
     StackID = TPCStackID::SLM_SPILL;
   } else if (TPC::ADRFRegClass.hasSubClassEq(RC)) {
-    if (Subtarget.hasADRFMov()) {
-      StoreOpCode = TPC::SPILL_ADRF_SAVE;
-      StackID = TPCStackID::SLM_SPILL;
-    } else {
-      report_fatal_error("ADRF registers are not spillable on this processor");
-    }
+    // An address register also holds its tensor (gen_addr sets it, a move
+    // between address registers copies it), which no spill can save: through
+    // a scalar pair, a load from the reloaded register fails (gaudi2
+    // simulator: "Wrong tensorDescriptorElementSizeType", gaudi3: "Wrong
+    // tensorID"). Stop rather than generate such code.
+    report_fatal_error("too many addresses are live at once: an address "
+                       "register (a gen_addr result) cannot be spilled");
   } else {
     report_fatal_error("Unsupported register class in StoreToStack");
   }
@@ -852,12 +853,9 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     LoadOpCode = TPC::SPILL_IRF_RESTORE;
     StackID = TPCStackID::SLM_SPILL;
   } else if (TPC::ADRFRegClass.hasSubClassEq(RC)) {
-    if (Subtarget.hasADRFMov()) {
-      LoadOpCode = TPC::SPILL_ADRF_RESTORE;
-      StackID = TPCStackID::SLM_SPILL;
-    } else {
-      report_fatal_error("ADRF registers are not spillable on this processor");
-    }
+    // See storeRegToStackSlot.
+    report_fatal_error("too many addresses are live at once: an address "
+                       "register (a gen_addr result) cannot be spilled");
   } else {
     report_fatal_error("Unsupported register class in loadFromStack");
   }
@@ -945,16 +943,16 @@ bool TPCInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
         regsFound++;
       }
     }
-    if (regsFound == 0) {
-      llvm_unreachable("Cannot load IRF");
-    }
-    //dbgs() << "   === regsFound: " << regsFound << "\n";
+    if (regsFound == 0)
+      report_fatal_error("no free scalar register to reload an IRF register");
+    // With fewer than 5 free registers they are reused: each one is dead after
+    // its set_indx. Every dimension is reloaded, whatever the number found.
     for (int k = regsFound; k < 5; k++) {
       sRegs[k] = sRegs[k-regsFound];
     }
     unsigned DestReg = MI.getOperand(0).getReg();
     unsigned Offset = MI.getOperand(1).getImm();
-    for (int k = 0; k < regsFound; k++) {
+    for (int k = 0; k < 5; k++) {
       BuildMI(MBB, MI, DL, get(TPC::LD_Lsip), sRegs[k])
           .addImm(Offset + k*4)
           .addImm(0)
@@ -1246,15 +1244,15 @@ bool TPCInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
         regsFound++;
       }
     }
-    if (regsFound == 0) {
-      llvm_unreachable("Cannot store IRF");
-    }
-    //dbgs() << "   === regsFound for store: " << regsFound << "\n";
+    if (regsFound == 0)
+      report_fatal_error("no free scalar register to spill an IRF register");
+    // With fewer than 5 free registers they are reused: each one is dead after
+    // its st_l. Every dimension is stored, whatever the number found.
     for (int k = regsFound; k < 5; k++) {
       sRegs[k] = sRegs[k-regsFound];
     }
     unsigned Offset = MI.getOperand(0).getImm();
-    for (int k = 0; k < regsFound; k++) {
+    for (int k = 0; k < 5; k++) {
       BuildMI(MBB, MI, DL, get(TPC::MOV_IRF_DIM), sRegs[k])
           .addReg(MI.getOperand(1).getReg())
           .addImm(k) // DIM
@@ -1579,6 +1577,15 @@ static unsigned getLaneSel(const MachineInstr &MI) {
   return MO.getImm() & 0x3;
 }
  
+/// The address of an ld_g/st_g that steps it (the *_INC forms) is tied to the
+/// stepped result, but it is read like any address, from SRC_A.
+static bool isSteppedAddress(const MCInstrDesc &MC, unsigned OpIdx) {
+  return OpIdx == MC.getNumDefs() && OpIdx < MC.getNumOperands() &&
+         MC.getOperandConstraint(OpIdx, MCOI::TIED_TO) >= 0 &&
+         MC.operands()[OpIdx].RegClass == TPC::ADRFRegClassID &&
+         (TPCII::isLoadInst(MC) || TPCII::isStoreInst(MC));
+}
+
 static TPCLatencyEvaluation::OperandID getOperandId(const TPCSubtarget &Subtarget,
                                                     const MachineInstr &MI,
                                                     const TargetRegisterClass *UseRegClass,
@@ -1587,6 +1594,9 @@ static TPCLatencyEvaluation::OperandID getOperandId(const TPCSubtarget &Subtarge
   assert(UseIdx < MC.getNumOperands());
   const MachineOperand &MO = MI.getOperand(UseIdx);
   assert(MO.isReg());
+
+  if (isSteppedAddress(MC, UseIdx))
+    return TPCLatencyEvaluation::OperandID::e_src_a;
 
   // Some instructions have immediate operand. Check that we do not process it.
 #ifdef _DEBUG
@@ -1653,7 +1663,7 @@ static TPCLatencyEvaluation::OperandID getOperandId(const TPCSubtarget &Subtarge
   // this scheme.
   for (unsigned i = MC.getNumDefs(), e = UseIdx; i < e; i++) {
     const MachineOperand & Op = MI.getOperand(i);
-    if (Op.isReg() && Op.isTied())
+    if (Op.isReg() && Op.isTied() && !isSteppedAddress(MC, i))
       --UseIdx;
   }
 
@@ -1738,6 +1748,19 @@ static TPCLatencyEvaluation::OperandID getOperandId(const TPCSubtarget &Subtarge
         MC.getOpcode() == TPC::FCLASS_LIMITvvsvm ||
         MC.getOpcode() == TPC::FCLASS_LIMITvvvsm)
       return TPCLatencyEvaluation::OperandID::e_src_d;
+    // MAC x2 has the multiplier of the high half in SRC_D, as MUL x2 does
+    // (VpuInst_MAC_MUL_X2); its accumulator is the tied income, SRC_C above.
+    // Taken as SRC_C, a MUL feeding it got the accumulator's latency, 4
+    // instead of 6, and the MAC read the old value.
+    switch (MC.getOpcode()) {
+    case TPC::MACx2f32vvvp: case TPC::MACx2f32viip: case TPC::MACx2f32vssp:
+    case TPC::MACx2f32vivp: case TPC::MACx2f32vsvp: case TPC::MACx2f32vvip:
+    case TPC::MACx2f32vvsp: case TPC::MACx2f32ivvp: case TPC::MACx2f32svvp:
+    case TPC::MACx2f32vvvm: case TPC::MACx2f32viim: case TPC::MACx2f32vssm:
+    case TPC::MACx2f32vivm: case TPC::MACx2f32vsvm: case TPC::MACx2f32vvim:
+    case TPC::MACx2f32vvsm: case TPC::MACx2f32ivvm: case TPC::MACx2f32svvm:
+      return TPCLatencyEvaluation::OperandID::e_src_d;
+    }
     if (MC.getOpcode() == TPC::MULx2f32vvvp ||
         MC.getOpcode() == TPC::MULx2f32svvp ||
         MC.getOpcode() == TPC::MULx2f32vsvp ||
@@ -1971,7 +1994,7 @@ int TPCInstrInfo::getTPCOperandLatency(const InstrItineraryData *ItinData,
 // ----------------------------------------------------------------------------
 // MOV TO_HW_REG: LD_PARTIAL_REG,  |   LD_TNSR*/ST_TNSR* that uses     |   2
 // ST_PARTIAL_REG, LD_TNSR_ID_REG, |   this HW_REG(Greco/Gaudi2)       |
-// ST_TNSR_ID_REG, ST_RMW_REG      |                                   |
+// ST_TNSR_ID_REG, ST_RMW_REG      |   (also LD_G partial, GEN_ADDR)   |
 // ----------------------------------------------------------------------------
 // MOV TO_HW_REG: SQZ_CNTR[0-7]    |   ST_TNSR_SQZ/ST_TNSR_S that uses |   1
 //                                 |   this HW_REG(Gaudi2)             |
@@ -1982,17 +2005,25 @@ int TPCInstrInfo::getTPCOperandLatency(const InstrItineraryData *ItinData,
 // mov  ZP_REG, V1, SP0; 	nop; 	nop; 	nop
 // nop; 	nop; 	mac.i8  ZP_REG A8, V2, V0, VP1; 	nop
   if (IsMov(DefMI)) {
-    if ((Subtarget.hasGrecoISA() || Subtarget.hasGaudi2ISA()) &&
-        DefRegClass->hasSuperClass(&TPC::MRFRegClass))
+    // The MOV defines M0-M3 through a wider class (HSRF), so check the
+    // register: hasSuperClass(MRF) never held, and the latency was 1. The
+    // simulator needs these on gaudi3 too.
+    bool Gen3To5 = Subtarget.hasGrecoISA() || Subtarget.hasGaudi2ISA() ||
+                   Subtarget.hasDoron1ISA();
+    if (Gen3To5 && (DefReg.isPhysical()
+                        ? TPC::MRFRegClass.contains(DefReg)
+                        : DefRegClass->hasSuperClassEq(&TPC::MRFRegClass)))
       return 3;
-    else if ((Subtarget.hasGrecoISA() || Subtarget.hasGaudi2ISA()) &&
+    else if (Gen3To5 &&
              (DefReg == TPC::LD_PARTIAL_REG ||
               DefReg == TPC::ST_PARTIAL_REG ||
               DefReg == TPC::LD_TNSR_ID_REG ||
               DefReg == TPC::ST_TNSR_ID_REG ||
               DefReg == TPC::ST_RMW_REG) &&
              (TPCII::isLdTnsr(UseMCID, Subtarget.hasGen3Plus()) ||
-              TPCII::isStTnsr(UseMCID)))
+              TPCII::isStTnsr(UseMCID) || UseReg == DefReg))
+      // The table names the tensor accesses, but a partial ld_g right after
+      // the MOV to LD_PARTIAL_REG reads the old size on the simulator too.
       return 2;
     else if (Subtarget.hasGen3Plus() &&
              ((TPCII::isSPUInst(UseMCID) &&
@@ -2404,7 +2435,10 @@ int TPCInstrInfo::getTPCOperandLatency(const InstrItineraryData *ItinData,
     return 0;
   }
 
-  if (UseReg != DefReg) {
+  // Virtual registers differ when the use reads the value through a copy-like
+  // pseudo (the pipeliner's latency mutation asks for that); the latency is
+  // then that of the producer to the consumer.
+  if (UseReg != DefReg && UseReg.isPhysical() && DefReg.isPhysical()) {
     // The registers used by definition and use may differ if one register
     // is a subregister of the other.
     if (!getRegisterInfo().isSubRegister(DefReg, UseReg) &&
@@ -2511,7 +2545,8 @@ int TPCInstrInfo::getTPCOperandLatency(const InstrItineraryData *ItinData,
   // result, that are not touched by this instruction.
   if (isSET_INDX(UseMI.getOpcode()) && UseIdx == 1) {
     assert(UseMI.getOperand(1).isReg());
-    assert(DefMI.getOperand(0).getReg() == UseMI.getOperand(1).getReg());
+    assert(DefMI.getOperand(0).getReg() == UseMI.getOperand(1).getReg() ||
+           UseMI.getOperand(1).getReg().isVirtual());
     DEBUG_WITH_TYPE("latency", dbgs() << "== Latency (IRF) = " << 0 << "\n");
     DEBUG_WITH_TYPE("latency", dbgs() << "=====================================================\n");
     return 0;
@@ -2917,11 +2952,13 @@ int TPCInstrInfo::getTPCOperandLatency(const InstrItineraryData *ItinData,
       uint8_t DefIdxDst0 = GetIndexBySubReg(DefReg, *SubReg);
       uint8_t UseIdxDst0 = GetIndexBySubReg(UseReg, *SubReg);
 
-      // FMA X2 to FMA and vs versa
-      // [LLVM-2305] In case the instruction is a switch with X2 return 0
-      // otherwise return 1 This check only relvent for FMA operations
-      // with X2.
-      if (getSwitches(UseMI) & TPCII::SW_X2_ARITHMETIC &&
+      // FMA X2 to FMA and vice versa [LLVM-2305]: when either one is X2
+      // and the value moves to the other half of a pair, the latency is 6.
+      // Checking only the consumer gave an X2 MAC feeding the accumulator of
+      // a plain MAC from its high half 4 cycles: the plain MAC read the old
+      // value on the gaudi2 simulator (it needs 6).
+      if (((getSwitches(UseMI) | getSwitches(DefMI)) &
+           TPCII::SW_X2_ARITHMETIC) &&
           DefIdxDst0 != UseIdxDst0) {
         DEBUG_WITH_TYPE("latency", dbgs() << "LLVM-2305" << 6 << "\n");
         return 6;
@@ -2975,11 +3012,9 @@ int TPCInstrInfo::getTPCOperandLatency(const InstrItineraryData *ItinData,
 
       for (auto DefIdx : DefIdxs) {
         for (auto UseIdx : UseIdxs) {
-          // FMA X2 to FMA and vs versa
-          // [LLVM-2305] In case the instruction is a switch with X2 return 0
-          // otherwise return 1. This check only relvent for FMA operations
-          // with X2.
-          if (getSwitches(UseMI) & TPCII::SW_X2_ARITHMETIC &&
+          // FMA X2 to FMA and vice versa, as for physical registers above.
+          if (((getSwitches(UseMI) | getSwitches(DefMI)) &
+               TPCII::SW_X2_ARITHMETIC) &&
               DefIdx != UseIdx) {
             DEBUG_WITH_TYPE("latency", dbgs() << "LLVM-2305" << 6 << "\n");
             return 6;
@@ -3599,6 +3634,60 @@ bool llvm::TPCInstrInfo::isMMIOAccess(const MachineInstr & MI)
     return true;
 
   return false;
+}
+
+namespace {
+/// The memory a load or store reaches. SLM, VLM and global memory (through
+/// tensors or addresses) are separate. Unknown covers MMIO, whose writes can
+/// change what a tensor access does, and everything else.
+enum class TPCMemory { Unknown, SLM, VLM, Global };
+} // namespace
+
+static TPCMemory getAccessedMemory(const MachineInstr &MI,
+                                   const TPCSubtarget &ST) {
+  const MCInstrDesc &Desc = MI.getDesc();
+  if (TPCII::is_ld_l(Desc) || TPCII::is_st_l(Desc))
+    return TPCInstrInfo::isMMIOAccess(MI) ? TPCMemory::Unknown
+                                          : TPCMemory::SLM;
+  if (TPCII::is_ld_l_v_family(Desc) || TPCII::is_st_l_v_family(Desc))
+    return TPCMemory::VLM;
+  if (TPCII::is_ld_g(Desc) || TPCII::is_st_g(Desc) || TPCII::isStTnsr(Desc) ||
+      TPCII::isLdTnsr(Desc, ST.hasLdInStore()))
+    return TPCMemory::Global;
+  return TPCMemory::Unknown;
+}
+
+/// The constant address of an LD_L_V or ST_L_V of a whole vector, or none.
+static std::optional<int64_t> getConstantVLMAddress(const MachineInstr &MI) {
+  const MCInstrDesc &Desc = MI.getDesc();
+  unsigned AddrIdx;
+  if (TPCII::is_ld_l_v(Desc))
+    AddrIdx = 1;
+  else if (TPCII::is_st_l_v(Desc))
+    AddrIdx = 0;
+  else
+    return std::nullopt;
+  const MachineOperand &Addr = MI.getOperand(AddrIdx);
+  if (!Addr.isImm())
+    return std::nullopt;
+  return Addr.getImm();
+}
+
+bool TPCInstrInfo::areMemAccessesTriviallyDisjoint(
+    const MachineInstr &MIa, const MachineInstr &MIb) const {
+  const TPCMemory A = getAccessedMemory(MIa, Subtarget);
+  const TPCMemory B = getAccessedMemory(MIb, Subtarget);
+  if (A == TPCMemory::Unknown || B == TPCMemory::Unknown)
+    return false;
+  if (A != B)
+    return true;
+  if (A != TPCMemory::VLM)
+    return false;
+  // A vector is 256 bytes, the widest VLM access.
+  const std::optional<int64_t> AddrA = getConstantVLMAddress(MIa);
+  const std::optional<int64_t> AddrB = getConstantVLMAddress(MIb);
+  return AddrA && AddrB &&
+         (*AddrA - *AddrB >= 256 || *AddrB - *AddrA >= 256);
 }
 
 bool TPCInstrInfo::isGlobalScalarLoad(const MachineInstr &MI) const {

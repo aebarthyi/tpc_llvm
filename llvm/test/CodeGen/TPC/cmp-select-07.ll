@@ -26,5 +26,5 @@ entry:
 ; CHECK-DAG: ld_l_v       [[SRC1:%V[0-9]+]], %S1
 ; CHECK-DAG: ld_l_v       [[VAL1:%V[0-9]+]], %S3
 ; CHECK-DAG: ld_l_v       [[VAL2:%V[0-9]+]], %S4
-; CHECK:     sel_less.i32 [[VAL:%V[0-9]+]], [[VAL1]], [[VAL2]], [[SRC1]], 0x0
+; CHECK:     sel_leq.i32  [[VAL:%V[0-9]+]], [[VAL1]], [[VAL2]], [[SRC1]], 0x0
 ; CHECK:     st_l_v       %S0{{.*}}, [[VAL]]

@@ -29,6 +29,41 @@ public:
 };
 
 
+/// Loop pass "tpc-pragma-chain-unroll": a loop_unroll pragma loop that
+/// carries a value the backend unroller does not take is unrolled in order by
+/// LLVM's unroller instead (see TPCPragmaChainUnroll.cpp).
+class TPCPragmaChainUnrollPass : public PassInfoMixin<TPCPragmaChainUnrollPass> {
+public:
+  PreservedAnalyses run(Loop &L, LoopAnalysisManager &AM,
+                        LoopStandardAnalysisResults &AR, LPMUpdater &U);
+};
+
+/// Loop pass "tpc-remainder-loops": a loop that the branches before it show
+/// runs at most 8 times is kept from the runtime unroller (see
+/// TPCRemainderLoops.cpp).
+class TPCRemainderLoopPass : public PassInfoMixin<TPCRemainderLoopPass> {
+public:
+  PreservedAnalyses run(Loop &L, LoopAnalysisManager &AM,
+                        LoopStandardAnalysisResults &AR, LPMUpdater &U);
+};
+
+/// Pass "tpc-select-into-fop": `select c, s + m, s` becomes
+/// `s + select c, m, -0.0`, also where s may be a NaN (see
+/// TPCSelectIntoFOp.cpp).
+class TPCSelectIntoFOpPass : public PassInfoMixin<TPCSelectIntoFOpPass> {
+public:
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+};
+
+/// Pass "tpcmemalign": vector loads and stores in private and vector local
+/// memory get their type's alignment (see TPCMemoryAlign.cpp).
+class TPCMemoryAlignPass : public PassInfoMixin<TPCMemoryAlignPass> {
+public:
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+  // Instruction selection depends on it at all optimization levels.
+  static bool isRequired() { return true; }
+};
+
 /// Pass "scalar2irf".
 class TPCScalarToIRFPass : public PassInfoMixin<TPCScalarToIRFPass> {
   bool FoldCmp;
@@ -55,6 +90,11 @@ void initializeTPCIndexMapPass(PassRegistry&);
 
 FunctionPass *createTPCIndexGen();
 void initializeTPCIndexGenPass(PassRegistry &);
+
+/// Keeps vectors stored to VLM at constant addresses in registers
+/// (TPCLocalMemoryForwarding.cpp).
+FunctionPass *createTPCLocalMemoryForwarding();
+void initializeTPCLocalMemoryForwardingPass(PassRegistry &);
 
 /// Pass "tpclegal".
 class TPCModuleLegalizerPass : public PassInfoMixin<TPCModuleLegalizerPass> {
@@ -138,10 +178,19 @@ public:
 FunctionPass *createTPCHardwareLoops();
 FunctionPass *createTPCOptimizeHWLoopsGuards();
 void initializeTPCOptimizeHWLoopsGuardsPass(PassRegistry &);
+FunctionPass *createTPCModuloScheduleSetup();
+void initializeTPCModuloScheduleSetupPass(PassRegistry &);
+FunctionPass *createTPCModuloScheduleFinish();
+void initializeTPCModuloScheduleFinishPass(PassRegistry &);
 FunctionPass *createTPCMulAddCombine();
 void initializeTPCMulAddCombinePass(PassRegistry &);
+FunctionPass *createTPCLoopBoundaryImm();
+void initializeTPCLoopBoundaryImmPass(PassRegistry &);
+FunctionPass *createTPCAddressRemat();
+void initializeTPCAddressRematPass(PassRegistry &);
 FunctionPass *createTPCCarryDeps();
 void initializeTPCCarryDepsPass(PassRegistry &);
+void initializeTPCLatencyResolverPass(PassRegistry &);
 FunctionPass *createTPCPipeliner();
 FunctionPass *createTPCPacketizer();
 FunctionPass *createTPCExpandHWRegCopies();
@@ -204,6 +253,10 @@ public:
   }
 
   TargetTransformInfo getTargetTransformInfo(const Function &F) const override;
+
+  MachineFunctionInfo *
+  createMachineFunctionInfo(BumpPtrAllocator &Allocator, const Function &F,
+                            const TargetSubtargetInfo *STI) const override;
 
   ScheduleDAGInstrs *
   createMachineScheduler(MachineSchedContext *C) const override;

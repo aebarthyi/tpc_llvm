@@ -1,5 +1,6 @@
 #include "TPC.h"
 #include "TPCAliasAnalysis.h"
+#include "TPCMachineFunctionInfo.h"
 #include "TPCSubtarget.h"
 #include "TPCTargetMachine.h"
 #include "TPCTargetObjectFile.h"
@@ -42,9 +43,15 @@ extern "C" void LLVMInitializeTPCTarget() {
 //  initializeTPCAAWrapperPassPass(Registry);
   initializeTPCPredicateOptimizerPass(Registry);
   initializeTPCIncMergerPass(Registry);
+  initializeTPCLocalMemoryForwardingPass(Registry);
   initializeTPCOptimizeHWLoopsGuardsPass(Registry);
+  initializeTPCModuloScheduleSetupPass(Registry);
+  initializeTPCModuloScheduleFinishPass(Registry);
   initializeTPCMulAddCombinePass(Registry);
+  initializeTPCLoopBoundaryImmPass(Registry);
+  initializeTPCAddressRematPass(Registry);
   initializeTPCCarryDepsPass(Registry);
+  initializeTPCLatencyResolverPass(Registry); // for -run-pass=tpclatresolver
 }
 
 static Reloc::Model getEffectiveRelocModel(std::optional<Reloc::Model> RM) {
@@ -284,6 +291,14 @@ void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
           FPM.addPass(TPCCarryPairsPass());
           return true;
         }
+        if (Name == "tpc-select-into-fop") {
+          FPM.addPass(TPCSelectIntoFOpPass());
+          return true;
+        }
+        if (Name == "tpcmemalign") {
+          FPM.addPass(TPCMemoryAlignPass());
+          return true;
+        }
         if (Name == "scalar2irf") {
           FPM.addPass(TPCScalarToIRFPass());
           return true;
@@ -301,6 +316,14 @@ void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
           LPM.addPass(TpcLoopOptPass());
           return true;
         }
+        if (Name == "tpc-pragma-chain-unroll") {
+          LPM.addPass(TPCPragmaChainUnrollPass());
+          return true;
+        }
+        if (Name == "tpc-remainder-loops") {
+          LPM.addPass(TPCRemainderLoopPass());
+          return true;
+        }
         return false;
       });
 
@@ -314,6 +337,7 @@ void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
         if (!Options.CompileForLibrary)
           FPM.addPass(TpcCopyElisionPass());
         FPM.addPass(TPCMarkupDirectMMIOAccessPass());
+        FPM.addPass(TPCMemoryAlignPass());
         // Before any pass can separate a carry read from its add.
         FPM.addPass(TPCCarryPairsPass());
         if (Level != OptimizationLevel::O0) {
@@ -327,6 +351,25 @@ void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
         // Legacy: first pass of PassManagerBuilder::populateModulePassManager.
         MPM.addPass(LinkTPCHeadersPass());
 #endif
+      });
+
+  // After each InstCombine, the select of a float add it leaves where the sum
+  // may be a NaN.
+  PB.registerPeepholeEPCallback(
+      [](FunctionPassManager &FPM, OptimizationLevel Level) {
+        if (Level != OptimizationLevel::O0)
+          FPM.addPass(TPCSelectIntoFOpPass());
+      });
+
+  // Before the IR unrollers: a loop_unroll pragma loop the backend unroller
+  // would refuse gets LLVM's unroll pragma instead, and a loop that runs only
+  // a few times is kept from the runtime unroller.
+  PB.registerLateLoopOptimizationsEPCallback(
+      [](LoopPassManager &LPM, OptimizationLevel Level) {
+        if (Level != OptimizationLevel::O0) {
+          LPM.addPass(TPCPragmaChainUnrollPass());
+          LPM.addPass(TPCRemainderLoopPass());
+        }
       });
 
   // Legacy EP_CGSCCOptimizerLate (GlobalOpt, ADCE, SROA) followed by
@@ -378,6 +421,13 @@ void TPCTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
       });
 }
 
+MachineFunctionInfo *TPCTargetMachine::createMachineFunctionInfo(
+    BumpPtrAllocator &Allocator, const Function &F,
+    const TargetSubtargetInfo *STI) const {
+  return TPCMachineFunctionInfo::create<TPCMachineFunctionInfo>(Allocator, F,
+                                                                STI);
+}
+
 TargetPassConfig *TPCTargetMachine::createPassConfig(PassManagerBase &PM) {
   return new TPCPassConfig(this, PM);
 }
@@ -385,6 +435,8 @@ TargetPassConfig *TPCTargetMachine::createPassConfig(PassManagerBase &PM) {
 void TPCPassConfig::addIRPasses() {
   addPass(createTPCIndexGen());
   TargetPassConfig::addIRPasses();
+  if (getOptLevel() != CodeGenOptLevel::None)
+    addPass(createTPCLocalMemoryForwarding());
 
       addPass(createTPCAAWrapperPass());
       addPass(createExternalAAWrapperPass([](Pass &P, Function &,
@@ -471,6 +523,11 @@ void TPCPassConfig::addPreRegAlloc() {
 #endif
     addPass(createTPCRegisterBalancer());
     addPass(&DeadMachineInstructionElimID);
+    // Modulo scheduling, where TPCSubtarget::enableMachinePipeliner says.
+    addPass(createTPCModuloScheduleSetup());
+    addPass(&MachinePipelinerID);
+    addPass(createTPCModuloScheduleFinish());
+    addPass(&DeadMachineInstructionElimID);
     addPass(createTPCHardwareLoops());
     addPass(createTPCOptimizeHWLoopsGuards());
     addPass(createTPCPipeliner());
@@ -478,12 +535,16 @@ void TPCPassConfig::addPreRegAlloc() {
     addPass(createTPCSubregInitElimination());
     // TODO: some kernels fail because of this pass
     addPass(createTPCMovCoalescer());
+    // After every pass that makes or changes LOOPs.
+    addPass(createTPCLoopBoundaryImm());
   }
   if (getOptLevel() == CodeGenOptLevel::None)
    addPass(createTPCHWWAGeneral());
 
   addPass(createTPCHWWA2());
   addPass(createTPCPreRAHwWorkarounds());
+  // In SSA form, after every pass that hoists or copies a gen_addr.
+  addPass(createTPCAddressRemat());
   // Before the pre-RA machine scheduler.
   addPass(createTPCCarryDeps());
 }

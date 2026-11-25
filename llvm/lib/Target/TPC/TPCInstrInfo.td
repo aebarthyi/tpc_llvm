@@ -153,6 +153,14 @@ def CastToImm32 : SDNodeXForm<imm, [{
   return CurDAG->getTargetConstant(N->getZExtValue(), SDLoc(N), MVT::i32);
 }]>;
 
+// A scalar or immediate SRC2 of SHUFFLE is broadcast to every 32-bit lane, and
+// each element reads its own control byte from it, so a splat of one control
+// byte must repeat the byte in all four bytes of the 32-bit value.
+def SplatI8ToImm32 : SDNodeXForm<imm, [{
+  return CurDAG->getTargetConstant((N->getZExtValue() & 0xFF) * 0x01010101,
+                                   SDLoc(N), MVT::i32);
+}]>;
+
 def FPToImm32 : SDNodeXForm<fpimm, [{
   const APFloat &Val = N->getValueAPF();
   APInt IC = Val.bitcastToAPInt();
@@ -2214,6 +2222,13 @@ def : Pat<(v2i32 (int_tpc_get_addr i64:$src, (i32 imm:$sw), v2i32:$income, i1:$p
 
 //------ GEN_ADDR --------------------------------------------------------------
 
+// An address register cannot be spilled: on gaudi2 it carries state of the
+// tensor (gen_addr sets it, a move between address registers copies it) that a
+// move from a scalar pair does not restore, and a load through a register
+// reloaded that way fails (gaudi2 simulator: "Wrong
+// tensorDescriptorElementSizeType"). Recomputing the address instead of
+// spilling it is always right when the tensor is an immediate.
+let isReMaterializable = 1 in
 def GEN_ADDR_ld  : LoadInst_GEN_ADDR<0b000000, "gen_addr $sw $dest, $tensor, $coords, $pred", TensorSrc.DimMask>, MultiSlot<"GEN_ADDR">;
 def GEN_ADDR_ldT : LoadInst_GEN_ADDR<0b000000, "gen_addr $sw $dest, $tensor, $coords, $pred", TensorSrc.Reg>, Requires<[TnsrInReg]>, MultiSlot<"GEN_ADDRT">;
 
@@ -6325,6 +6340,9 @@ def CMP_EQvsm : VpuInstBinSw <0b001001, VPRF, VRF, SRF,    "cmp_eq$optype $sw $d
 
 defm : CmpOpVect<seteq, CMP_EQvvp, CMP_EQvsp, CMP_EQvip>;
 defm : FCmpOpVect<setoeq, CMP_EQvvp, CMP_EQvsp, CMP_EQvip>;
+// Without NaNs (fast-math, -fno-honor-nans) LLVM drops the ordered part of
+// a float predicate; such compares use the same instructions.
+defm : FCmpOpVect<seteq, CMP_EQvvp, CMP_EQvsp, CMP_EQvip>;
 
 foreach type = [v256i8, v128i16, v64i32, v64f32, v128bf16, v128f16, v256f8_143, v256f8_152] in
   foreach pred = [i1, v256i1] in {
@@ -6349,6 +6367,7 @@ def CMP_NEQvsm : VpuInstBinSw <0b001010, VPRF, VRF, SRF,    "cmp_neq$optype $sw 
 
 defm : CmpOpVect<setne, CMP_NEQvvp, CMP_NEQvsp, CMP_NEQvip>;
 defm : FCmpOpVect<setone, CMP_NEQvvp, CMP_NEQvsp, CMP_NEQvip>;
+defm : FCmpOpVect<setne, CMP_NEQvvp, CMP_NEQvsp, CMP_NEQvip>;
 
 foreach type = [v256i8, v128i16, v64i32, v64f32, v128bf16, v128f16, v256f8_143, v256f8_152] in
   foreach pred = [i1, v256i1] in {
@@ -6368,6 +6387,7 @@ def CMP_LESSvsm : VpuInstBinSw <0b001011, VPRF, VRF, SRF,    "cmp_less$optype $s
 defm : CmpOpVect<setlt, CMP_LESSvvp, CMP_LESSvsp, CMP_LESSvip>;
 defm : CmpOpUVect<setult, CMP_LESSvvp, CMP_LESSvsp, CMP_LESSvip>;
 defm : FCmpOpVect<setolt, CMP_LESSvvp, CMP_LESSvsp, CMP_LESSvip>;
+defm : FCmpOpVect<setlt, CMP_LESSvvp, CMP_LESSvsp, CMP_LESSvip>;
 
 foreach type = [v256i8, v128i16, v64i32, v64f32, v128bf16, v128f16, v256f8_143, v256f8_152] in
   foreach pred = [i1, v256i1] in {
@@ -6386,6 +6406,7 @@ def CMP_LEQvsm : VpuInstBinSw <0b001100, VPRF, VRF, SRF,    "cmp_leq$optype $sw 
 
 defm : CmpOpVect<setle, CMP_LEQvvp, CMP_LEQvsp, CMP_LEQvip>;
 defm : CmpOpUVect<setule, CMP_LEQvvp, CMP_LEQvsp, CMP_LEQvip>;
+defm : FCmpOpVect<setole, CMP_LEQvvp, CMP_LEQvsp, CMP_LEQvip>;
 defm : FCmpOpVect<setle, CMP_LEQvvp, CMP_LEQvsp, CMP_LEQvip>;
 
 foreach type = [v256i8, v128i16, v64i32, v64f32, v128bf16, v128f16, v256f8_143, v256f8_152] in
@@ -6406,6 +6427,7 @@ def CMP_GRTvsm : VpuInstBinSw <0b001101, VPRF, VRF, SRF,    "cmp_grt$optype $sw 
 defm : CmpOpVect<setgt, CMP_GRTvvp, CMP_GRTvsp, CMP_GRTvip>;
 defm : CmpOpUVect<setugt, CMP_GRTvvp, CMP_GRTvsp, CMP_GRTvip>;
 defm : FCmpOpVect<setogt, CMP_GRTvvp, CMP_GRTvsp, CMP_GRTvip>;
+defm : FCmpOpVect<setgt, CMP_GRTvvp, CMP_GRTvsp, CMP_GRTvip>;
 
 foreach type = [v256i8, v128i16, v64i32, v64f32, v128bf16, v128f16, v256f8_143, v256f8_152] in
   foreach pred = [i1, v256i1] in {
@@ -6425,6 +6447,7 @@ def CMP_GEQvsm : VpuInstBinSw <0b001110, VPRF, VRF, SRF,    "cmp_geq$optype $sw 
 defm : CmpOpVect<setge, CMP_GEQvvp, CMP_GEQvsp, CMP_GEQvip>;
 defm : CmpOpUVect<setuge, CMP_GEQvvp, CMP_GEQvsp, CMP_GEQvip>;
 defm : FCmpOpVect<setoge, CMP_GEQvvp, CMP_GEQvsp, CMP_GEQvip>;
+defm : FCmpOpVect<setge, CMP_GEQvvp, CMP_GEQvsp, CMP_GEQvip>;
 
 foreach type = [v256i8, v128i16, v64i32, v64f32, v128bf16, v128f16, v256f8_143, v256f8_152] in
   foreach pred = [i1, v256i1] in {
@@ -6609,6 +6632,15 @@ def : Pat<(fminnum v64f32:$v0, v64f32:$v1),
  // llvm fmaxnum
 def : Pat<(fmaxnum v64f32:$v0, v64f32:$v1),
       (v64f32(MAXvvp $v0,  $v1, (i8 0), (i32 0),(IMPLICIT_DEF), SPRF_TRUE, (i1 0)))>;
+// The same for bf16 and f16 (fast-math turns a < b ? a : b into fminnum).
+def : Pat<(fminnum v128bf16:$v0, v128bf16:$v1),
+      (v128bf16 (MINvvp $v0, $v1, OpType.BF16, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0)))>;
+def : Pat<(fmaxnum v128bf16:$v0, v128bf16:$v1),
+      (v128bf16 (MAXvvp $v0, $v1, OpType.BF16, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0)))>;
+def : Pat<(fminnum v128f16:$v0, v128f16:$v1),
+      (v128f16 (MINvvp $v0, $v1, OpType.FP16, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0)))>;
+def : Pat<(fmaxnum v128f16:$v0, v128f16:$v1),
+      (v128f16 (MAXvvp $v0, $v1, OpType.FP16, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0)))>;
 
 
 //------ NEARBYINT -------------------------------------------------------------
@@ -7100,9 +7132,12 @@ foreach type = [v64f32, v128bf16, v128f16, v256f8_143, v256f8_152, v64i32, v128i
     def : Pat <(type (int_tpc_shuffle type:$src1, v256i8:$src2, (i8 imm:$optype), (i32 imm:$sw), type:$income, pred:$pred, (i1 imm:$polarity))),
                (type (ConstructInsn<"SHUFFLEvv", pred>.Insn VRF:$src1, VRF:$src2, (i8 imm:$optype), (i32 imm:$sw), VRF:$income, pred:$pred, (i1 imm:$polarity)))>;
     def : Pat <(type (int_tpc_shuffle type:$src1, (v256i8 (vsplati8 i8:$src2)),  (i8 imm:$optype), (i32 imm:$sw), type:$income, pred:$pred, (i1 imm:$polarity))),
-               (type (ConstructInsn<"SHUFFLEvs", pred>.Insn VRF:$src1, SRF:$src2, (i8 imm:$optype), (i32 imm:$sw), VRF:$income, pred:$pred, (i1 imm:$polarity)))>, Requires<[Gen4Plus]>;
+               (type (ConstructInsn<"SHUFFLEvs", pred>.Insn VRF:$src1,
+                        (i32 (MULsip (i32 (ANDsip SRF:$src2, (i32 0xFF), OpType.INT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))),
+                                     (i32 0x01010101), OpType.INT32, (i32 0), (IMPLICIT_DEF), SPRF_TRUE, (i1 0))),
+                        (i8 imm:$optype), (i32 imm:$sw), VRF:$income, pred:$pred, (i1 imm:$polarity)))>, Requires<[Gen4Plus]>;
     def : Pat <(type (int_tpc_shuffle type:$src1, (v256i8 (vsplati8 (i8 imm:$src2))), (i8 imm:$optype), (i32 imm:$sw), type:$income, pred:$pred, (i1 imm:$polarity))),
-               (type (ConstructInsn<"SHUFFLEvi", pred>.Insn VRF:$src1, (CastToImm32 $src2), (i8 imm:$optype), (i32 imm:$sw), VRF:$income, pred:$pred, (i1 imm:$polarity)))>, Requires<[Gen4Plus]>;
+               (type (ConstructInsn<"SHUFFLEvi", pred>.Insn VRF:$src1, (SplatI8ToImm32 $src2), (i8 imm:$optype), (i32 imm:$sw), VRF:$income, pred:$pred, (i1 imm:$polarity)))>, Requires<[Gen4Plus]>;
 }
 
 //------ GET_LUT_ENTRY_AND_INTERVAL_START --------------------------------------
@@ -7278,6 +7313,8 @@ multiclass StoreIntrinsics<SDPatternOperator IntrinA1, SDPatternOperator IntrinA
 
 //------ GEN_ADDR --------------------------------------------------------------
 
+// Rematerializable: see GEN_ADDR_ld.
+let isReMaterializable = 1 in
 def GEN_ADDR_st  : StoreInst_GEN_ADDR<0b000000, "gen_addr $sw $dest, $tensor, $coords, $pred", TensorSrc.DimMask>, MultiSlot <"GEN_ADDR">;
 def GEN_ADDR_stT : StoreInst_GEN_ADDR<0b000000, "gen_addr $sw $dest, $tensor, $coords, $pred", TensorSrc.Reg>, Requires<[TnsrInReg]>, MultiSlot<"GEN_ADDRT">;
 
@@ -7950,6 +7987,20 @@ def : Pat<(v256i8 (zext v256i1:$x)),
                           (MOVvim (i32 1), OpType.INT8, (i32 0), (IMPLICIT_DEF), v256i1:$x, (i1 0)),
                           v256i1:$x, (i1 1)))>;
 
+// A vector compare used as a value (int64 m = a <= b): -1 where it holds.
+def : Pat<(v64i32 (sext v64i1:$x)),
+          (v64i32 (MOVvim (i32 0), OpType.INT32, (i32 0),
+                          (MOVvim (i32 -1), OpType.INT32, (i32 0), (IMPLICIT_DEF), v64i1:$x, (i1 0)),
+                          v64i1:$x, (i1 1)))>;
+def : Pat<(v128i16 (sext v128i1:$x)),
+          (v128i16 (MOVvim (i32 0), OpType.INT16, (i32 0),
+                          (MOVvim (i32 -1), OpType.INT16, (i32 0), (IMPLICIT_DEF), v128i1:$x, (i1 0)),
+                          v128i1:$x, (i1 1)))>;
+def : Pat<(v256i8 (sext v256i1:$x)),
+          (v256i8 (MOVvim (i32 0), OpType.INT8, (i32 0),
+                          (MOVvim (i32 -1), OpType.INT8, (i32 0), (IMPLICIT_DEF), v256i1:$x, (i1 0)),
+                          v256i1:$x, (i1 1)))>;
+
 // Select instruction.
 foreach T = [v64f32, v128bf16, v128f16, v256f8_143, v256f8_152, v64i32, v128i16, v256i8] in {
   def : Pat<(vselect VectorPredicate<T>.Type:$p, T:$vtrue, T:$vfalse),
@@ -7981,7 +8032,8 @@ multiclass SelPatterns<SDPatternOperator Pred, ValueType TC, ValueType TD, bits<
 
 foreach TC = [v64f32, v128bf16, v128f16, v256f8_143, v256f8_152] in
   foreach TD = SelCompatibleTypes<TC>.Ts in
-    foreach Pred = [setoeq, setone, setolt, setole, setogt, setoge] in
+    foreach Pred = [setoeq, setone, setolt, setole, setogt, setoge,
+                    seteq, setne, setlt, setle, setgt, setge] in
       defm : SelPatterns<Pred, TC, TD, OpTypeForType<TC>.V>;
 
 foreach TC = [v64i32, v128i16, v256i8] in

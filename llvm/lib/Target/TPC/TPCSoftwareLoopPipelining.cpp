@@ -14,6 +14,7 @@
 #include "TPCInstrInfo.h"
 #include "TPCLoopData.h"
 #include "TPCMachineInstrTools.h"
+#include "TPCMachineFunctionInfo.h"
 #include "TPCMachineLoopDependencyAnalysis.h"
 #include "TPCMachineLoopLinearIV.h"
 #include "TPCSubtarget.h"
@@ -71,9 +72,14 @@ static cl::opt<unsigned> AutoUnrollCount(
              "pragma)"));
 
 static cl::opt<unsigned> AutoUnrollMinGain(
-    "tpc-machine-unroll-min-gain", cl::Hidden, cl::init(4),
+    "tpc-machine-unroll-min-gain", cl::Hidden, cl::init(3),
     cl::desc("Fewest cycles per iteration that unrolling without the pragma "
              "must save, by the latency estimate, to be done"));
+
+static cl::opt<bool> AutoUnrollIndexSpace(
+    "tpc-machine-unroll-index-space", cl::Hidden, cl::init(true),
+    cl::desc("Also unroll, without the pragma, a hardware loop over the "
+             "member's part of the index space"));
 
 static cl::opt<unsigned> AutoUnrollMaxSize(
     "tpc-machine-unroll-max-size", cl::Hidden, cl::init(160),
@@ -816,8 +822,41 @@ void TPCPipeliner::generateEpilogueLoop(const unsigned UnrollCount,
   //    // MinDistance == 100
   //    // Actual distance == 101
 
+  // The unrolled boundary depends only on Start and Bound. Compute it in the
+  // preheader of the outermost loop around the source loop that both are
+  // defined outside of, so that it is not computed again each time the
+  // source loop is entered.
+  MachineBasicBlock *BoundBB = Prolog;
+  MachineBasicBlock::iterator BoundAt = --Prolog->end();
+  auto DefinedOutside = [&](const MachineOperand &MO, const MachineLoop *L) {
+    if (MO.isImm())
+      return true;
+    if (!MO.isReg() || !MO.getReg().isVirtual())
+      return false;
+    const MachineInstr *Def = MRI->getVRegDef(MO.getReg());
+    return Def && !L->contains(Def->getParent());
+  };
+  // The block before a hardware loop also branches to its exit (the LOOP
+  // skips a loop that runs 0 times), so it is no preheader in
+  // MachineLoop's sense: take the loop's one predecessor outside it, as for
+  // Prolog.
+  for (MachineLoop *L = MLI->getLoopFor(Prolog); L; L = L->getParentLoop()) {
+    MachineBasicBlock *PH = L->getLoopPredecessor();
+    if (!PH || !DefinedOutside(StartOp(), L) || !DefinedOutside(BoundOp(), L))
+      break;
+    // Before the LOOP that ends the preheader, as in Prolog.
+    MachineBasicBlock::iterator At = PH->getFirstTerminator();
+    for (MachineInstr &MI : *PH)
+      if (isLoop(MI)) {
+        At = MI.getIterator();
+        break;
+      }
+    BoundBB = PH;
+    BoundAt = At;
+  }
+
   const MachineOperand MinDistanceOp =
-      evalSubI32(*Prolog, --Prolog->end(), BoundOp(), StartOp(), *MRI, *TII);
+      evalSubI32(*BoundBB, BoundAt, BoundOp(), StartOp(), *MRI, *TII);
 
   assert(isIntN(32, StepOp().getImm() * UnrollCount));  // Precondition.
   const std::int32_t UnrolledStep = std::abs(StepOp().getImm() * UnrollCount);
@@ -833,21 +872,21 @@ void TPCPipeliner::generateEpilogueLoop(const unsigned UnrollCount,
   if (StepOp().getImm() > 0 && CmpOp().getImm() == TPCII::LoopLT &&
       isPowerOf2_32(UnrolledStep)) {
     UnrolledDistanceVal =
-        evalAndI32(*Prolog, --Prolog->end(), MinDistanceOp,
+        evalAndI32(*BoundBB, BoundAt, MinDistanceOp,
                    MachineOperand::CreateImm(-UnrolledStep), *MRI, *TII);
   } else {
     const MachineOperand MinRestDistanceOp =
         StepOp().getImm() > 0 && HasLoopTakenGuarantee
-            ? evalRemPosToPosI32(*Prolog, --Prolog->end(), MinDistanceOp,
+            ? evalRemPosToPosI32(*BoundBB, BoundAt, MinDistanceOp,
                                  UnrolledStep, *MRI, *TII)
-            : evalRemPosI32(*Prolog, --Prolog->end(), MinDistanceOp,
+            : evalRemPosI32(*BoundBB, BoundAt, MinDistanceOp,
                             UnrolledStep, *MRI, *TII);
-    UnrolledDistanceVal = evalSubI32(*Prolog, --Prolog->end(), MinDistanceOp,
+    UnrolledDistanceVal = evalSubI32(*BoundBB, BoundAt, MinDistanceOp,
                                      MinRestDistanceOp, *MRI, *TII);
   }
 
   const MachineOperand UnrolledBoundaryVal = evalAddI32(
-      *Prolog, --Prolog->end(), StartOp(), UnrolledDistanceVal, *MRI, *TII);
+      *BoundBB, BoundAt, StartOp(), UnrolledDistanceVal, *MRI, *TII);
 
   bool isDoron1Plus = CurrMF->getSubtarget<TPCSubtarget>().hasDoron1();
 
@@ -1246,7 +1285,8 @@ bool TPCPipeliner::pipeline(MachineLoop* L) {
   const bool Auto =
       UserUnrollCount == 0 && AutoUnrollCount >= 2 &&
       !(LoopMD &&
-        findOptionMDForLoopMD(*LoopMD, "llvm.loop.unroll.disable"));
+        findOptionMDForLoopMD(*LoopMD, "llvm.loop.unroll.disable")) &&
+      !CurrMF->getInfo<TPCMachineFunctionInfo>()->isPipelineRemainder(Header);
 
   if (UserUnrollCount < 2 && !Auto)
     return false;
@@ -1422,23 +1462,27 @@ bool TPCPipeliner::pipeline(MachineLoop* L) {
 /// about invariants + count * (most values of one iteration live at once)
 /// are live, which must stay within 3/4 of the allocatable registers.
 ///
-/// Unrolling costs about 14 cycles each time the loop is entered (the
-/// unrolled bound, the epilogue LOOP), so it is for loops that run many
-/// times. A loop over the member's part of the index space (its start or
-/// bound comes from get_index_space_offset or _size) usually runs a few
-/// times, once per index-space point the member got, and is left as it is. A
-/// loop over a tensor dimension or up to a scalar argument is unrolled when
-/// that saves at least -tpc-machine-unroll-min-gain cycles per iteration: an
-/// iteration takes about the longest chain of latencies through the body, as
-/// iterations do not overlap, and Count copies take about
-/// max(chain + Count - 1, Count * busiest slot), as theirs do. A smaller
-/// count is taken when it saves about as much.
+/// Unrolling costs about 12 cycles each time the loop is entered (the
+/// copies' index registers, the epilogue LOOP; the unrolled bound is computed
+/// outside the loops around it where it can be), so it is for loops that run
+/// more than a few times. That includes a loop over the member's part of the
+/// index space (its start or bound comes from get_index_space_offset or
+/// _size): the runtime splits the index space among the TPCs, so each part
+/// is long unless the index space is small (-tpc-machine-unroll-index-space
+/// leaves such loops alone). A loop is unrolled when that saves at least
+/// -tpc-machine-unroll-min-gain cycles per iteration: an iteration takes
+/// about the longest chain of latencies through the body, as iterations do
+/// not overlap, and Count copies take about
+/// max(chain + Count - 1, Count * busiest slot), as theirs do. The estimate
+/// understates what more copies save, so the largest count that fits is
+/// taken.
 unsigned TPCPipeliner::autoUnrollCount(const MLDAReport &Deps) const {
   if (LoopInst->getOperand(3).getImm() != TPCII::LoopLT ||
       LoopInst->getOperand(2).getImm() <= 0)
     return 0;
-  if (dependsOnIndexSpace(LoopInst->getOperand(0)) ||
-      dependsOnIndexSpace(LoopInst->getOperand(1))) {
+  if (!AutoUnrollIndexSpace &&
+      (dependsOnIndexSpace(LoopInst->getOperand(0)) ||
+       dependsOnIndexSpace(LoopInst->getOperand(1)))) {
     LLVM_DEBUG(dbgs() << "Auto unroll: loop over the index space\n");
     return 0;
   }
@@ -1450,6 +1494,14 @@ unsigned TPCPipeliner::autoUnrollCount(const MLDAReport &Deps) const {
     return 0;
   }
 
+  const AutoUnrollEstimate E = estimateAutoUnroll(*Header, *MRI, *TII, *TRI);
+  return E.Worthwhile ? E.Count : 0;
+}
+
+AutoUnrollEstimate llvm::estimateAutoUnroll(const MachineBasicBlock &Body,
+                                             const MachineRegisterInfo &MRI,
+                                             const TPCInstrInfo &TII,
+                                             const TargetRegisterInfo &TRI) {
   // Register files: vector (VRF, DRF, ARF), scalar (SRF, ZRF), index, and the
   // two predicate files.
   enum { Vec, Scalar, Index, VPred, SPred, NumFiles };
@@ -1476,12 +1528,12 @@ unsigned TPCPipeliner::autoUnrollCount(const MLDAReport &Deps) const {
   for (unsigned F = 0; F < NumFiles; ++F) {
     unsigned N = 0;
     for (MCPhysReg R : *FileRC[F])
-      if (!MRI->isReserved(R))
+      if (!MRI.isReserved(R))
         ++N;
     Limit[F] = N * 3 / 4;
   }
   auto Weight = [&](Register R) {
-    return TRI->getRegClassWeight(MRI->getRegClass(R)).RegWeight;
+    return TRI.getRegClassWeight(MRI.getRegClass(R)).RegWeight;
   };
 
   // Values of one iteration live at once, walking the body backwards from
@@ -1489,20 +1541,20 @@ unsigned TPCPipeliner::autoUnrollCount(const MLDAReport &Deps) const {
   unsigned Live[NumFiles] = {}, MaxLive[NumFiles] = {}, Invariant[NumFiles] = {};
   SmallSet<Register, 32> LiveSet, Invariants;
   auto Add = [&](Register R) {
-    const int F = FileOf(MRI->getRegClass(R));
+    const int F = FileOf(MRI.getRegClass(R));
     if (F >= 0 && LiveSet.insert(R).second)
       Live[F] += Weight(R);
   };
   unsigned Size = 0;
-  for (const MachineInstr &MI : *Header) {
+  for (const MachineInstr &MI : Body) {
     if (MI.isPHI() || MI.isDebugInstr() || MI.isTerminator())
       continue;
     ++Size;
     for (const MachineOperand &MO : MI.defs()) {
       if (!MO.isReg() || !MO.getReg().isVirtual())
         continue;
-      for (const MachineInstr &U : MRI->use_nodbg_instructions(MO.getReg()))
-        if (U.getParent() != Header || U.isPHI()) {
+      for (const MachineInstr &U : MRI.use_nodbg_instructions(MO.getReg()))
+        if (U.getParent() != &Body || U.isPHI()) {
           Add(MO.getReg());
           break;
         }
@@ -1510,15 +1562,19 @@ unsigned TPCPipeliner::autoUnrollCount(const MLDAReport &Deps) const {
     for (const MachineOperand &MO : MI.uses()) {
       if (!MO.isReg() || !MO.getReg().isVirtual() || MO.isUndef())
         continue;
-      const MachineInstr *Def = MRI->getVRegDef(MO.getReg());
-      if (Def && Def->getParent() != Header) {
-        const int F = FileOf(MRI->getRegClass(MO.getReg()));
+      const MachineInstr *Def = MRI.getVRegDef(MO.getReg());
+      // A constant made outside the loop (tpclib functions use many) need
+      // not stay in a register: the allocator makes it again where it is
+      // used when registers run short.
+      if (Def && Def->getParent() != &Body &&
+          !TII.isTriviallyReMaterializable(*Def)) {
+        const int F = FileOf(MRI.getRegClass(MO.getReg()));
         if (F >= 0 && Invariants.insert(MO.getReg()).second)
           Invariant[F] += Weight(MO.getReg());
       }
     }
   }
-  for (const MachineInstr &MI : reverse(*Header)) {
+  for (const MachineInstr &MI : reverse(Body)) {
     if (MI.isDebugInstr() || MI.isTerminator())
       continue;
     for (unsigned F = 0; F < NumFiles; ++F)
@@ -1527,15 +1583,15 @@ unsigned TPCPipeliner::autoUnrollCount(const MLDAReport &Deps) const {
       continue;
     for (const MachineOperand &MO : MI.defs())
       if (MO.isReg() && MO.getReg().isVirtual() && LiveSet.erase(MO.getReg())) {
-        const int F = FileOf(MRI->getRegClass(MO.getReg()));
+        const int F = FileOf(MRI.getRegClass(MO.getReg()));
         if (F >= 0)
           Live[F] -= Weight(MO.getReg());
       }
     for (const MachineOperand &MO : MI.uses()) {
       if (!MO.isReg() || !MO.getReg().isVirtual() || MO.isUndef())
         continue;
-      const MachineInstr *Def = MRI->getVRegDef(MO.getReg());
-      if (Def && Def->getParent() == Header)
+      const MachineInstr *Def = MRI.getVRegDef(MO.getReg());
+      if (Def && Def->getParent() == &Body)
         Add(MO.getReg());
     }
   }
@@ -1543,7 +1599,7 @@ unsigned TPCPipeliner::autoUnrollCount(const MLDAReport &Deps) const {
   // The latency chain of one iteration and the instructions per slot.
   DenseMap<const MachineInstr *, unsigned> Issue;
   unsigned Chain = 0, Slots[4] = {}; // load, scalar, vector, store
-  for (const MachineInstr &MI : *Header) {
+  for (const MachineInstr &MI : Body) {
     if (MI.isPHI() || MI.isDebugInstr() || MI.isTerminator() ||
         MI.isImplicitDef())
       continue;
@@ -1553,16 +1609,16 @@ unsigned TPCPipeliner::autoUnrollCount(const MLDAReport &Deps) const {
       const MachineOperand &MO = MI.getOperand(I);
       if (!MO.isReg() || !MO.isUse() || MO.isUndef() || !MO.getReg().isVirtual())
         continue;
-      const MachineInstr *Def = MRI->getVRegDef(MO.getReg());
+      const MachineInstr *Def = MRI.getVRegDef(MO.getReg());
       auto It = Def ? Issue.find(Def) : Issue.end();
       if (It == Issue.end())
         continue; // A phi, or defined outside the loop.
       // Pseudo instructions (copies, REG_SEQUENCE) pass their inputs on.
       unsigned Lat = 0;
       if (Real && !Def->isPseudo()) {
-        const int DefIdx = Def->findRegisterDefOperandIdx(MO.getReg(), TRI);
+        const int DefIdx = Def->findRegisterDefOperandIdx(MO.getReg(), &TRI);
         Lat = DefIdx < 0 ? 4
-                         : TII->getOperandLatency(nullptr, *Def, DefIdx, MI, I)
+                         : TII.getOperandLatency(nullptr, *Def, DefIdx, MI, I)
                                .value_or(4);
       } else if (Real) {
         Lat = 4;
@@ -1599,18 +1655,20 @@ unsigned TPCPipeliner::autoUnrollCount(const MLDAReport &Deps) const {
     if (Fits)
       break;
   }
-  // Prefer the smaller count when it saves nearly as much.
-  while (Count > 2 && Saving(Count / 2) + 1 >= Saving(Count))
-    Count /= 2;
   LLVM_DEBUG(dbgs() << "Auto unroll: size " << Size << ", vector live "
                     << MaxLive[Vec] << " + " << Invariant[Vec] << " of "
                     << Limit[Vec] << ", chain " << Chain << ", slots "
                     << Slots[0] << "/" << Slots[1] << "/" << Slots[2] << "/"
                     << Slots[3] << ", count " << Count << " saves "
                     << (Count >= 2 ? Saving(Count) : 0) << "\n");
-  if (Count < 2 || Saving(Count) < AutoUnrollMinGain)
-    return 0;
-  return Count;
+  AutoUnrollEstimate E;
+  E.Before = Before;
+  if (Count >= 2) {
+    E.Count = Count;
+    E.After = Before - Saving(Count);
+    E.Worthwhile = Saving(Count) >= AutoUnrollMinGain;
+  }
+  return E;
 }
 
 /// Whether a LOOP operand is computed from the member's index space: from I0
@@ -2908,93 +2966,100 @@ void TPCPipeliner::sortDelayedPhis() {
   std::reverse(DelayedPhis.begin(), DelayedPhis.end());
 }
 
-bool TPCPipeliner::checkForProhibitingInstructions() {
-  for (MachineBasicBlock* MBB : CurLoop->getBlocks()) {
-    for (const MachineInstr& MI : MBB->instrs()) {
-      if (MI.getOpcode() == TPC::ASO) {
-        LLVM_DEBUG(dbgs() << "ASO detected: " << MI);
-        return true;
-      }
-      if (MI.getOpcode() == TPC::CACHE_FLUSH) {
-        LLVM_DEBUG(dbgs() << "CACHE_FLUSH detected: " << MI);
-        return true;
-      }
-      if (MI.getOpcode() == TPC::CACHE_INVALIDATE) {
-        LLVM_DEBUG(dbgs() << "CACHE_INVALIDATE detected: " << MI);
-        return true;
-      }
-      if (TPCInstrInfo::isMMIOAccess(MI)) {
-        LLVM_DEBUG(dbgs() << "MMIOAccess detected: " << MI);
-        return true;
-      }
-      // The copies of each instruction are placed together, so the copies
-      // of a carry read would all follow the last copy of the add before it.
-      if (readsCarry(MI)) {
-        LLVM_DEBUG(dbgs() << "Carry read detected: " << MI);
-        return true;
-      }
+const MachineInstr *
+llvm::findInstrUnsafeToReorder(const MachineBasicBlock &MBB,
+                               const MachineRegisterInfo &MRI) {
+  for (const MachineInstr& MI : MBB.instrs()) {
+    if (MI.getOpcode() == TPC::ASO) {
+      LLVM_DEBUG(dbgs() << "ASO detected: " << MI);
+      return &MI;
+    }
+    if (MI.getOpcode() == TPC::CACHE_FLUSH) {
+      LLVM_DEBUG(dbgs() << "CACHE_FLUSH detected: " << MI);
+      return &MI;
+    }
+    if (MI.getOpcode() == TPC::CACHE_INVALIDATE) {
+      LLVM_DEBUG(dbgs() << "CACHE_INVALIDATE detected: " << MI);
+      return &MI;
+    }
+    if (TPCInstrInfo::isMMIOAccess(MI)) {
+      LLVM_DEBUG(dbgs() << "MMIOAccess detected: " << MI);
+      return &MI;
+    }
+    // The copies of each instruction are placed together, so the copies
+    // of a carry read would all follow the last copy of the add before it.
+    if (readsCarry(MI)) {
+      LLVM_DEBUG(dbgs() << "Carry read detected: " << MI);
+      return &MI;
+    }
 
-      // Prohibit hardware registries usage which are single in their registry
-      // class to avoid their spilling.
-      for (const MachineOperand& MO: MI.defs()) {
-        assert(MO.isReg() && "Def can't be a constant");
-        if (MO.getReg().isPhysical()) continue;
-        const TargetRegisterClass *RC = MRI->getRegClass(MO.getReg());
-        if (TPC::HWRMWRegRegClass.hasSubClassEq(RC)) {
-          LLVM_DEBUG(dbgs() << "RMW-like definition: " << MI);
-          return true;
-        }
-        if (TPC::HWDivStepRegClass.hasSubClassEq(RC)) {
-          LLVM_DEBUG(dbgs() << "DivStep-like definition: " << MI);
-          return true;
-        }
-        if (TPC::HWSCarryRegClass.hasSubClassEq(RC)) {
-          LLVM_DEBUG(dbgs() << "SCarry-like definition: " << MI);
-          return true;
-        }
-        if (TPC::HWVCarryRegClass.hasSubClassEq(RC)) {
-          LLVM_DEBUG(dbgs() << "VCarry-like definition: " << MI);
-          return true;
-        }
-        if (TPC::HWZPRegRegClass.hasSubClassEq(RC)) {
-          LLVM_DEBUG(dbgs() << "ZP-like definition: " << MI);
-          return true;
-        }
-        if (TPC::HWTnsrRegLdRegClass.hasSubClassEq(RC)) {
-          LLVM_DEBUG(dbgs() << "Tensor load like definition: " << MI);
-          return true;
-        }
-        if (TPC::HWTnsrRegStRegClass.hasSubClassEq(RC)) {
-          LLVM_DEBUG(dbgs() << "Tensor store like definition: " << MI);
-          return true;
-        }
-        if (TPC::HWOffsSizeRegLdRegClass.hasSubClassEq(RC)) {
-          LLVM_DEBUG(dbgs() << "OffsSize load like definition: " << MI);
-          return true;
-        }
-        if (TPC::HWOffsSizeRegStRegClass.hasSubClassEq(RC)) {
-          LLVM_DEBUG(dbgs() << "OffsSize store like definition: " << MI);
-          return true;
-        }
-        if (TPC::HWPCRegClass.hasSubClassEq(RC)) {
-          LLVM_DEBUG(dbgs() << "PC-like definition: " << MI);
-          return true;
-        }
-        if (TPC::HVRFRegClass.hasSubClassEq(RC)) {
-          LLVM_DEBUG(dbgs() << "HVRF-like definition: " << MI);
-          return true;
-        }
-        if (TPC::HVPRFRegClass.hasSubClassEq(RC)) {
-          LLVM_DEBUG(dbgs() << "HVPRF-like definition: " << MI);
-          return true;
-        }
-        if (TPC::HSPRFRegClass.hasSubClassEq(RC)) {
-          LLVM_DEBUG(dbgs() << "HSPRF-like definition: " << MI);
-          return true;
-        }
+    // Prohibit hardware registries usage which are single in their registry
+    // class to avoid their spilling.
+    for (const MachineOperand& MO: MI.defs()) {
+      assert(MO.isReg() && "Def can't be a constant");
+      if (MO.getReg().isPhysical()) continue;
+      const TargetRegisterClass *RC = MRI.getRegClass(MO.getReg());
+      if (TPC::HWRMWRegRegClass.hasSubClassEq(RC)) {
+        LLVM_DEBUG(dbgs() << "RMW-like definition: " << MI);
+        return &MI;
+      }
+      if (TPC::HWDivStepRegClass.hasSubClassEq(RC)) {
+        LLVM_DEBUG(dbgs() << "DivStep-like definition: " << MI);
+        return &MI;
+      }
+      if (TPC::HWSCarryRegClass.hasSubClassEq(RC)) {
+        LLVM_DEBUG(dbgs() << "SCarry-like definition: " << MI);
+        return &MI;
+      }
+      if (TPC::HWVCarryRegClass.hasSubClassEq(RC)) {
+        LLVM_DEBUG(dbgs() << "VCarry-like definition: " << MI);
+        return &MI;
+      }
+      if (TPC::HWZPRegRegClass.hasSubClassEq(RC)) {
+        LLVM_DEBUG(dbgs() << "ZP-like definition: " << MI);
+        return &MI;
+      }
+      if (TPC::HWTnsrRegLdRegClass.hasSubClassEq(RC)) {
+        LLVM_DEBUG(dbgs() << "Tensor load like definition: " << MI);
+        return &MI;
+      }
+      if (TPC::HWTnsrRegStRegClass.hasSubClassEq(RC)) {
+        LLVM_DEBUG(dbgs() << "Tensor store like definition: " << MI);
+        return &MI;
+      }
+      if (TPC::HWOffsSizeRegLdRegClass.hasSubClassEq(RC)) {
+        LLVM_DEBUG(dbgs() << "OffsSize load like definition: " << MI);
+        return &MI;
+      }
+      if (TPC::HWOffsSizeRegStRegClass.hasSubClassEq(RC)) {
+        LLVM_DEBUG(dbgs() << "OffsSize store like definition: " << MI);
+        return &MI;
+      }
+      if (TPC::HWPCRegClass.hasSubClassEq(RC)) {
+        LLVM_DEBUG(dbgs() << "PC-like definition: " << MI);
+        return &MI;
+      }
+      if (TPC::HVRFRegClass.hasSubClassEq(RC)) {
+        LLVM_DEBUG(dbgs() << "HVRF-like definition: " << MI);
+        return &MI;
+      }
+      if (TPC::HVPRFRegClass.hasSubClassEq(RC)) {
+        LLVM_DEBUG(dbgs() << "HVPRF-like definition: " << MI);
+        return &MI;
+      }
+      if (TPC::HSPRFRegClass.hasSubClassEq(RC)) {
+        LLVM_DEBUG(dbgs() << "HSPRF-like definition: " << MI);
+        return &MI;
       }
     }
   }
+  return nullptr;
+}
+
+bool TPCPipeliner::checkForProhibitingInstructions() {
+  for (MachineBasicBlock *MBB : CurLoop->getBlocks())
+    if (findInstrUnsafeToReorder(*MBB, *MRI))
+      return true;
   return false;
 }
 

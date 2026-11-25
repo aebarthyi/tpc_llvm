@@ -1,6 +1,7 @@
 // RUN: %codegen -S -triple tpc-none-none -std=rc99 -O2 -target-cpu gaudi2 -DPIPELINED %s -o - 2>&1 | FileCheck --check-prefix=PIPE %s
 // RUN: %codegen -S -triple tpc-none-none -std=rc99 -O2 -target-cpu gaudi2 -DACC %s -o - 2>&1 | FileCheck --check-prefix=ACC %s
 // RUN: %codegen -S -triple tpc-none-none -std=rc99 -O2 -target-cpu gaudi2 -DFLOAT_IV %s -o - 2>&1 | FileCheck --check-prefix=FIV %s
+// RUN: %codegen -S -triple tpc-none-none -std=rc99 -O2 -target-cpu gaudi2 -DFLOAT_IV_ROWS %s -o - 2>&1 | FileCheck --check-prefix=FIVR %s
 // RUN: %codegen -S -triple tpc-none-none -std=rc99 -O2 -target-cpu gaudi2 -DPRED %s -o - 2>&1 | FileCheck --check-prefix=PRED %s
 
 // The backend machine unroll (TPCSoftwareLoopPipelining), as Habana's compiler
@@ -9,14 +10,22 @@
 //   values defined in the loop on the path that skips it (LiveVariables
 //   asserted on any tensor loop with a runtime trip count).
 // - A loop whose carried values include one that is not a linear induction
-//   variable (here an accumulator) is not unrolled. Each unrolled copy got its
-//   own accumulator and the result was wrong.
+//   variable (here an accumulator) is not the backend unroller's: each copy
+//   got its own accumulator and the result was wrong. Habana's compiler
+//   refuses it with a warning. TPCPragmaChainUnroll gives it to LLVM's
+//   unroller instead, which unrolls it by the pragma's count in order, with a
+//   remainder loop (a kernel loop stepping by 4, then one by 1).
 // - An f32 induction variable is unrolled with its step multiplied in f32:
 //   copies start at k + 0.1f, k + 0.2f, k + 0.3f and step by 0.4f. The bits of
 //   0.1f were multiplied by 4 as an integer before.
+// - A loop with the pragma is left to the backend unroller. The IR unroller
+//   unrolled one that carries a value (an f32 induction variable is one there)
+//   when it knew the trip count (-DFLOAT_IV_ROWS), each copy adding 0.1f to
+//   the previous one, and the backend then warned that the pragma was not
+//   applied.
 // - A predicated add ('count += 1' in the lanes where a compare holds) is not
 //   a linear induction variable either. It was taken for one, and each copy
-//   counted every fourth iteration.
+//   counted every fourth iteration. It is unrolled in order as well.
 
 void main(tensor y, tensor out, int hidden) {
   int5 c = 0;
@@ -43,6 +52,14 @@ void main(tensor y, tensor out, int hidden) {
     v_f32_st_tnsr(c, out, v_f32_ld_tnsr_b(c, y) * k);
     k = k + 0.1f;
   }
+#elif defined(FLOAT_IV_ROWS)
+  float64 k = 1.0f;
+  #pragma clang loop machine_unroll_count(4)
+  for (int r = 0; r < hidden; r++) {
+    c[1] = r;
+    v_f32_st_tnsr(c, out, v_f32_ld_tnsr_b(c, y) * k);
+    k = k + 0.1f;
+  }
 #elif defined(PRED)
   int64 count = 0;
   #pragma clang loop machine_unroll_count(4)
@@ -62,11 +79,10 @@ void main(tensor y, tensor out, int hidden) {
 // PIPE-COUNT-4: st_tnsr
 // PIPE:      halt
 
-// ACC:      warning: machine_unroll(4) is not applied to the loop
-// ACC-NEXT: Loop contains unsupported induction variables
-// ACC:      loop 0, %S0, 128, <,
-// ACC:      add.f32 [[ACC:%V[0-9]+]], [[ACC]], %V{{[0-9]+}}
-// ACC-NOT:  add.f32
+// ACC-NOT:  warning
+// ACC:      loop %S{{[0-9]+}}, 0, -4, >,
+// ACC:      loop %S{{[0-9]+}}, 0, -1, >,
+// ACC:      add.f32
 // ACC:      halt
 
 // FIV-NOT:  warning
@@ -78,9 +94,17 @@ void main(tensor y, tensor out, int hidden) {
 // FIV-COUNT-4: add.f32 %V{{[0-9]+}}, %V{{[0-9]+}}, 0x3ecccccd
 // FIV:      halt
 
-// PRED:      warning: machine_unroll(4) is not applied to the loop
-// PRED-NEXT: Loop contains unsupported induction variables
-// PRED:      loop 0, %S0, 64, <,
+// FIVR-NOT:  warning
+// FIVR:      mov.f32 [[K:%V[0-9]+]], 0x3f800000
+// FIVR-DAG:  add.f32 %V{{[0-9]+}}, [[K]], 0x3dcccccd
+// FIVR-DAG:  add.f32 %V{{[0-9]+}}, [[K]], 0x3e4ccccd
+// FIVR-DAG:  add.f32 %V{{[0-9]+}}, [[K]], 0x3e99999a
+// FIVR:      loop 0, %S0, 4, <,
+// FIVR-COUNT-4: add.f32 %V{{[0-9]+}}, %V{{[0-9]+}}, 0x3ecccccd
+// FIVR:      halt
+
+// PRED-NOT:  warning
+// PRED:      loop %S{{[0-9]+}}, 0, -4, >,
+// PRED:      loop %S{{[0-9]+}}, 0, -1, >,
 // PRED:      add.i32 {{.*}}, %VP{{[0-9]+}}
-// PRED-NOT:  add.i32 {{.*}}, %VP
 // PRED:      halt

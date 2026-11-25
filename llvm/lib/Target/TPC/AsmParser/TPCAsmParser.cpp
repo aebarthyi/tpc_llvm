@@ -1093,7 +1093,9 @@ private:
     const AsmToken &Tok = Parser.getTok();
     StringRef groupDesc = Tok.getString();
 
-    if (maxValues.count(groupDesc.lower()) > 0) {
+    std::string Key = groupDesc.lower();
+    auto MaxValue = maxValues.find(Key);
+    if (MaxValue != maxValues.end()) {
       Parser.Lex(); // Eat identifier token.
       if (Tok.getString() != "=") {
         Error(S, incorrectGroupDesc);
@@ -1108,7 +1110,7 @@ private:
 
       int64_t val = Tok.getIntVal();
       Parser.Lex(); // Eat value.
-      if (val > maxValues[groupDesc.lower()]) {
+      if (val > MaxValue->second) {
         Error(S, incorrectGroupDesc);
         return ParseStatus::Failure;
       }
@@ -2361,17 +2363,21 @@ bool TPCAsmParser::parseInstruction(ParseInstructionInfo &Info,
     }
   }
 
+  // An instruction parsed in a slot it does not exist in (an unbundled ADD
+  // goes to the load slot) has neither operand; matching reports it.
   auto IsX2Switch = [&Operands]() -> bool {
+    if (Operands.size() <= 2)
+      return false;
     const TPCOperand &SwitchOp =
       static_cast<const TPCOperand &>(*Operands[2]);
-    assert(SwitchOp.isSwitchSet() && "Must be SwitchSet");
     return SwitchOp.isSwitchSet() &&
       (SwitchOp.getSwitchSet() & TPCII::SW_X2_ARITHMETIC);
   };
   auto IsFP32Type = [&Operands]() -> bool {
+    if (Operands.size() <= 1)
+      return false;
     const TPCOperand &DataTypeOp =
       static_cast<const TPCOperand &>(*Operands[1]);
-    assert(DataTypeOp.isDataType() && "Must be DataType");
     return DataTypeOp.isDataType() &&
       (DataTypeOp.getDataType() == TPCII::OpType::FP32);
   };
@@ -3355,7 +3361,7 @@ bool TPCAsmParser::parseTPCMetadataArrayField(
 
       if (Tok.getKind() == AsmToken::Integer) {
         uint64_t TempIndex = Tok.getAPIntVal().getLimitedValue();
-        if (TempIndex > FieldInfo.length) {
+        if (TempIndex >= FieldInfo.length) {
           Error(Tok.getLoc(),
                 "Tensor index out of range, expected from 0 to 15.",
                 Tok.getLocRange());

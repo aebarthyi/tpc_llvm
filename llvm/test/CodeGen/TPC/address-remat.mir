@@ -1,0 +1,60 @@
+# RUN: llc -mtriple=tpc -mcpu=gaudi2 -run-pass=tpc-address-remat -verify-machineinstrs -tpc-live-addresses=2 %s -o - | FileCheck %s
+# RUN: llc -mtriple=tpc -mcpu=gaudi2 -run-pass=tpc-address-remat -verify-machineinstrs %s -o - | FileCheck %s --check-prefix=ALL8
+
+# Three addresses computed before a loop and used in it, with room for two
+# (-tpc-live-addresses=2; gaudi2 has 8 address registers, which no spill can
+# save: they also hold the tensor). Their incomes take no register: an
+# IMPLICIT_DEF and a copy of one. All three have their next use in the loop,
+# and the first is computed again in the loop, right before its use; there it
+# is live with the other two, so of those the one used last is too. The
+# second stays before the loop.
+
+---
+name:            main
+tracksRegLiveness: true
+body:             |
+  bb.0:
+    successors: %bb.1
+    liveins: $i2
+    %0:irf = COPY $i2
+    %10:adrf = IMPLICIT_DEF
+    %1:adrf = GEN_ADDR_st 0, %0, 0, %10, $sprf_true, 0
+    %11:adrf = COPY %10
+    %2:adrf = GEN_ADDR_st 1, %0, 0, %11, $sprf_true, 0
+    %12:adrf = IMPLICIT_DEF
+    %3:adrf = GEN_ADDR_st 2, %0, 0, %12, $sprf_true, 0
+    %20:srf = IMPLICIT_DEF
+    %30:sprf = IMPLICIT_DEF
+    JMPR_u %bb.1
+
+  bb.1:
+    successors: %bb.1, %bb.2
+    %4:srf = LD_Gg4sap %1, 0, %20, $sprf_true, 0
+    %5:srf = LD_Gg4sap %2, 0, %20, $sprf_true, 0
+    %6:srf = LD_Gg4sap %3, 0, %20, $sprf_true, 0
+    JMPR %bb.1, %30, 0
+    JMPR_u %bb.2
+
+  bb.2:
+    HALTs
+...
+
+# CHECK-LABEL: bb.0:
+# CHECK-NOT:   GEN_ADDR_st 0,
+# CHECK:       %[[A1:[0-9]+]]:adrf = GEN_ADDR_st 1, %0, 0
+# CHECK-NOT:   GEN_ADDR_st
+# CHECK-LABEL: bb.1:
+# CHECK:       %[[I0:[0-9]+]]:adrf = IMPLICIT_DEF
+# CHECK-NEXT:  %[[A0:[0-9]+]]:adrf = GEN_ADDR_st 0, %0, 0, %[[I0]], $sprf_true, 0
+# CHECK-NEXT:  LD_Gg4sap %[[A0]], 0
+# CHECK-NEXT:  LD_Gg4sap %[[A1]], 0
+# CHECK-NEXT:  %[[I2:[0-9]+]]:adrf = IMPLICIT_DEF
+# CHECK-NEXT:  %[[A2:[0-9]+]]:adrf = GEN_ADDR_st 2, %0, 0, %[[I2]], $sprf_true, 0
+# CHECK-NEXT:  LD_Gg4sap %[[A2]], 0
+
+# ALL8-LABEL: bb.0:
+# ALL8:       GEN_ADDR_st 0,
+# ALL8:       GEN_ADDR_st 1,
+# ALL8:       GEN_ADDR_st 2,
+# ALL8-LABEL: bb.1:
+# ALL8-NOT:   GEN_ADDR_st
