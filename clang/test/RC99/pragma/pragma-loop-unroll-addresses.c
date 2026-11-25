@@ -1,13 +1,17 @@
 // RUN: %tpc_clang -march=gaudi2 -O2 -S %s -o - 2>&1 | FileCheck %s
-// RUN: not %tpc_clang -march=gaudi2 -O2 -S -mllvm -tpc-pragma-chain-unroll-addresses=0 %s -o /dev/null 2>&1 | FileCheck %s --check-prefix=ERR
+// RUN: %tpc_clang -march=gaudi2 -O2 -S -mllvm -tpc-pragma-chain-unroll-addresses=0 %s -o - 2>&1 | FileCheck %s --check-prefix=REMAT
+// RUN: not %tpc_clang -march=gaudi2 -O2 -S -mllvm -tpc-pragma-chain-unroll-addresses=0 -mllvm -tpc-live-addresses=16 %s -o /dev/null 2>&1 | FileCheck %s --check-prefix=ERR
 
 // Unrolled by 6 in order, each copy computing 2 global addresses that LICM
 // keeps live across the block loop, the loop needs 12 address registers of
 // the 8. An address register cannot be spilled: it also holds its tensor, so
 // a load through one reloaded from a scalar pair fails (gaudi2 simulator:
 // "Wrong tensorDescriptorElementSizeType"; 1cat's w2_reduce_n256 and three
-// others). The unroll count is lowered to 4 (8 addresses), and a spill of an
-// address register is an error rather than code that fails.
+// others). The unroll count is lowered to 4 (8 addresses). Unrolled by 6
+// (-tpc-pragma-chain-unroll-addresses=0), 5 of the 12 addresses are computed
+// again in the loop, right before their loads (TPCAddressRemat). Allowed more
+// live addresses than there are registers (-tpc-live-addresses=16), register
+// allocation reports the error rather than spill one.
 
 void main(tensor ids, tensor scale, tensor channel, tensor out) {
   const int5 start = get_index_space_offset(), end = start + get_index_space_size();
@@ -29,5 +33,12 @@ void main(tensor ids, tensor scale, tensor channel, tensor out) {
 // CHECK-NOT: error
 // CHECK-NOT: warning
 // CHECK:     ld_g
+
+// REMAT-NOT: error
+// REMAT-NOT: warning
+// REMAT-NOT: %Z30
+// REMAT:     loop
+// REMAT:     gen_addr
+// REMAT:     ld_g
 
 // ERR: too many addresses are live at once: an address register (a gen_addr result) cannot be spilled

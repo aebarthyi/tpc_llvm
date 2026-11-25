@@ -55,6 +55,7 @@ set(sources
   TPCTargetObjectFile.cpp
   TPCHardwareLoops.cpp
   TPCLoopBoundaryImm.cpp
+  TPCAddressRemat.cpp
   TPCMulAddCombine.cpp
   TPCPragmaChainUnroll.cpp
   TPCCarryDeps.cpp

@@ -160,6 +160,8 @@ FunctionPass *createTPCMulAddCombine();
 void initializeTPCMulAddCombinePass(PassRegistry &);
 FunctionPass *createTPCLoopBoundaryImm();
 void initializeTPCLoopBoundaryImmPass(PassRegistry &);
+FunctionPass *createTPCAddressRemat();
+void initializeTPCAddressRematPass(PassRegistry &);
 FunctionPass *createTPCCarryDeps();
 void initializeTPCCarryDepsPass(PassRegistry &);
 void initializeTPCLatencyResolverPass(PassRegistry &);

@@ -49,6 +49,7 @@ extern "C" void LLVMInitializeTPCTarget() {
   initializeTPCModuloScheduleFinishPass(Registry);
   initializeTPCMulAddCombinePass(Registry);
   initializeTPCLoopBoundaryImmPass(Registry);
+  initializeTPCAddressRematPass(Registry);
   initializeTPCCarryDepsPass(Registry);
   initializeTPCLatencyResolverPass(Registry); // for -run-pass=tpclatresolver
 }
@@ -518,6 +519,8 @@ void TPCPassConfig::addPreRegAlloc() {
 
   addPass(createTPCHWWA2());
   addPass(createTPCPreRAHwWorkarounds());
+  // In SSA form, after every pass that hoists or copies a gen_addr.
+  addPass(createTPCAddressRemat());
   // Before the pre-RA machine scheduler.
   addPass(createTPCCarryDeps());
 }

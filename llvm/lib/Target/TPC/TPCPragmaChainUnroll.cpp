@@ -101,8 +101,11 @@ PreservedAnalyses TPCPragmaChainUnrollPass::run(Loop &L, LoopAnalysisManager &,
   // Each copy of the body computes its global addresses, which LICM may then
   // keep live across an outer loop. An address register cannot be spilled
   // (TPCInstrInfo::storeRegToStackSlot) and there are 8 of them, so the count
-  // is lowered to keep the copies' addresses within 8. 1cat's w2_reduce_n256
-  // unrolled by 6 with 2 addresses per copy needed 12.
+  // is lowered to keep the copies' addresses within 8; beyond that,
+  // TPCAddressRemat computes some of them again in the loop. 1cat's
+  // w2_reduce_n256 unrolled by 6 with 2 addresses per copy needed 12. Of it
+  // and the 3 others like it, unrolled by 6 with 5 addresses computed in the
+  // loop, 2 ran in 0.80 of the cycles and 2 in 1.06 and 1.28.
   unsigned Count = CountC->getZExtValue();
   unsigned Addresses = 0;
   for (Instruction &I : *L.getHeader())
