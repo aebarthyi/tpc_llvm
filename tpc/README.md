@@ -212,3 +212,47 @@ enough work for the reference to take at least ~20000 simulator cycles, and
 keep each tensor to a few MB, since the bundle is copied to the Gaudi machine.
 Write every output element. Name the code paths it exercises in the leading
 comment.
+
+## Releases (`release/`)
+
+`release/VERSION` is the release number (MAJOR.MINOR.PATCH). A release build
+shows it after the TPC version: `tpc-clang --version` prints `TPC C/C++
+compiler version 2.7.33 (tpc-llvm 1.0.0)`; other builds print the TPC version
+only. `release/build-deb.sh` builds the packages for the Ubuntu release it
+runs on, x86-64 only, since a binary needs the glibc of the release it was
+built on or newer; `release/in-container.sh` runs it in a docker or podman
+container of another release. Packages it needs are listed at its top.
+
+To make a release:
+
+1. At the commit to release, run the usual checks (lit, difftest at -O0 to
+   -O3, compile parity) and compare a Release build's objects with the
+   assertions build's (`port-tools/objcmp.py`), then set `release/VERSION` and
+   commit.
+2. On an Ubuntu 22.04 x86-64 machine, from a checkout of that commit:
+
+   ```sh
+   tpc/release/build-deb.sh            # Ubuntu 22.04 packages, in ./dist
+   tpc/release/in-container.sh 24.04   # Ubuntu 24.04 packages, in ./dist
+   ```
+
+   Each builds tpc-clang and tpc-llvm-objdump (Release, assertions off, TPC
+   target only), runs the TPC lit tests on that build, writes the `.deb`, the
+   `.tar.gz` and their `SHA256SUMS`, and compiles and disassembles a kernel
+   with the packaged compiler. It stops on an uncommitted change in the tree.
+3. Check that each packaged compiler generates the code of the verified one,
+   on a machine whose glibc is at least the package's:
+
+   ```sh
+   mkdir pkg && tar -C pkg -xzf dist/tpc-llvm-1.0.0-ubuntu-22.04-x86_64.tar.gz
+   for o in 0 1 2 3; do
+     tpc/port-tools/objcmp.py build/bin/tpc-clang pkg/tpc-llvm/bin/tpc-clang \
+       -j 8 --cflags=-O$o
+   done
+   ```
+
+   Every case must be `same` or `both-fail`.
+4. Tag the commit `v<version>`, push the tag, create the GitHub release from
+   it, and upload the two `.deb`, the two `.tar.gz` and the two `SHA256SUMS`
+   files. The README's installation commands name the files of the current
+   release; update them with `release/VERSION`.

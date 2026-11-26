@@ -119,6 +119,8 @@ std::string getTpcClangFullVersion() {
   std::string buf;
   llvm::raw_string_ostream OS(buf);
   OS << "TPC C/C++ compiler version " TPC_COMPILER_VERSION_STRING;
+  if (*TPC_LLVM_VERSION_STRING)
+    OS << " (tpc-llvm " TPC_LLVM_VERSION_STRING ")";
   return OS.str();
 }
 

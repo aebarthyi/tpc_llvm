@@ -69,6 +69,9 @@ if(NOT DEFINED TPC_COMPILER_VERSION_BUILD)
   file(STRINGS "TPC.build" TPC_COMPILER_VERSION_BUILD)
 endif()
 set(TPC_COMPILER_VERSION "${TPC_COMPILER_VERSION_MAJOR}.${TPC_COMPILER_VERSION_MINOR}.${TPC_COMPILER_VERSION_BUILD}")
+# Release number of a packaged build (tpc/release/VERSION; set by
+# tpc/release/build-deb.sh), shown after the TPC version by --version.
+set(TPC_LLVM_VERSION "" CACHE STRING "tpc-llvm release number, empty if not a release build")
 
 option(TPCSIM_SIMULATOR_PATH "Path to TPC simulator" "")
 if(NOT TPCSIM_SIMULATOR_PATH)
