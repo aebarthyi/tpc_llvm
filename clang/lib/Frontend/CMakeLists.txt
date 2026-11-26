@@ -39,7 +39,7 @@ foreach(file ${embedded_files})
     OUTPUT ${embedded_file}
     DEPENDS ${file_to_embed} ${converter}
     COMMAND
-      ${PYTHON_EXECUTABLE} "${converter}" "${embedded_file}" "${file_to_embed}"
+      ${Python3_EXECUTABLE} "${converter}" "${embedded_file}" "${file_to_embed}"
   )
 endforeach()
 set_source_files_properties(${embedded_files_list}

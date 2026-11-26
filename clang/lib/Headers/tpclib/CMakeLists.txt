@@ -24,21 +24,21 @@ function(compile_tpclib_file src_dir src_file)
     add_custom_target(${target_name}
       COMMAND ${CMAKE_COMMAND} -E make_directory ${TPCLIB_DIR}
       COMMAND ${compiler} -c -emit-llvm ${options} ${TPC_BITCODE_COMMON_C_OPTIONS} ${TPC_BITCODE_C_COMPILE_OPTIONS} ${src} -o ${dst_file} ${src_file}
-      COMMAND ${PYTHON_EXECUTABLE} "${converter}" "${embedded_file}" "${dst_file}"
+      COMMAND ${Python3_EXECUTABLE} "${converter}" "${embedded_file}" "${dst_file}"
       COMMENT "Compiling TPC IR library file ${src_file}..."
     )
   elseif(${filetype} STREQUAL ".cpp")
     add_custom_target(${target_name}
       COMMAND ${CMAKE_COMMAND} -E make_directory ${TPCLIB_DIR}
       COMMAND ${compiler} -c -emit-llvm ${options} ${TPC_BITCODE_COMMON_CXX_OPTIONS} ${TPC_BITCODE_CXX_COMPILE_OPTIONS} ${src} -o ${dst_file} ${src_file}
-      COMMAND ${PYTHON_EXECUTABLE} "${converter}" "${embedded_file}" "${dst_file}"
+      COMMAND ${Python3_EXECUTABLE} "${converter}" "${embedded_file}" "${dst_file}"
       COMMENT "Compiling TPC IR library file ${src_file}..."
     )
   elseif(${filetype} STREQUAL ".ll")
     add_custom_target(${target_name}
       COMMAND ${CMAKE_COMMAND} -E make_directory ${TPCLIB_DIR}
       COMMAND ${compiler} -c -emit-llvm ${options} ${TPC_BITCODE_COMMON_LL_OPTIONS} ${TPC_BITCODE_LL_COMPILE_OPTIONS} ${src} -o ${dst_file} ${src_file}
-      COMMAND ${PYTHON_EXECUTABLE} "${converter}" "${embedded_file}" "${dst_file}"
+      COMMAND ${Python3_EXECUTABLE} "${converter}" "${embedded_file}" "${dst_file}"
       COMMENT "Compiling TPC IR library file ${src_file}..."
     )
   else()
