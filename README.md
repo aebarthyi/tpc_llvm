@@ -8,6 +8,10 @@ TPC-CLANG compiler is based on the widely used [LLVM](https://llvm.org/) open-so
 - [TPC-CLANG compiler](#tpc-clang-compiler)
   - [Table of Contents](#table-of-contents)
   - [Performance](#performance)
+  - [Installation](#installation)
+    - [Ubuntu Package](#ubuntu-package)
+    - [Tarball](#tarball)
+    - [Using the Installed Compiler](#using-the-installed-compiler)
   - [Clone tpc-llvm Repository](#clone-tpc-llvm-repository)
   - [Building the Compiler](#building-the-compiler)
     - [Requirements](#requirements)
@@ -113,8 +117,53 @@ TPC that ran the kernel (2 to 8 per launch), summed, so host and launch
 overhead are left out. Each time is the median of 6 runs, which spread by at
 most ±0.9%. Speedup is Habana's time divided by the fork's, so above 1× the
 fork is faster. Every run's outputs equal those of the other compiler and of
-the TPC simulator. Measured on 2026-11-23 with the fork at e3355c362dd9; the
+the TPC simulator. Measured on 2026-11-23 with the fork at 76e333e69919; the
 method, and how to rerun it, is in [`tpc/README.md`](tpc/README.md#microbenchmarks-bench).
+
+## Installation
+
+Packages for Ubuntu 22.04 and 24.04 on x86-64 are on the
+[releases page](https://github.com/aebarthyi/tpc_llvm/releases). They install
+the compiler in `/opt/tpc-llvm`, so it does not replace the `tpc-clang` of
+Habana's habanalabs-tools. Each release also has `SHA256SUMS` files, to check
+the downloads with `sha256sum -c`.
+
+### Ubuntu Package
+
+```sh
+# Ubuntu 24.04; on 22.04, take the ubuntu-22.04 file.
+wget https://github.com/aebarthyi/tpc_llvm/releases/download/v1.0.0/tpc-llvm_1.0.0_ubuntu-24.04_amd64.deb
+sudo apt install ./tpc-llvm_1.0.0_ubuntu-24.04_amd64.deb
+```
+
+`sudo apt remove tpc-llvm` uninstalls it.
+
+### Tarball
+
+The same files, for other Linux distributions on x86-64: the ubuntu-22.04
+tarball needs glibc 2.34 and the libstdc++ of GCC 12 or newer, the
+ubuntu-24.04 one glibc 2.38 and GCC 13's libstdc++; both need zlib and zstd.
+The compiler finds its headers relative to itself, so the directory can go
+anywhere:
+
+```sh
+wget https://github.com/aebarthyi/tpc_llvm/releases/download/v1.0.0/tpc-llvm-1.0.0-ubuntu-22.04-x86_64.tar.gz
+sudo tar -C /opt -xzf tpc-llvm-1.0.0-ubuntu-22.04-x86_64.tar.gz   # /opt/tpc-llvm
+```
+
+### Using the Installed Compiler
+
+```sh
+export PATH=/opt/tpc-llvm/bin:$PATH   # add this line to ~/.bashrc to keep it
+tpc-clang --version                   # ... (tpc-llvm 1.0.0)
+tpc-clang -march=gaudi2 -O2 -c kernel.c -o kernel.o
+tpc-llvm-objdump --triple=tpc --mcpu=gaudi2 -d kernel.o
+```
+
+If habanalabs-tools is installed too, the `tpc-clang` that comes first in
+`PATH` runs; `/opt/tpc-llvm/bin/tpc-clang` always names this one. The package
+holds only `tpc-clang`, `tpc-llvm-objdump` and the compiler's headers; the
+rest of this README describes their options.
 
 ## Clone tpc-llvm Repository
 
@@ -122,7 +171,7 @@ Create a working directory, and clone the repository. For example the folder '~/
 
 ```sh
 cd ~/habanaTools
-git clone https://github.com/HabanaAI/tpc_llvm.git tpc-llvm
+git clone https://github.com/aebarthyi/tpc_llvm.git tpc-llvm
 ```
 
 From here on, we assume the root of the source tree is '~/habanaTools/tpc-llvm'.
